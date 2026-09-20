@@ -613,7 +613,7 @@ function showSetup(){
     const cm=Math.round((f*12+i)*2.54);
     if(!age||isNaN(age)||!cm||!kg||isNaN(kg)){ toast('Enter age, height and weight first.'); return; }
     const bmr=10*kg+6.25*cm-5*age+5;
-    q('#s-kcal').value=Math.max(1200,Math.round((bmr*1.45-400)/50)*50);
+    q('#s-kcal').value=Math.max(1200,Math.round((bmr*1.5-400)/50)*50);
     q('#s-prot').value=Math.round(kg*1.8);
   };
   q('#s-save').onclick=()=>{
