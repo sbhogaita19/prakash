@@ -669,7 +669,26 @@ TAB_RENDER.today();
 if(!state.profile.setupDone) showSetup();
 </script>
 <script>
-if ('serviceWorker' in navigator) { window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); }); }
+if ('serviceWorker' in navigator) {
+  // If a new service worker takes control while this page is open, reload once
+  // so the new app version is shown. Skipped on first-ever install (nothing
+  // controlled this page before) so first use never double-loads.
+  var hadController = !!navigator.serviceWorker.controller;
+  var reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (!hadController || reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+  window.addEventListener('load', function(){
+    // updateViaCache:'none' makes update checks bypass the HTTP cache, so a new
+    // sw.js is seen within minutes of a deploy instead of after cache expiry.
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){
+      reg.update().catch(function(){});
+      document.addEventListener('visibilitychange', function(){ if (!document.hidden) reg.update().catch(function(){}); });
+    }).catch(function(){});
+  });
+}
 </script>
 </body>
 </html>
