@@ -387,7 +387,7 @@ TAB_RENDER.today = function(){
   sec.querySelector('#f-noticed').onchange=e=>{ d.noticed=e.target.value; save(); };
 };
 /* ---------- Food ---------- */
-let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, slot=defaultSlot(), trigger='Real hunger', searchResults=[], searchMsg='', dishPhotoFile=null, dishPhotoUrl='', macroScope='day', estServ=1, editId=null, editServ=1, backfillList=null;
+let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, slot=defaultSlot(), trigger='Real hunger', searchResults=[], searchMsg='', searchQuery='', dishPhotoFile=null, dishPhotoUrl='', macroScope='day', estServ=1, editId=null, editServ=1, backfillList=null;
 function defaultSlot(){ const h=new Date().getHours(); return h<11?'breakfast':h<15?'lunch':h<21?'dinner':'snack'; }
 let dishName='', dishIng='', estMsg='', estReply='';
 let scanLive=false, scanStream=null, scanMsg='', scanTimer=null, scanDetector=null;
@@ -445,7 +445,7 @@ TAB_RENDER.food = function(){
   if(foodStage==='log'){
     let body='';
     if(foodTab==='staples') body=`<div class="list">${STAPLES.map((s,i)=>`<button class="rowbtn" data-staple="${i}"><span><strong>${esc(s[0])}</strong></span><span class="dim">${s[1]} kcal, ${s[2]} g protein, ${s[3]} g fat, ${s[4]} g carbs per ${esc(s[5])}</span></button>`).join('')}</div>`;
-    else if(foodTab==='search') body=`<div class="searchrow"><input class="input" id="f-q" placeholder="Search a food, e.g. paneer"><button class="btn" id="f-go">Search</button></div>
+    else if(foodTab==='search') body=`<div class="searchrow"><input class="input" id="f-q" placeholder="Search a food, e.g. paneer" value="${esc(searchQuery)}"><button class="btn" id="f-go">Search</button></div>
       ${searchMsg?`<p class="note">${esc(searchMsg)}</p>`:''}
       <div class="list">${searchResults.map((r,i)=>`<button class="rowbtn" data-found="${i}"><span><strong>${esc(r.name)}</strong>${r.brand?`<span class="dim">, ${esc(r.brand)}</span>`:''}</span><span class="dim">${Math.round(r.kcal100)} kcal, ${Math.round(r.prot100)} g protein${r.fat100!=null?', '+Math.round(r.fat100)+' g fat':''}${r.carb100!=null?', '+Math.round(r.carb100)+' g carbs':''} per 100 g</span></button>`).join('')}</div>
       <p class="note">Results from Open Food Facts. Values are per 100 g from the packet label.</p>`;
@@ -612,10 +612,21 @@ TAB_RENDER.food = function(){
   if(q('#f-aadd')) q('#f-aadd').onclick=()=>{ const n=q('#f-an').value.trim(), ck=parseFloat(q('#f-ak').value)||0, cp=parseFloat(q('#f-ap').value)||0, cf=parseFloat(q('#f-af').value), cc=parseFloat(q('#f-ac').value), cb=parseFloat(q('#f-ab').value); if(n&&ck>0){ addEntry(n+(estServ!==1?' ('+estServ+' servings)':'')+' (AI estimate checked)',ck,cp,cf,cc,0,cb); if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl); dishPhotoFile=null; dishPhotoUrl=''; dishName=''; dishIng=''; estMsg=''; estReply=''; estServ=1; } else toast('Add the dish name and estimated calories.'); };
   if(q('#f-go')) q('#f-go').onclick=async ()=>{
     const query=q('#f-q').value.trim(); if(!query) return;
+    searchQuery=query;
     searchMsg='Searching...'; searchResults=[]; TAB_RENDER.food();
+    const url='https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(query)+'&search_simple=1&action=process&json=1&page_size=12&fields=product_name,brands,nutriments,serving_size';
+    let httpErr=false;
     try{
-      const r=await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(query)+'&search_simple=1&action=process&json=1&page_size=12&fields=product_name,brands,nutriments,serving_size',{headers:{Accept:'application/json'}});
-      if(!r.ok) throw new Error('http');
+      let r=null;
+      for(let attempt=0; attempt<3; attempt++){
+        try{ r=await fetch(url,{headers:{Accept:'application/json'}}); }
+        catch(e){ r=null; }
+        if(r&&r.ok) break;
+        if(r&&!r.ok) httpErr=true;
+        r=null;
+        await new Promise(res=>setTimeout(res, 900*(attempt+1)));
+      }
+      if(!r) throw httpErr?new Error('http'):new Error('network');
       const j=await r.json(); const out=[];
       for(const prod of (j.products||[])){
         const n=prod.nutriments||{}; const kcal=Number(n['energy-kcal_100g']); const prot=Number(n['proteins_100g']); const fat=Number(n['fat_100g']); const carb=Number(n['carbohydrates_100g']); const name=String(prod.product_name||'').trim();
@@ -628,7 +639,11 @@ TAB_RENDER.food = function(){
       }
       searchResults=out;
       searchMsg=out.length?'':'Nothing with nutrition data matched. Try the Staples or Custom tab.';
-    }catch(e){ searchMsg='Food search needs an internet connection. Staples and Custom work offline.'; }
+    }catch(e){
+      searchMsg=(e&&e.message==='http')
+        ?'Open Food Facts is busy right now. Wait a moment and search again - Staples and Custom always work.'
+        :'Search could not reach Open Food Facts. Check the internet connection; if a content blocker or Brave Shields is on, allow world.openfoodfacts.org. Staples and Custom work offline.';
+    }
     TAB_RENDER.food();
   };
   if(q('#f-q')) q('#f-q').onkeydown=e=>{ if(e.key==='Enter') q('#f-go').click(); };
