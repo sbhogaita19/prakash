@@ -311,7 +311,7 @@ TAB_RENDER.today = function(){
   sec.querySelector('#f-noticed').onchange=e=>{ d.noticed=e.target.value; save(); };
 };
 /* ---------- Food ---------- */
-let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, slot=defaultSlot(), trigger='Real hunger', searchResults=[], searchMsg='', dishPhotoFile=null, dishPhotoUrl='', macroScope='day';
+let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, slot=defaultSlot(), trigger='Real hunger', searchResults=[], searchMsg='', dishPhotoFile=null, dishPhotoUrl='', macroScope='day', estServ=1;
 function defaultSlot(){ const h=new Date().getHours(); return h<11?'breakfast':h<15?'lunch':h<21?'dinner':'snack'; }
 let dishName='', dishIng='', estMsg='', estReply='';
 let scanLive=false, scanStream=null, scanMsg='', scanTimer=null, scanDetector=null;
@@ -393,6 +393,8 @@ TAB_RENDER.food = function(){
       <p class="note">Check the estimate's assumptions, adjust the numbers if needed, then save.</p>
       <div class="grid2"><div class="field"><label class="label">Estimated calories (kcal)</label><input class="input" inputmode="numeric" id="f-ak"></div><div class="field"><label class="label">Estimated protein (g)</label><input class="input" inputmode="decimal" id="f-ap"></div></div>
       <div class="grid2"><div class="field"><label class="label">Estimated fat (g)</label><input class="input" inputmode="decimal" id="f-af"></div><div class="field"><label class="label">Estimated carbs (g)</label><input class="input" inputmode="decimal" id="f-ac"></div></div>
+      <div class="field"><label class="label">Servings (scales all four numbers)</label>
+      <div class="setrow"><button class="btn mini" id="f-sminus" aria-label="Less">-</button><input class="input mini" style="width:96px" inputmode="decimal" id="f-serv" value="${estServ}"><button class="btn mini" id="f-splus" aria-label="More">+</button></div></div>
       <button class="btn primary" id="f-aadd">Add checked estimate to today</button>`;
     const pickHtml = pick?`<div class="pickbox"><strong>${esc(pick.name)}</strong><span class="dim">${pick.kcal100} kcal, ${pick.prot100} g protein, ${pick.fat100!=null?pick.fat100:'?'} g fat, ${pick.carb100!=null?pick.carb100:'?'} g carbs per ${esc(pick.per)}</span>
       ${pick.serveGrams?`<div class="chips"><button class="chip${pick.mode!=='s'?' on':''}" data-pm="w">By weight (g/ml)</button><button class="chip${pick.mode==='s'?' on':''}" data-pm="s">By ${esc(pick.serveLabel||'serving')}</button></div>`:''}
@@ -500,6 +502,12 @@ TAB_RENDER.food = function(){
       if(mc&&q('#f-ac')) q('#f-ac').value=mc[1];
     }catch(e){ estMsg='The estimate needs an internet connection. Try again when online, or use Share with AI.'; TAB_RENDER.food(); }
   };
+  function scaleEst(ns){ ns=Math.min(20,Math.max(0.5,Math.round(ns*2)/2)); if(!isFinite(ns)||ns<=0) return; const old=estServ>0?estServ:1; const f=ns/old; estServ=ns;
+    const sv=q('#f-serv'); if(sv) sv.value=String(estServ);
+    [['#f-ak',0],['#f-ap',1],['#f-af',1],['#f-ac',1]].forEach(pair=>{ const el=q(pair[0]); if(!el) return; const v=parseFloat(el.value); if(isFinite(v)&&v>0) el.value=String(pair[1]===0?Math.round(v*f):Math.round(v*f*10)/10); }); }
+  if(q('#f-sminus')) q('#f-sminus').onclick=()=>scaleEst(estServ-0.5);
+  if(q('#f-splus')) q('#f-splus').onclick=()=>scaleEst(estServ+0.5);
+  if(q('#f-serv')) q('#f-serv').onchange=e=>{ const v=parseFloat(e.target.value); if(isFinite(v)&&v>0) scaleEst(v); else e.target.value=String(estServ); };
   if(q('#f-share')) q('#f-share').onclick=async()=>{
     const n=q('#f-an').value.trim(), ingredients=q('#f-ai').value.trim();
     if(!n){ toast('Add the dish name and portion first.'); return; }
@@ -511,7 +519,7 @@ TAB_RENDER.food = function(){
       await navigator.share(data);
     }catch(err){ if(err&&err.name!=='AbortError') toast('Could not open sharing. Try again or enter the estimate manually.'); }
   };
-  if(q('#f-aadd')) q('#f-aadd').onclick=()=>{ const n=q('#f-an').value.trim(), ck=parseFloat(q('#f-ak').value)||0, cp=parseFloat(q('#f-ap').value)||0, cf=parseFloat(q('#f-af').value), cc=parseFloat(q('#f-ac').value); if(n&&ck>0){ addEntry(n+' (AI estimate checked)',ck,cp,cf,cc,0); if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl); dishPhotoFile=null; dishPhotoUrl=''; dishName=''; dishIng=''; estMsg=''; estReply=''; } else toast('Add the dish name and estimated calories.'); };
+  if(q('#f-aadd')) q('#f-aadd').onclick=()=>{ const n=q('#f-an').value.trim(), ck=parseFloat(q('#f-ak').value)||0, cp=parseFloat(q('#f-ap').value)||0, cf=parseFloat(q('#f-af').value), cc=parseFloat(q('#f-ac').value); if(n&&ck>0){ addEntry(n+(estServ!==1?' ('+estServ+' servings)':'')+' (AI estimate checked)',ck,cp,cf,cc,0); if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl); dishPhotoFile=null; dishPhotoUrl=''; dishName=''; dishIng=''; estMsg=''; estReply=''; estServ=1; } else toast('Add the dish name and estimated calories.'); };
   if(q('#f-go')) q('#f-go').onclick=async ()=>{
     const query=q('#f-q').value.trim(); if(!query) return;
     searchMsg='Searching...'; searchResults=[]; TAB_RENDER.food();
