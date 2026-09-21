@@ -339,7 +339,7 @@ TAB_RENDER.food = function(){
       <button class="btn primary" id="f-cadd">Add to today</button>`;
     else body=`<div class="field"><label class="label">Dish name and portion</label><input class="input" id="f-an" value="${esc(dishName)}" placeholder="e.g. homemade chana masala, 1 medium bowl"></div>
       <div class="field"><label class="label">What is in it? (optional but improves the estimate)</label><input class="input" id="f-ai" value="${esc(dishIng)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
-      <label class="btn filebtn">${dishPhotoFile?'Change photo':'Take or choose photo'}<input type="file" accept="image/*" capture="environment" id="f-photo"></label>
+      <label class="btn filebtn">${dishPhotoFile?'Change photo':'Take or choose photo'}<input type="file" accept="image/*" id="f-photo"></label>
       ${dishPhotoUrl?`<img class="dishpreview" src="${dishPhotoUrl}" alt="Dish photo ready to share">`:''}
       <p class="note">Estimate works from the dish name and portion alone; a photo usually makes it better. Your photo stays on this phone unless you tap Estimate with Gemini or Share with AI. Any estimate is only a starting point: photos cannot reliably see portion weight, oil, ghee, sauces or hidden ingredients.</p>
       ${state.profile.geminiKey?`<button class="btn primary" id="f-est">Estimate automatically with Gemini</button>`:`<p class="note">Want automatic estimates? Add your own free Gemini API key in the Data tab (AI dish estimates), then come back here.</p>`}
