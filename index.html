@@ -197,6 +197,16 @@ function lastDays(n){ const out=[]; const now=new Date(); for(let i=n-1;i>=0;i--
 function totals(d){ let k=0,p=0; for(const f of d.foods){k+=f.kcal;p+=f.protein;} return {kcal:Math.round(k),protein:Math.round(p*10)/10}; }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg){ const t=document.createElement('div'); t.textContent=msg; t.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;background:#251f21;color:#fff;padding:12px 16px;border-radius:8px;z-index:50;font-size:14px;text-align:center;'; document.body.appendChild(t); setTimeout(()=>t.remove(),3200); }
+function downscaleImage(file, maxDim, qual){ return new Promise((res,rej)=>{
+  const reader=new FileReader();
+  reader.onload=()=>{ const img=new Image();
+    img.onload=()=>{ const max=maxDim||1024, scale=Math.min(1,max/Math.max(img.width,img.height));
+      const w=Math.max(1,Math.round(img.width*scale)), h=Math.max(1,Math.round(img.height*scale));
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',qual||0.8)); };
+    img.onerror=()=>rej(new Error('img')); img.src=String(reader.result); };
+  reader.onerror=()=>rej(new Error('read')); reader.readAsDataURL(file); }); }
 function parseServing(s){ if(!s) return 0; const m=String(s).match(/(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i); return m?parseFloat(m[1]):0; }
 function pickGrams(){ if(!pick) return 0; const q=parseFloat(pick.qty)||0; return (pick.mode==='s'&&pick.serveGrams)?q*pick.serveGrams:q; }
 function updatePickPreview(){ const el=document.getElementById('f-preview'); if(!el||!pick) return; const g=pickGrams();
@@ -260,6 +270,7 @@ TAB_RENDER.today = function(){
 };
 /* ---------- Food ---------- */
 let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, snack=false, trigger='Real hunger', searchResults=[], searchMsg='', dishPhotoFile=null, dishPhotoUrl='';
+let dishName='', dishIng='', estMsg='', estReply='';
 let scanLive=false, scanStream=null, scanMsg='', scanTimer=null, scanDetector=null;
 async function startScan(){
   scanMsg='';
@@ -326,13 +337,16 @@ TAB_RENDER.food = function(){
     else if(foodTab==='custom') body=`<div class="field"><label class="label">Name</label><input class="input" id="f-cn" placeholder="e.g. homemade dal, 1 bowl"></div>
       <div class="grid2"><div class="field"><label class="label">Calories (kcal)</label><input class="input" inputmode="numeric" id="f-ck"></div><div class="field"><label class="label">Protein (g)</label><input class="input" inputmode="decimal" id="f-cp"></div></div>
       <button class="btn primary" id="f-cadd">Add to today</button>`;
-    else body=`<div class="field"><label class="label">Dish name and portion</label><input class="input" id="f-an" placeholder="e.g. homemade chana masala, 1 medium bowl"></div>
-      <div class="field"><label class="label">What is in it? (optional but improves the estimate)</label><input class="input" id="f-ai" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
+    else body=`<div class="field"><label class="label">Dish name and portion</label><input class="input" id="f-an" value="${esc(dishName)}" placeholder="e.g. homemade chana masala, 1 medium bowl"></div>
+      <div class="field"><label class="label">What is in it? (optional but improves the estimate)</label><input class="input" id="f-ai" value="${esc(dishIng)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
       <label class="btn filebtn">${dishPhotoFile?'Change photo':'Take or choose photo'}<input type="file" accept="image/*" capture="environment" id="f-photo"></label>
       ${dishPhotoUrl?`<img class="dishpreview" src="${dishPhotoUrl}" alt="Dish photo ready to share">`:''}
-      <p class="note">Your photo stays on this phone unless you tap Share with AI. The estimate is only a starting point: photos cannot reliably see portion weight, oil, ghee, sauces or hidden ingredients.</p>
-      <button class="btn primary" id="f-share" ${dishPhotoFile?'':'disabled'}>Share with AI for an estimate</button>
-      <p class="note">When your AI app replies, check its assumptions and enter the result below before saving.</p>
+      <p class="note">Your photo stays on this phone unless you tap Estimate with Gemini or Share with AI. Any estimate is only a starting point: photos cannot reliably see portion weight, oil, ghee, sauces or hidden ingredients.</p>
+      ${state.profile.geminiKey?`<button class="btn primary" id="f-est" ${dishPhotoFile?'':'disabled'}>Estimate automatically with Gemini</button>`:`<p class="note">Want automatic estimates? Add your own free Gemini API key in the Data tab (AI dish estimates), then come back here.</p>`}
+      ${estMsg?`<p class="note">${esc(estMsg)}</p>`:''}
+      ${estReply?`<div class="card"><div class="dim" style="white-space:pre-wrap">${esc(estReply)}</div></div>`:''}
+      <button class="btn" id="f-share" ${dishPhotoFile?'':'disabled'}>Share with AI instead</button>
+      <p class="note">Check the estimate's assumptions, adjust the numbers if needed, then save.</p>
       <div class="grid2"><div class="field"><label class="label">Estimated calories (kcal)</label><input class="input" inputmode="numeric" id="f-ak"></div><div class="field"><label class="label">Estimated protein (g)</label><input class="input" inputmode="decimal" id="f-ap"></div></div>
       <button class="btn primary" id="f-aadd">Add checked estimate to today</button>`;
     const pickHtml = pick?`<div class="pickbox"><strong>${esc(pick.name)}</strong><span class="dim">${pick.kcal100} kcal, ${pick.prot100} g protein per ${esc(pick.per)}</span>
@@ -400,6 +414,31 @@ TAB_RENDER.food = function(){
     if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl);
     dishPhotoFile=file; dishPhotoUrl=URL.createObjectURL(file); TAB_RENDER.food();
   };
+  if(q('#f-an')) q('#f-an').oninput=e=>{ dishName=e.target.value; };
+  if(q('#f-ai')) q('#f-ai').oninput=e=>{ dishIng=e.target.value; };
+  if(q('#f-est')) q('#f-est').onclick=async()=>{
+    const n=dishName.trim(), ingredients=dishIng.trim();
+    if(!n){ toast('Add the dish name and portion first.'); return; }
+    if(!dishPhotoFile){ toast('Take or choose a photo first.'); return; }
+    if(!state.profile.geminiKey){ toast('Add your Gemini API key in the Data tab first.'); return; }
+    estMsg='Estimating with Gemini...'; estReply=''; TAB_RENDER.food();
+    try{
+      const dataUrl=await downscaleImage(dishPhotoFile,1024,0.8);
+      const b64=String(dataUrl).split(',')[1];
+      const prompt='Estimate the calories and protein for this dish: '+n+(ingredients?'\nIngredients/details: '+ingredients:'')+'\nGive a sensible range and a single best estimate. State assumptions about portion size, oil, ghee, sauces and hidden ingredients. Do not treat the photo alone as exact. End with a final line in exactly this format: BEST: calories=<number>, protein=<number>';
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':state.profile.geminiKey},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}]})});
+      const j=await r.json().catch(()=>null);
+      if(!r.ok){ estMsg='The estimate failed'+(j&&j.error&&j.error.message?(': '+j.error.message):'. Check the key in the Data tab.')+' The Share with AI option still works.'; TAB_RENDER.food(); return; }
+      const parts=j&&j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[];
+      estReply=parts.map(p=>p.text||'').join('').trim();
+      if(!estReply){ estMsg='Gemini sent back nothing readable. Try again, or use Share with AI.'; TAB_RENDER.food(); return; }
+      estMsg='Estimate below. Check its assumptions, adjust the numbers, then save.';
+      const mk=estReply.match(/calories\s*=\s*(\d+)/i); const mp=estReply.match(/protein\s*=\s*(\d+(?:\.\d+)?)/i);
+      TAB_RENDER.food();
+      if(mk&&q('#f-ak')) q('#f-ak').value=mk[1];
+      if(mp&&q('#f-ap')) q('#f-ap').value=mp[1];
+    }catch(e){ estMsg='The estimate needs an internet connection. Try again when online, or use Share with AI.'; TAB_RENDER.food(); }
+  };
   if(q('#f-share')) q('#f-share').onclick=async()=>{
     const n=q('#f-an').value.trim(), ingredients=q('#f-ai').value.trim();
     if(!n){ toast('Add the dish name and portion first.'); return; }
@@ -411,7 +450,7 @@ TAB_RENDER.food = function(){
       await navigator.share(data);
     }catch(err){ if(err&&err.name!=='AbortError') toast('Could not open sharing. Try again or enter the estimate manually.'); }
   };
-  if(q('#f-aadd')) q('#f-aadd').onclick=()=>{ const n=q('#f-an').value.trim(), ck=parseFloat(q('#f-ak').value)||0, cp=parseFloat(q('#f-ap').value)||0; if(n&&ck>0){ addEntry(n+' (AI estimate checked)',ck,cp,0); if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl); dishPhotoFile=null; dishPhotoUrl=''; } else toast('Add the dish name and estimated calories.'); };
+  if(q('#f-aadd')) q('#f-aadd').onclick=()=>{ const n=q('#f-an').value.trim(), ck=parseFloat(q('#f-ak').value)||0, cp=parseFloat(q('#f-ap').value)||0; if(n&&ck>0){ addEntry(n+' (AI estimate checked)',ck,cp,0); if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl); dishPhotoFile=null; dishPhotoUrl=''; dishName=''; dishIng=''; estMsg=''; estReply=''; } else toast('Add the dish name and estimated calories.'); };
   if(q('#f-go')) q('#f-go').onclick=async ()=>{
     const query=q('#f-q').value.trim(); if(!query) return;
     searchMsg='Searching...'; searchResults=[]; TAB_RENDER.food();
@@ -440,6 +479,11 @@ TAB_RENDER.food = function(){
 };
 /* ---------- Train ---------- */
 let openDay=null, draft=null;
+let restSec=120, restLeft=120, restEnd=0, restTimer=null;
+function fmtRest(){ const s=Math.max(0,restLeft); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function tickRest(){ restLeft=Math.max(0,Math.round((restEnd-Date.now())/1000));
+  const el=document.getElementById('rt-time'); if(el) el.textContent=fmtRest();
+  if(restLeft<=0){ clearInterval(restTimer); restTimer=null; bell(); setTimeout(()=>{ try{bell();}catch(e){} },1300); toast('Rest over. Next set when you feel ready.'); TAB_RENDER.train(); } }
 function lastPerf(name){
   for(let i=state.workouts.length-1;i>=0;i--){ const w=state.workouts[i];
     for(const ex of w.exercises){ if(ex.name===name&&ex.sets.length){ const top=ex.sets.reduce((a,b)=>b.kg>a.kg?b:a,ex.sets[0]); return 'Last: '+ex.sets.length+' sets, top '+top.kg+' kg x '+top.reps+' ('+fmtDate(w.date)+')'; } } }
@@ -458,6 +502,11 @@ TAB_RENDER.train = function(){
         <input class="input mini" inputmode="numeric" placeholder="reps" value="${esc(sx.reps)}" data-dreps="${ei}:${si}">
         <button class="del" data-dset="${ei}:${si}">x</button></div>`).join('')}
       <button class="btn" data-dadd="${ei}">+ set</button></div>`).join('')}
+    <div class="card"><strong>Rest timer</strong>
+      <div class="tiny">90 to 120 seconds between hard sets. Let your heart rate settle.</div>
+      <div class="chips">${[60,90,120,180].map(rs=>`<button class="chip${restSec===rs?' on':''}" data-rs="${rs}">${rs} sec</button>`).join('')}</div>
+      <div class="timer" id="rt-time">${fmtRest()}</div>
+      <div class="qr">${restTimer?'<button class="btn" id="rt-pause">Pause</button>':`<button class="btn primary" id="rt-start">${restLeft>0&&restLeft<restSec?'Resume':'Start rest'}</button>`}<button class="btn" id="rt-reset">Reset</button></div></div>
     <div class="qr"><button class="btn primary" id="t-save">Save session</button><button class="btn" id="t-cancel">Cancel</button></div>`;
   }
   document.getElementById('tab-train').innerHTML=`
@@ -499,6 +548,10 @@ TAB_RENDER.train = function(){
   qa('[data-dreps]').forEach(inp=>inp.onchange=()=>{ const [ei,si]=inp.dataset.dreps.split(':').map(Number); draft.exercises[ei].sets[si].reps=inp.value; });
   qa('[data-dset]').forEach(b=>b.onclick=()=>{ const [ei,si]=b.dataset.dset.split(':').map(Number); draft.exercises[ei].sets.splice(si,1); TAB_RENDER.train(); });
   qa('[data-dadd]').forEach(b=>b.onclick=()=>{ draft.exercises[parseInt(b.dataset.dadd,10)].sets.push({kg:'',reps:''}); TAB_RENDER.train(); });
+  qa('[data-rs]').forEach(b=>b.onclick=()=>{ restSec=parseInt(b.dataset.rs,10); if(!restTimer) restLeft=restSec; TAB_RENDER.train(); });
+  if(q('#rt-start')) q('#rt-start').onclick=()=>{ if(restLeft<=0) restLeft=restSec; restEnd=Date.now()+restLeft*1000; clearInterval(restTimer); restTimer=setInterval(tickRest,1000); TAB_RENDER.train(); };
+  if(q('#rt-pause')) q('#rt-pause').onclick=()=>{ clearInterval(restTimer); restTimer=null; TAB_RENDER.train(); };
+  if(q('#rt-reset')) q('#rt-reset').onclick=()=>{ clearInterval(restTimer); restTimer=null; restLeft=restSec; TAB_RENDER.train(); };
   if(q('#t-save')) q('#t-save').onclick=()=>{
     const exercises=draft.exercises.map(ex=>({name:ex.name,sets:ex.sets.map(sx=>({kg:parseFloat(sx.kg)||0,reps:parseInt(sx.reps,10)||0})).filter(sx=>sx.reps>0)})).filter(ex=>ex.sets.length>0);
     if(exercises.length){ state.workouts.push({id:uid(),date:k,dayId:draft.dayId,title:draft.title,exercises}); save(); toast('Session saved.'); }
@@ -649,6 +702,10 @@ TAB_RENDER.data = function(){
     <div class="fact"><span>Training rules</span><strong>${p.bpSafe?'BP-safe rules shown':'Standard'}</strong></div>
   </div>
   <div class="qr"><button class="btn" id="d-setup">Edit setup</button></div>
+  <h2>AI dish estimates</h2>
+  <p class="note">Optional, and free. Paste your own Google AI Studio (Gemini) API key and the Dish photo tab can estimate calories and protein automatically. Create a key at <a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a> (Get API key). The key is stored only on this phone and is sent nowhere except directly to Google when you tap Estimate. On Google's free tier, what you send may be used to improve its products - dish photos only go when you tap Estimate.</p>
+  <div class="field"><label class="label">Gemini API key</label><input class="input" id="d-gemini" type="password" autocomplete="off" value="${esc(p.geminiKey||'')}" placeholder="AIza..."></div>
+  <div class="qr"><button class="btn primary" id="d-gemini-save">Save key on this phone</button>${p.geminiKey?'<button class="btn danger" id="d-gemini-clear">Remove key</button>':''}</div>
   <h2>Backup and restore</h2>
   <p class="note">Everything lives on this phone, private to you. Export a backup every week or two, especially before clearing browser data or changing phones.</p>
   <div class="qr">
@@ -658,7 +715,7 @@ TAB_RENDER.data = function(){
   <div class="qr"><button class="btn danger" id="d-clear">Clear all data</button></div>
   <h2>Good to know</h2>
   <ul class="plain">
-    <li>Food search and barcode scanning use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need internet. The camera is used only to read barcodes, on this phone, and no camera images are saved or sent anywhere. Dish photo sharing opens an AI app you choose; the photo leaves this phone only after you tap Share and confirm the destination. Staples, custom foods and everything else work offline.</li>
+    <li>Food search and barcode scanning use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need internet. The camera is used only to read barcodes, on this phone, and no camera images are saved or sent anywhere. Dish photo estimates can run automatically with your own Gemini key (see AI dish estimates above): the photo then goes directly from this phone to Google, only when you tap Estimate. Share with AI instead opens an AI app you choose yourself. Staples, custom foods and everything else work offline.</li>
     <li>Google Health Connect steps cannot be read by this web app, so steps stay manual. Direct sync would require a separate native Android app and explicit Health Connect permission.</li>
     <li>Add Sadhana to your home screen from the browser menu (Add to Home screen). It then opens full screen like an app and works offline.</li>
     <li>Calorie guidance: <a href="https://www.nhs.uk/better-health/lose-weight/calorie-counting/" target="_blank" rel="noopener">NHS calorie counting</a>.</li>
@@ -671,6 +728,8 @@ TAB_RENDER.data = function(){
     if(!isNaN(k)&&k>0)p.kcalTarget=k; if(!isNaN(pr)&&pr>0)p.proteinTarget=pr; if(!isNaN(w)&&w>0)p.waterTarget=w; if(!isNaN(st)&&st>0)p.stepsTarget=st;
     save(); toast('Targets saved.');
   };
+  q('#d-gemini-save').onclick=()=>{ const v=q('#d-gemini').value.trim(); p.geminiKey=v; save(); TAB_RENDER.data(); toast(v?'Key saved on this phone.':'Key field cleared - tap Save again if you meant to remove it.'); };
+  if(q('#d-gemini-clear')) q('#d-gemini-clear').onclick=()=>{ delete p.geminiKey; save(); TAB_RENDER.data(); toast('Key removed from this phone.'); };
   q('#d-export').onclick=()=>{
     const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
@@ -777,3 +836,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
