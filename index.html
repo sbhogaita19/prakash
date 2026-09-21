@@ -618,13 +618,17 @@ TAB_RENDER.food = function(){
     let httpErr=false;
     try{
       let r=null;
-      for(let attempt=0; attempt<3; attempt++){
-        try{ r=await fetch(url,{headers:{Accept:'application/json'}}); }
-        catch(e){ r=null; }
-        if(r&&r.ok) break;
-        if(r&&!r.ok) httpErr=true;
-        r=null;
-        await new Promise(res=>setTimeout(res, 900*(attempt+1)));
+      const urls=[url, 'https://world.openfoodfacts.org/api/v2/search?search_terms='+encodeURIComponent(query)+'&page_size=12&fields=product_name,brands,nutriments,serving_size'];
+      outer:
+      for(let round=0; round<2; round++){
+        for(let ui=0; ui<urls.length; ui++){
+          try{ r=await fetch(urls[ui],{headers:{Accept:'application/json'}}); }
+          catch(e){ r=null; }
+          if(r&&r.ok) break outer;
+          if(r&&!r.ok) httpErr=true;
+          r=null;
+          await new Promise(res=>setTimeout(res, 1000*(round+1)));
+        }
       }
       if(!r) throw httpErr?new Error('http'):new Error('network');
       const j=await r.json(); const out=[];
