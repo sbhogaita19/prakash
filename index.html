@@ -289,6 +289,15 @@ TAB_RENDER.today = function(){
   <div class="grid2"><div class="field"><label class="label">Went to bed</label><input class="input" type="time" id="f-bed" value="${esc(d.bedTime||'')}"></div><div class="field"><label class="label">Woke up</label><input class="input" type="time" id="f-woke" value="${esc(d.wokeTime||'')}"></div></div>
   <div class="field"><label class="label">Hours of sleep</label><input class="input" inputmode="decimal" id="f-sleep" value="${d.sleep==null?'':d.sleep}" placeholder="7.5"></div>
   ${d.bedTime&&d.wokeTime&&d.sleep!=null?`<p class="note">${esc(d.bedTime)} to ${esc(d.wokeTime)} = ${d.sleep} h. Edit the hours directly if you need to.</p>`:''}
+  <h2>Your daily rhythm</h2>
+  <p class="note">Asleep by 10 pm. Awake 4:15 on weekdays, 6:00 on weekends. These anchors keep that rhythm steady.</p>
+  <ul class="plain">
+    <li><strong>First light.</strong> Bright light as soon as you wake. At 4:15 the UK is dark for much of the year, so indoor light carries the morning - step outside once the sun is up.</li>
+    <li><strong>Food window.</strong> Eat roughly between 6:30 am and 6:30 pm, with the last bite about three hours before bed.</li>
+    <li><strong>Caffeine.</strong> Last cup around midday, so it is well clear by 10 pm.</li>
+    <li><strong>Training.</strong> Morning or early afternoon suits this rhythm. Nothing hard late in the evening.</li>
+    <li><strong>Evening.</strong> Wind down from about 8:30: dim lights, easy on screens, gratitude, bed by 10.</li>
+  </ul>
   <div class="field"><span class="label">How are you arriving today?</span><div class="chips" id="f-mood">${MOODS.map(m=>`<button class="chip${d.mood===m?' on':''}" data-mood="${esc(m)}">${esc(m)}</button>`).join('')}</div></div>
   <div class="field"><label class="label">Intention for today</label><input class="input" id="f-intent" value="${esc(d.intention)}" placeholder="One sentence. Small and real."></div>
   <h2>Evening reflection</h2>
