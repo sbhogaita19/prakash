@@ -341,11 +341,11 @@ TAB_RENDER.food = function(){
       <div class="field"><label class="label">What is in it? (optional but improves the estimate)</label><input class="input" id="f-ai" value="${esc(dishIng)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
       <label class="btn filebtn">${dishPhotoFile?'Change photo':'Take or choose photo'}<input type="file" accept="image/*" capture="environment" id="f-photo"></label>
       ${dishPhotoUrl?`<img class="dishpreview" src="${dishPhotoUrl}" alt="Dish photo ready to share">`:''}
-      <p class="note">Your photo stays on this phone unless you tap Estimate with Gemini or Share with AI. Any estimate is only a starting point: photos cannot reliably see portion weight, oil, ghee, sauces or hidden ingredients.</p>
-      ${state.profile.geminiKey?`<button class="btn primary" id="f-est" ${dishPhotoFile?'':'disabled'}>Estimate automatically with Gemini</button>`:`<p class="note">Want automatic estimates? Add your own free Gemini API key in the Data tab (AI dish estimates), then come back here.</p>`}
+      <p class="note">Estimate works from the dish name and portion alone; a photo usually makes it better. Your photo stays on this phone unless you tap Estimate with Gemini or Share with AI. Any estimate is only a starting point: photos cannot reliably see portion weight, oil, ghee, sauces or hidden ingredients.</p>
+      ${state.profile.geminiKey?`<button class="btn primary" id="f-est">Estimate automatically with Gemini</button>`:`<p class="note">Want automatic estimates? Add your own free Gemini API key in the Data tab (AI dish estimates), then come back here.</p>`}
       ${estMsg?`<p class="note">${esc(estMsg)}</p>`:''}
       ${estReply?`<div class="card"><div class="dim" style="white-space:pre-wrap">${esc(estReply)}</div></div>`:''}
-      <button class="btn" id="f-share" ${dishPhotoFile?'':'disabled'}>Share with AI instead</button>
+      <button class="btn" id="f-share">Share with AI instead</button>
       <p class="note">Check the estimate's assumptions, adjust the numbers if needed, then save.</p>
       <div class="grid2"><div class="field"><label class="label">Estimated calories (kcal)</label><input class="input" inputmode="numeric" id="f-ak"></div><div class="field"><label class="label">Estimated protein (g)</label><input class="input" inputmode="decimal" id="f-ap"></div></div>
       <button class="btn primary" id="f-aadd">Add checked estimate to today</button>`;
@@ -419,14 +419,18 @@ TAB_RENDER.food = function(){
   if(q('#f-est')) q('#f-est').onclick=async()=>{
     const n=dishName.trim(), ingredients=dishIng.trim();
     if(!n){ toast('Add the dish name and portion first.'); return; }
-    if(!dishPhotoFile){ toast('Take or choose a photo first.'); return; }
     if(!state.profile.geminiKey){ toast('Add your Gemini API key in the Data tab first.'); return; }
     estMsg='Estimating with Gemini...'; estReply=''; TAB_RENDER.food();
     try{
-      const dataUrl=await downscaleImage(dishPhotoFile,1024,0.8);
-      const b64=String(dataUrl).split(',')[1];
-      const prompt='Estimate the calories and protein for this dish: '+n+(ingredients?'\nIngredients/details: '+ingredients:'')+'\nGive a sensible range and a single best estimate. State assumptions about portion size, oil, ghee, sauces and hidden ingredients. Do not treat the photo alone as exact. End with a final line in exactly this format: BEST: calories=<number>, protein=<number>';
-      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':state.profile.geminiKey},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}]})});
+      const prompt='Estimate the calories and protein for this dish: '+n+(ingredients?'\nIngredients/details: '+ingredients:'')+(dishPhotoFile?'':'\nNo photo is attached, so base the estimate on the dish name, portion and details alone.')+'\nGive a sensible range and a single best estimate. State assumptions about portion size, oil, ghee, sauces and hidden ingredients. Do not treat the photo alone as exact. End with a final line in exactly this format: BEST: calories=<number>, protein=<number>';
+      const reqParts=[{text:prompt}];
+      if(dishPhotoFile){
+        try{
+          const dataUrl=await downscaleImage(dishPhotoFile,1024,0.8);
+          reqParts.push({inline_data:{mime_type:'image/jpeg',data:String(dataUrl).split(',')[1]}});
+        }catch(pe){ estMsg='Could not read that photo. Remove it to estimate from the name alone, or choose a different photo.'; TAB_RENDER.food(); return; }
+      }
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':state.profile.geminiKey},body:JSON.stringify({contents:[{parts:reqParts}]})});
       const j=await r.json().catch(()=>null);
       if(!r.ok){ estMsg='The estimate failed'+(j&&j.error&&j.error.message?(': '+j.error.message):'. Check the key in the Data tab.')+' The Share with AI option still works.'; TAB_RENDER.food(); return; }
       const parts=j&&j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[];
