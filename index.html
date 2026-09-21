@@ -316,7 +316,7 @@ TAB_RENDER.today = function(){
   sec.querySelector('#f-noticed').onchange=e=>{ d.noticed=e.target.value; save(); };
 };
 /* ---------- Food ---------- */
-let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, slot=defaultSlot(), trigger='Real hunger', searchResults=[], searchMsg='', dishPhotoFile=null, dishPhotoUrl='', macroScope='day', estServ=1;
+let foodStage='idle', foodTab='staples', pauseChoice='', pick=null, slot=defaultSlot(), trigger='Real hunger', searchResults=[], searchMsg='', dishPhotoFile=null, dishPhotoUrl='', macroScope='day', estServ=1, editId=null, editServ=1, backfillList=null;
 function defaultSlot(){ const h=new Date().getHours(); return h<11?'breakfast':h<15?'lunch':h<21?'dinner':'snack'; }
 let dishName='', dishIng='', estMsg='', estReply='';
 let scanLive=false, scanStream=null, scanMsg='', scanTimer=null, scanDetector=null;
@@ -427,7 +427,13 @@ TAB_RENDER.food = function(){
   ${weekCharts(p)}
   <h2>Macros</h2>
   ${macrosHtml(p)}
-  ${d.foods.length===0?'<p class="note">Nothing logged yet today.</p>':['breakfast','lunch','dinner','snack',''].filter(sl=>d.foods.some(f=>(f.slot||(f.snack?'snack':''))===sl)).map(sl=>`<h3 class="slothead">${{breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner',snack:'Snacks','':'Meals'}[sl]}</h3><div class="list">${d.foods.filter(f=>(f.slot||(f.snack?'snack':''))===sl).map(f=>`<div class="row"><span><strong>${esc(f.name)}</strong>${f.snack&&f.trigger?`<span class="tagchip">${esc(f.trigger)}</span>`:''}<br><span class="dim">${f.kcal} kcal, ${f.protein} g protein${f.fat!=null?', '+f.fat+' g fat':''}${f.carbs!=null?', '+f.carbs+' g carbs':''}</span></span><button class="del" data-del="${f.id}">Remove</button></div>`).join('')}</div>`).join('')}
+  ${d.foods.length===0?'<p class="note">Nothing logged yet today.</p>':['breakfast','lunch','dinner','snack',''].filter(sl=>d.foods.some(f=>(f.slot||(f.snack?'snack':''))===sl)).map(sl=>`<h3 class="slothead">${{breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner',snack:'Snacks','':'Meals'}[sl]}</h3><div class="list">${d.foods.filter(f=>(f.slot||(f.snack?'snack':''))===sl).map(f=>`<div class="row"><span><strong>${esc(f.name)}</strong>${f.snack&&f.trigger?`<span class="tagchip">${esc(f.trigger)}</span>`:''}<br><span class="dim">${f.kcal} kcal, ${f.protein} g protein${f.fat!=null?', '+f.fat+' g fat':''}${f.carbs!=null?', '+f.carbs+' g carbs':''}</span></span><button class="del" data-edit="${f.id}">Edit</button><button class="del" data-del="${f.id}">Remove</button></div>
+      ${editId===f.id?`<div class="pickbox"><strong>Edit: ${esc(f.name)}</strong>
+        <div class="grid2"><div class="field"><label class="label">Calories (kcal)</label><input class="input" inputmode="numeric" id="e-kcal" value="${f.kcal}"></div><div class="field"><label class="label">Protein (g)</label><input class="input" inputmode="decimal" id="e-prot" value="${f.protein}"></div></div>
+        <div class="grid2"><div class="field"><label class="label">Fat (g)</label><input class="input" inputmode="decimal" id="e-fat" value="${f.fat!=null?f.fat:''}"></div><div class="field"><label class="label">Carbs (g)</label><input class="input" inputmode="decimal" id="e-carbs" value="${f.carbs!=null?f.carbs:''}"></div></div>
+        <div class="field"><label class="label">Servings (scales all four numbers)</label>
+        <div class="setrow"><button class="btn mini" id="e-sminus" aria-label="Less">-</button><input class="input mini" style="width:96px" inputmode="decimal" id="e-serv" value="${editServ}"><button class="btn mini" id="e-splus" aria-label="More">+</button></div></div>
+        <div class="qr"><button class="btn primary" id="e-save">Save changes</button><button class="btn" id="e-cancel">Cancel</button></div></div>`:''}`).join('')}</div>`).join('')}
   ${(()=>{ const hist=lastDays(8).slice(0,-1).reverse().filter(kk=>{ const dd=state.days[kk]; return dd&&dd.foods&&dd.foods.length>0; }).slice(0,7); if(!hist.length) return ''; return `<h2>Repeat a previous day</h2><div class="list">${hist.map(kk=>{ const dd=state.days[kk]; const tt=totals(dd); return `<div class="row"><span><strong>${kk===todayKey(new Date(Date.now()-864e5))?'Yesterday':kk}</strong><br><span class="dim">${dd.foods.length} item${dd.foods.length>1?'s':''}, ${tt.kcal} kcal, ${tt.protein} g protein${tt.fat?', '+tt.fat+' g fat':''}${tt.carbs?', '+tt.carbs+' g carbs':''}</span></span><button class="btn mini" data-copyday="${kk}">Copy to today</button></div>`; }).join('')}</div>`; })()}
   <h2>Snacks this week</h2>
   ${snackTotal===0?'<p class="note">No snacks logged in the last 7 days.</p>':`<div class="facts">${Object.keys(counts).map(tr=>`<div class="fact"><span>${esc(tr)}</span><strong>${counts[tr]}</strong></div>`).join('')}</div>`}
@@ -546,7 +552,22 @@ TAB_RENDER.food = function(){
     TAB_RENDER.food();
   };
   if(q('#f-q')) q('#f-q').onkeydown=e=>{ if(e.key==='Enter') q('#f-go').click(); };
-  qa('[data-del]').forEach(b=>b.onclick=()=>{ d.foods=d.foods.filter(x=>x.id!==b.dataset.del); save(); TAB_RENDER.food(); });
+  qa('[data-del]').forEach(b=>b.onclick=()=>{ d.foods=d.foods.filter(x=>x.id!==b.dataset.del); if(editId===b.dataset.del) editId=null; save(); TAB_RENDER.food(); });
+  qa('[data-edit]').forEach(b=>b.onclick=()=>{ editId=b.dataset.edit; editServ=1; TAB_RENDER.food(); });
+  function scaleEdit(ns){ ns=Math.min(20,Math.max(0.5,Math.round(ns*2)/2)); if(!isFinite(ns)||ns<=0) return; const old=editServ>0?editServ:1; const f=ns/old; editServ=ns;
+    const sv=q('#e-serv'); if(sv) sv.value=String(editServ);
+    [['#e-kcal',0],['#e-prot',1],['#e-fat',1],['#e-carbs',1]].forEach(pair=>{ const el=q(pair[0]); if(!el) return; const v=parseFloat(el.value); if(isFinite(v)&&v>0) el.value=String(pair[1]===0?Math.round(v*f):Math.round(v*f*10)/10); }); }
+  if(q('#e-sminus')) q('#e-sminus').onclick=()=>scaleEdit(editServ-0.5);
+  if(q('#e-splus')) q('#e-splus').onclick=()=>scaleEdit(editServ+0.5);
+  if(q('#e-serv')) q('#e-serv').onchange=e=>{ const v=parseFloat(e.target.value); if(isFinite(v)&&v>0) scaleEdit(v); else e.target.value=String(editServ); };
+  if(q('#e-cancel')) q('#e-cancel').onclick=()=>{ editId=null; TAB_RENDER.food(); };
+  if(q('#e-save')) q('#e-save').onclick=()=>{ const f=d.foods.find(x=>x.id===editId); if(!f){ editId=null; TAB_RENDER.food(); return; }
+    const ek=parseFloat(q('#e-kcal').value), ep=parseFloat(q('#e-prot').value), ef=parseFloat(q('#e-fat').value), ec=parseFloat(q('#e-carbs').value);
+    if(!(ek>0)){ toast('Calories are needed.'); return; }
+    f.kcal=Math.round(ek); f.protein=isFinite(ep)?Math.round(ep*10)/10:0;
+    if(isFinite(ef)) f.fat=Math.round(ef*10)/10; else delete f.fat;
+    if(isFinite(ec)) f.carbs=Math.round(ec*10)/10; else delete f.carbs;
+    save(); editId=null; TAB_RENDER.food(); toast('Updated.'); };
   qa('[data-copyday]').forEach(b=>b.onclick=()=>{ const srcDay=state.days[b.dataset.copyday]; if(!srcDay) return; for(const f of srcDay.foods){ d.foods.push(Object.assign({}, f, {id:uid(), ts:Date.now()})); } save(); TAB_RENDER.food(); toast('Copied '+srcDay.foods.length+' item'+(srcDay.foods.length>1?'s':'')+' to today.'); });
   updatePickPreview();
   if(scanLive){ const v=document.getElementById('f-cam'); if(v&&!v.srcObject&&scanStream){ v.srcObject=scanStream; v.play().catch(()=>{}); } }
@@ -781,6 +802,10 @@ TAB_RENDER.data = function(){
   <p class="note">Optional, and free. Paste your own Google AI Studio (Gemini) API key and the Dish photo tab can estimate calories and protein automatically. Create a key at <a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a> (Get API key). The key is stored only on this phone and is sent nowhere except directly to Google when you tap Estimate. On Google's free tier, what you send may be used to improve its products - dish photos only go when you tap Estimate.</p>
   <div class="field"><label class="label">Gemini API key</label><input class="input" id="d-gemini" type="password" autocomplete="off" value="${esc(p.geminiKey||'')}" placeholder="AIza..."></div>
   <div class="qr"><button class="btn primary" id="d-gemini-save">Save key on this phone</button>${p.geminiKey?'<button class="btn danger" id="d-gemini-clear">Remove key</button>':''}</div>
+  <h2>Fill in missing fat and carbs</h2>
+  <p class="note">Entries saved before fat and carbs were tracked have no values, so old days look empty in the charts. This estimates the missing numbers on this phone${p.geminiKey?', using your Gemini key for dishes it does not recognise':''}, shows you every change first, and only writes after you confirm. Existing values are never changed.</p>
+  ${backfillList===null?'<button class="btn primary" id="d-backfill">Review what is missing</button>':backfillList.length===0?'<p class="note">Nothing to fill - every saved entry already has fat and carbs.</p><button class="btn" id="d-bf-cancel">Close</button>':`<div class="list">${backfillList.map(it=>`<div class="row"><span><strong>${esc(it.name)}</strong><br><span class="dim">${it.dayKey}: + ${it.fat} g fat, + ${it.carbs} g carbs <span class="tiny">(${it.src})</span></span></span></div>`).join('')}</div>
+  <div class="qr"><button class="btn primary" id="d-bf-apply">Apply to ${backfillList.length} entr${backfillList.length===1?'y':'ies'}</button><button class="btn" id="d-bf-cancel">Cancel</button></div>`}
   <h2>Backup and restore</h2>
   <p class="note">Everything lives on this phone, private to you. Export a backup every week or two, especially before clearing browser data or changing phones.</p>
   <div class="qr">
@@ -805,6 +830,31 @@ TAB_RENDER.data = function(){
   };
   q('#d-gemini-save').onclick=()=>{ const v=q('#d-gemini').value.trim(); p.geminiKey=v; save(); TAB_RENDER.data(); toast(v?'Key saved on this phone.':'Key field cleared - tap Save again if you meant to remove it.'); };
   if(q('#d-gemini-clear')) q('#d-gemini-clear').onclick=()=>{ delete p.geminiKey; save(); TAB_RENDER.data(); toast('Key removed from this phone.'); };
+  if(q('#d-backfill')) q('#d-backfill').onclick=async()=>{
+    const missing=[]; for(const kk of Object.keys(state.days)){ for(const f of (state.days[kk].foods||[])){ if(f.fat==null||f.carbs==null) missing.push({dayKey:kk,id:f.id,name:f.name,kcal:f.kcal,protein:f.protein}); } }
+    if(!missing.length){ backfillList=[]; TAB_RENDER.data(); return; }
+    function estimate(m){ const st=STAPLES.find(s=>m.name.indexOf(s[0])===0); if(st){ return {fat:Math.round(m.kcal*st[3]/st[1]*10)/10, carbs:Math.round(m.kcal*st[4]/st[1]*10)/10, src:'matches '+st[0]}; }
+      const rem=Math.max(0, m.kcal-m.protein*4); return {fat:Math.round(rem*0.4/9*10)/10, carbs:Math.round(rem*0.6/4*10)/10, src:'estimate'}; }
+    backfillList=missing.map(m=>Object.assign({}, m, estimate(m)));
+    TAB_RENDER.data();
+    if(p.geminiKey && backfillList.some(it=>it.src==='estimate')){
+      try{
+        const items=backfillList.filter(it=>it.src==='estimate');
+        const prompt='For each numbered dish, estimate total fat and carbohydrates in grams, consistent with the given calories and protein. Reply with ONLY a JSON array like [{"i":1,"fat":10,"carbs":40}].\n'+items.map((it,ix)=>(ix+1)+'. '+it.name+' - '+it.kcal+' kcal, '+it.protein+' g protein').join('\n');
+        const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':p.geminiKey},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+        const j=await r.json().catch(()=>null);
+        if(r.ok){
+          const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(pp=>pp.text||'').join('');
+          const m=txt.replace(/```json|```/g,'').match(/\[[\s\S]*\]/);
+          if(m){ const arr=JSON.parse(m[0]); let n=0;
+            for(const a of arr){ const it=items[(a.i|0)-1]; if(it&&isFinite(a.fat)&&isFinite(a.carbs)){ it.fat=Math.round(a.fat*10)/10; it.carbs=Math.round(a.carbs*10)/10; it.src='Gemini estimate'; n++; } }
+            if(n) TAB_RENDER.data(); } } }catch(e){}
+    } };
+  if(q('#d-bf-cancel')) q('#d-bf-cancel').onclick=()=>{ backfillList=null; TAB_RENDER.data(); };
+  if(q('#d-bf-apply')) q('#d-bf-apply').onclick=()=>{ let n=0;
+    for(const it of backfillList){ const dd=state.days[it.dayKey]; if(!dd) continue; const f=(dd.foods||[]).find(x=>x.id===it.id); if(!f) continue;
+      if(f.fat==null){ f.fat=it.fat; n++; } if(f.carbs==null){ f.carbs=it.carbs; } }
+    save(); backfillList=null; TAB_RENDER.data(); toast('Filled in missing values - existing numbers were not changed.'); };
   q('#d-export').onclick=()=>{
     const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
