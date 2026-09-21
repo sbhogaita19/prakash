@@ -666,6 +666,20 @@ function lastPerf(name){
     for(const ex of w.exercises){ if(ex.name===name&&ex.sets.length){ const top=ex.sets.reduce((a,b)=>b.kg>a.kg?b:a,ex.sets[0]); return 'Last: '+ex.sets.length+' sets, top '+top.kg+' kg x '+top.reps+' ('+fmtDate(w.date)+')'; } } }
   return 'Not logged yet';
 }
+function progSuggestion(name, spec){
+  const m=String(spec||'').match(/x\s*(\d+)\s*-\s*(\d+)/); if(!m) return '';
+  const top=parseInt(m[2],10); if(!(top>0)) return '';
+  let last=null;
+  for(let i=state.workouts.length-1;i>=0;i--){ const ex=state.workouts[i].exercises.find(x=>x.name===name); if(ex&&ex.sets.length){ last=ex; break; } }
+  if(!last) return '';
+  const kg=last.sets.reduce((a,b)=>b.kg>a.kg?b:a,last.sets[0]).kg;
+  if(!(kg>0)) return '';
+  const lower=/squat|deadlift|romanian|hip thrust|bulgarian|leg press/i.test(name);
+  const allTop=last.sets.every(s=>s.reps>=top);
+  if(allTop){ const inc=lower?2.5:1.25; return 'Next time: if every set stayed smooth, try '+(kg+inc)+' kg - two in reserve, never a grind.'; }
+  return 'Next time: stay at '+kg+' kg and let the reps build.';
+}
+function progSpec(name){ for(const pd of PROGRAM){ const ex=pd.exercises.find(x=>x.name===name); if(ex) return ex.sets; } return ''; }
 function setCount(s){ const n=parseInt(s,10); return isNaN(n)?3:n; }
 TAB_RENDER.train = function(){
   const k=todayKey(), d=dayOf(k);
@@ -673,7 +687,7 @@ TAB_RENDER.train = function(){
   let draftHtml='';
   if(draft){
     draftHtml=`<h2>Logging: ${esc(draft.title)}</h2>
-    ${draft.exercises.map((ex,ei)=>`<div class="card"><strong>${esc(ex.name)}</strong>
+    ${draft.exercises.map((ex,ei)=>`<div class="card"><strong>${esc(ex.name)}</strong>${(()=>{ const sg=progSuggestion(ex.name,progSpec(ex.name)); return sg?`<br><span class="tiny">${esc(sg)}</span>`:''; })()}
       ${ex.sets.map((sx,si)=>`<div class="setrow"><span class="dim">Set ${si+1}</span>
         <input class="input mini" inputmode="decimal" placeholder="kg" value="${esc(sx.kg)}" data-dkg="${ei}:${si}">
         <input class="input mini" inputmode="numeric" placeholder="reps" value="${esc(sx.reps)}" data-dreps="${ei}:${si}">
@@ -695,7 +709,7 @@ TAB_RENDER.train = function(){
   <div class="callout"><strong>How this programme was built</strong><ul class="plain">${PROGRAM_GUIDE.map(x=>`<li>${x}</li>`).join('')}</ul></div>
   ${PROGRAM.map(pd=>`<div class="card">
     <button class="cardhead" data-day="${pd.id}"><span><strong>${esc(pd.title)}</strong> <span class="dim">${esc(pd.sub)}</span></span><span class="dim">${openDay===pd.id?'Close':'Open'}</span></button>
-    ${openDay===pd.id?`<div class="list">${pd.exercises.map(ex=>`<div class="row rowc"><span><strong>${esc(ex.name)}</strong> <span class="dim">${esc(ex.sets)}</span>${ex.note?`<br><span class="dim">${esc(ex.note)}</span>`:''}</span><span class="tiny">${esc(lastPerf(ex.name))}</span></div>`).join('')}</div>
+    ${openDay===pd.id?`<div class="list">${pd.exercises.map(ex=>{ const sg=progSuggestion(ex.name,ex.sets); return `<div class="row rowc"><span><strong>${esc(ex.name)}</strong> <span class="dim">${esc(ex.sets)}</span>${ex.note?`<br><span class="dim">${esc(ex.note)}</span>`:''}</span><span class="tiny">${esc(lastPerf(ex.name))}${sg?'<br>'+esc(sg):''}</span></div>`; }).join('')}</div>
     <button class="btn primary" data-log="${pd.id}">Log this session</button>`:''}</div>`).join('')}
   ${draftHtml}
   <h2>Yoga and mobility</h2>
