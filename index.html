@@ -194,7 +194,7 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e
 function todayKey(d){ d=d||new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
 function fmtDate(key){ const p=key.split('-'); const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return parseInt(p[2],10)+' '+(M[parseInt(p[1],10)-1]||''); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function emptyDay(){ return { water:0, steps:0, walkMin:0, foods:[], pauses:0, sleep:null, mood:'', intention:'', gratitude:['','',''], wentWell:'', noticed:'' }; }
+function emptyDay(){ return { water:0, steps:0, walkMin:0, foods:[], pauses:0, sleep:null, bedTime:'', wokeTime:'', mood:'', intention:'', gratitude:['','',''], wentWell:'', noticed:'' }; }
 function dayOf(k){ if(!state.days[k]) state.days[k]=emptyDay(); return state.days[k]; }
 function lastDays(n){ const out=[]; const now=new Date(); for(let i=n-1;i>=0;i--){ out.push(todayKey(new Date(now.getFullYear(),now.getMonth(),now.getDate()-i))); } return out; }
 function totals(d){ let k=0,p=0,fa=0,c=0; for(const f of d.foods){k+=f.kcal;p+=f.protein;fa+=f.fat||0;c+=f.carbs||0;} return {kcal:Math.round(k),protein:Math.round(p*10)/10,fat:Math.round(fa*10)/10,carbs:Math.round(c*10)/10}; }
@@ -286,7 +286,9 @@ TAB_RENDER.today = function(){
   </div>
   <div class="field"><label class="label">Exact steps today</label><input class="input" inputmode="numeric" id="f-steps" value="${d.steps||''}" placeholder="0"></div>
   <h2>Morning check-in</h2>
+  <div class="grid2"><div class="field"><label class="label">Went to bed</label><input class="input" type="time" id="f-bed" value="${esc(d.bedTime||'')}"></div><div class="field"><label class="label">Woke up</label><input class="input" type="time" id="f-woke" value="${esc(d.wokeTime||'')}"></div></div>
   <div class="field"><label class="label">Hours of sleep</label><input class="input" inputmode="decimal" id="f-sleep" value="${d.sleep==null?'':d.sleep}" placeholder="7.5"></div>
+  ${d.bedTime&&d.wokeTime&&d.sleep!=null?`<p class="note">${esc(d.bedTime)} to ${esc(d.wokeTime)} = ${d.sleep} h. Edit the hours directly if you need to.</p>`:''}
   <div class="field"><span class="label">How are you arriving today?</span><div class="chips" id="f-mood">${MOODS.map(m=>`<button class="chip${d.mood===m?' on':''}" data-mood="${esc(m)}">${esc(m)}</button>`).join('')}</div></div>
   <div class="field"><label class="label">Intention for today</label><input class="input" id="f-intent" value="${esc(d.intention)}" placeholder="One sentence. Small and real."></div>
   <h2>Evening reflection</h2>
@@ -305,6 +307,9 @@ TAB_RENDER.today = function(){
   sec.querySelector('[data-act=steps1k]').onclick=()=>{ d.steps+=1000; save(); TAB_RENDER.today(); };
   sec.querySelector('#f-steps').onchange=e=>{ d.steps=parseInt(e.target.value,10)||0; save(); TAB_RENDER.today(); };
   sec.querySelector('#f-sleep').onchange=e=>{ const v=parseFloat(e.target.value); d.sleep=isNaN(v)?null:v; save(); };
+  function sleepFromTimes(){ if(!d.bedTime||!d.wokeTime) return; const bm=d.bedTime.split(':'), wm=d.wokeTime.split(':'); let mins=(parseInt(wm[0],10)*60+parseInt(wm[1],10))-(parseInt(bm[0],10)*60+parseInt(bm[1],10)); if(mins<=0) mins+=1440; d.sleep=Math.round(mins/60*100)/100; save(); TAB_RENDER.today(); }
+  sec.querySelector('#f-bed').onchange=e=>{ d.bedTime=e.target.value; save(); sleepFromTimes(); };
+  sec.querySelector('#f-woke').onchange=e=>{ d.wokeTime=e.target.value; save(); sleepFromTimes(); };
   sec.querySelector('#f-mood').onclick=e=>{ const b=e.target.closest('button'); if(!b)return; d.mood=b.dataset.mood; save(); TAB_RENDER.today(); };
   sec.querySelector('#f-intent').onchange=e=>{ d.intention=e.target.value; save(); };
   sec.querySelector('#f-well').onchange=e=>{ d.wentWell=e.target.value; save(); };
