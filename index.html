@@ -254,6 +254,34 @@ function pickGrams(){ if(!pick) return 0; const q=parseFloat(pick.qty)||0; retur
 function updatePickPreview(){ const el=document.getElementById('f-preview'); if(!el||!pick) return; const g=pickGrams();
   el.textContent=g>0?'= '+Math.round(pick.kcal100*g/100)+' kcal, '+(Math.round(pick.prot100*g/100*10)/10)+' g protein, '+(Math.round((pick.fat100||0)*g/100*10)/10)+' g fat, '+(Math.round((pick.carb100||0)*g/100*10)/10)+' g carbs'+(pick.mode==='s'?' ('+(Math.round(g*10)/10)+' g total)':''):''; }
 /* ---------- tabs ---------- */
+function detectPatterns(){
+  const out=[], days=lastDays(28), fortnight=lastDays(14);
+  const snackTrigs={}; let snackN=0, lateDays=0, tiredDays=0, tiredSnackDays=0, bedLogs=0, lateBeds=0, sleepLogs=0, shortSleep=0;
+  for(const kk of days){
+    const dd=state.days[kk]; if(!dd) continue;
+    let snacks=0, late=false;
+    for(const f of (dd.foods||[])){
+      if(f.snack){ snacks++; snackN++; const tr=f.trigger||'Real hunger'; snackTrigs[tr]=(snackTrigs[tr]||0)+1; }
+      if(f.ts && new Date(f.ts).getHours()>=19) late=true;
+    }
+    if(late && fortnight.indexOf(kk)>=0) lateDays++;
+    if(dd.mood==='\u{1F634} Tired'){ tiredDays++; if(snacks>0) tiredSnackDays++; }
+    if(dd.bedTime){ bedLogs++; if(dd.bedTime>'22:15') lateBeds++; }
+    if(dd.sleep!=null){ sleepLogs++; if(dd.sleep<7) shortSleep++; }
+  }
+  const top=Object.keys(snackTrigs).sort((a,b)=>snackTrigs[b]-snackTrigs[a])[0];
+  if(top && top!=='Real hunger' && snackTrigs[top]>=4 && snackTrigs[top]>=snackN*0.4)
+    out.push({t:'Snacks often arrive as '+top.toLowerCase(), b:'When '+top.toLowerCase()+' shows up, that is the moment the pause was built for. Notice it, breathe once, then choose. The snack after noticing is fine - the noticing is the practice.'});
+  if(tiredDays>=3 && tiredSnackDays>=Math.ceil(tiredDays*0.6))
+    out.push({t:'Snacks follow tired days', b:'Tired days and snacks travel together here. Nothing to fix - seeing the link is enough for now. Rest first, then decide.'});
+  if(lateDays>=3)
+    out.push({t:'Eating past 7 pm', b:'Dinner is landing late on several days this fortnight. The 10 pm sleep likes an earlier plate. Just notice what pushes it late.'});
+  if(bedLogs>=4 && lateBeds>=3)
+    out.push({t:'Bedtime drifting past 10', b:'Bedtime has slipped a few times recently. The 8:30 wind-down is the gentle lever: dim lights, slow down, gratitude.'});
+  if(sleepLogs>=4 && shortSleep>=3)
+    out.push({t:'Nights under seven hours', b:'Several short nights lately. The rhythm asks for the 10 pm side, not more willpower at 4:15.'});
+  return out;
+}
 const TAB_RENDER = {};
 document.getElementById('tabs').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b) return;
@@ -756,6 +784,7 @@ TAB_RENDER.mind = function(){
   const week=lastDays(7); let wmin=0, wses=0;
   for(const m of state.meditations){ if(week.indexOf(m.date)>=0){ wmin+=m.minutes; wses++; } }
   const recent=[...state.meditations].slice(-5).reverse();
+  const pats=detectPatterns();
   const running=!!medTimer;
   document.getElementById('tab-mind').innerHTML=`
   <h2>Meditation</h2>
@@ -771,6 +800,9 @@ TAB_RENDER.mind = function(){
     <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
   </div>
   ${recent.length?`<div class="list">${recent.map(m=>`<div class="row"><span>${fmtDate(m.date)}</span><strong>${m.minutes} min</strong></div>`).join('')}</div>`:''}
+  <h2>Automations and patterns</h2>
+  <p class="note">What repeats on its own, read from your own days. No judgement - awareness first; change follows.</p>
+  ${pats.length?`<div class="list">${pats.map(pt=>`<div class="row"><span><strong>${esc(pt.t)}</strong><br><span class="dim">${esc(pt.b)}</span></span></div>`).join('')}</div>`:'<p class="note">Nothing repeats yet. As the days add up, what actually repeats will show itself here.</p>'}
   <h2>Gratitude</h2>
   <p class="note">Three lines before bed. Small things count the most.</p>
   ${[0,1,2].map(i=>`<div class="field"><input class="input" data-grat="${i}" value="${esc(d.gratitude[i]||'')}" placeholder="${i+1}."></div>`).join('')}
