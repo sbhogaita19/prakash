@@ -115,6 +115,7 @@ a { color:var(--ink); }
 'use strict';
 /* ---------- data ---------- */
 const KEY = 'sadhana-v1';
+const GEMINI_MODEL = 'gemini-3.6-flash'; // Google's current free-tier vision model; update here if Google retires it.
 const PROGRAM = [
 {id:'A',title:'Day A',sub:'Squat, horizontal push and pull',exercises:[
 {name:'Back squat',sets:'3 x 6-8',note:'RPE 7-8. Smooth reps; exhale through the sticking point.'},
@@ -430,9 +431,13 @@ TAB_RENDER.food = function(){
           reqParts.push({inline_data:{mime_type:'image/jpeg',data:String(dataUrl).split(',')[1]}});
         }catch(pe){ estMsg='Could not read that photo. Remove it to estimate from the name alone, or choose a different photo.'; TAB_RENDER.food(); return; }
       }
-      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':state.profile.geminiKey},body:JSON.stringify({contents:[{parts:reqParts}]})});
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':state.profile.geminiKey},body:JSON.stringify({contents:[{parts:reqParts}]})});
       const j=await r.json().catch(()=>null);
-      if(!r.ok){ estMsg='The estimate failed'+(j&&j.error&&j.error.message?(': '+j.error.message):'. Check the key in the Data tab.')+' The Share with AI option still works.'; TAB_RENDER.food(); return; }
+      if(!r.ok){
+        const em=(j&&j.error&&j.error.message)||'';
+        if(/no longer available|not found|not supported|deprecated/i.test(em)&&/model/i.test(em)){ estMsg='Google has retired the Gemini version this app uses. This needs an app update - message Instinct and it will be fixed. The Share with AI option still works.'; }
+        else{ estMsg='The estimate failed'+(em?(': '+em):'. Check the key in the Data tab.')+' The Share with AI option still works.'; }
+        TAB_RENDER.food(); return; }
       const parts=j&&j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[];
       estReply=parts.map(p=>p.text||'').join('').trim();
       if(!estReply){ estMsg='Gemini sent back nothing readable. Try again, or use Share with AI.'; TAB_RENDER.food(); return; }
