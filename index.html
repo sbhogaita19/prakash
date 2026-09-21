@@ -116,36 +116,44 @@ a { color:var(--ink); }
 /* ---------- data ---------- */
 const KEY = 'sadhana-v1';
 const PROGRAM = [
-{id:'A',title:'Day A',sub:'Legs and push, squat focus',exercises:[
-{name:'Back squat',sets:'4 x 6-8',note:'RPE 7. Exhale as you stand up.'},
-{name:'Barbell bench press',sets:'4 x 6-8'},
-{name:'Romanian deadlift',sets:'3 x 8-10'},
-{name:'Seated cable row',sets:'3 x 10-12'},
-{name:'Dumbbell shoulder press',sets:'3 x 8-10'},
-{name:'Plank',sets:'3 x 30-45 sec'}]},
-{id:'B',title:'Day B',sub:'Pull and hinge',exercises:[
-{name:'Deadlift',sets:'3 x 5',note:'RPE 7, never a grind. Reset each rep.'},
-{name:'Lat pulldown or pull-up',sets:'4 x 8-10'},
-{name:'Incline dumbbell press',sets:'3 x 8-10'},
-{name:'Barbell row',sets:'3 x 8-10'},
-{name:'Face pull or band pull-apart',sets:'3 x 12-15'},
-{name:'Cable or dumbbell curl',sets:'2 x 10-12'},
-{name:'Hanging or lying leg raise',sets:'3 x 10',note:'Slow and controlled, no swinging.'}]},
-{id:'C',title:'Day C',sub:'Full body',exercises:[
-{name:'Goblet squat (kettlebell)',sets:'3 x 10-12'},
-{name:'Close-grip bench press or push-ups',sets:'3 x 8-12'},
-{name:'Hip thrust',sets:'3 x 8-10'},
-{name:'One-arm dumbbell row',sets:'3 x 10'},
-{name:'Cable fly',sets:'2 x 12-15'},
-{name:'Farmer carry',sets:'3 x 30 m'},
-{name:'Side plank',sets:'2 x 20-30 sec each side'}]},
-{id:'D',title:'Day 4 (optional)',sub:'Conditioning and core',exercises:[
-{name:'Kettlebell swing',sets:'5 x 10',note:'Crisp hips, breathe out each swing. Stop before form fades.'},
+{id:'A',title:'Day A',sub:'Squat, horizontal push and pull',exercises:[
+{name:'Back squat',sets:'3 x 6-8',note:'RPE 7-8. Smooth reps; exhale through the sticking point.'},
+{name:'Barbell bench press',sets:'3 x 6-8',note:'Stop with 2 reps in reserve; no grinding.'},
+{name:'Seated cable row',sets:'3 x 8-12'},
+{name:'Romanian deadlift',sets:'2 x 8-10',note:'Controlled stretch; keep the bar close.'},
+{name:'Dumbbell lateral raise',sets:'2 x 12-15'},
+{name:'Cable or dumbbell curl',sets:'2 x 10-15'},
+{name:'Dead bug',sets:'2 x 8 each side'}]},
+{id:'B',title:'Day B',sub:'Hinge, vertical push and pull',exercises:[
+{name:'Deadlift',sets:'2 x 5-6',note:'RPE 7, never a grind. Reset and breathe each rep.'},
+{name:'Dumbbell shoulder press',sets:'3 x 8-10',note:'Seated if preferred; breathe continuously.'},
+{name:'Lat pulldown or pull-up',sets:'3 x 8-12'},
+{name:'Bulgarian split squat',sets:'2 x 8-12 each leg'},
+{name:'Incline dumbbell press',sets:'2 x 8-12'},
+{name:'Face pull or band pull-apart',sets:'2 x 12-15'},
+{name:'Side plank',sets:'2 x 20-30 sec each side',note:'Keep breathing; stop before straining.'}]},
+{id:'C',title:'Day C',sub:'Full body, lighter variations and arms',exercises:[
+{name:'Paused back squat',sets:'2 x 8-10',note:'Use less load than Day A; brief pause, no breath-holding.'},
+{name:'Close-grip bench press',sets:'3 x 8-10'},
+{name:'One-arm dumbbell row',sets:'3 x 8-12 each side'},
+{name:'Barbell hip thrust',sets:'2 x 8-12'},
+{name:'Lat pulldown or pull-up',sets:'2 x 8-12'},
+{name:'Dumbbell lateral raise',sets:'2 x 12-15'},
+{name:'Cable or dumbbell curl',sets:'2 x 10-15'},
+{name:'Cable triceps pressdown',sets:'2 x 10-15'}]},
+{id:'D',title:'Day 4 (optional)',sub:'Easy conditioning, core and recovery',exercises:[
+{name:'Kettlebell swing',sets:'5 x 10',note:'Crisp hips, exhale each rep and stop well before form fades.'},
 {name:'Step-ups',sets:'3 x 10 each leg'},
-{name:'Push-ups',sets:'2 sets, stop 2 reps before failure'},
-{name:'Cable crunch',sets:'3 x 12'},
-{name:'Suitcase carry',sets:'3 x 20 m each side'},
-{name:'Dead bug',sets:'2 x 8 each side'}]}];
+{name:'Suitcase carry',sets:'3 x 20 m each side',note:'Choose a load that lets you breathe normally.'},
+{name:'Dead bug',sets:'2 x 8 each side'},
+{name:'Easy brisk walk',sets:'20-30 minutes',note:'Conversational pace. Skip Day 4 if legs or sleep have not recovered.'}]}];
+const PROGRAM_GUIDE = [
+'<strong>Why this plan:</strong> the four PDFs are body-part sessions with heavy overlap: 9 squat sets in one session, 12 chest presses, 9 shoulder presses, and repeated deadlift/row work. The useful anchor lifts stay, but the volume is spread across the week so each muscle gets repeated, recoverable practice.',
+'<strong>Francis Melia principles used:</strong> keep the same plan long enough to judge it, log every set, repeat each muscle through the week, favour high-quality work over extra sets, and let stimulus, recovery and adaptation drive progress. His home-gym exercise ideas fit your rack, barbell, dumbbells and cable.',
+'<strong>Blood-pressure adjustment:</strong> Francis often demonstrates sets very close to failure. Your version stops around RPE 7-8, normally 2 reps in reserve, with no grinders or prolonged breath-holding. Rest 2-3 minutes; use 3 minutes for squats, presses and deadlifts if needed.',
+'<strong>Progression:</strong> start with a load you could lift for 2 more clean reps. Add reps inside the range. When every work set reaches the top of the range with the same form for two sessions, add the smallest load available and return to the lower end. Holding steady for several weeks is normal.',
+'<strong>Eight-week block:</strong> train A, B and C with at least one recovery day after hard lifting when possible. Weeks 1-3 build; week 4 hold loads; weeks 5-7 build again; week 8 is a recovery week with about half the work sets and RPE 6-7. Then review your log, waist and recovery before changing exercises.'
+];
 const YOGA = [
 {id:'morning',title:'Morning flow, 15 min',video:{title:'Wake Up | Gentle 10 Minute Morning Yoga | Yoga With Adriene',url:'https://www.youtube.com/watch?v=g6DdOHaAmSQ'},poses:['Cat-cow, 8 slow breaths','Downward dog, 5 breaths','Low lunge each side, 5 breaths','Half split each side, 5 breaths','Standing forward fold, 5 breaths','Warrior two each side, 5 breaths','Seated twist each side, 5 breaths','Easy seat, quiet breathing, 2 minutes']},
 {id:'evening',title:'Evening wind-down, 10 min',video:{title:'Wind Down Yoga | 12-Minute Bedtime Yoga | Yoga With Adriene',url:'https://www.youtube.com/watch?v=BiWDsfZ3zbo'},poses:["Child's pose, 8 breaths",'Supine twist each side, 5 breaths','Pigeon each side, 6 breaths','Legs up the wall, 3 minutes','Body scan lying down, 2 minutes']},
@@ -457,7 +465,8 @@ TAB_RENDER.train = function(){
   ${state.profile.bpSafe?`<div class="callout"><strong>Blood pressure rules</strong><ul class="plain">${SAFETY.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div>`:''}
   <p class="note">Three slow breaths before the first set. Leave the ego at the door: RPE 7 to 8 is the work, and the stomach shrinks from the kitchen and the walking, not from grinding reps.</p>
   <h2>The programme</h2>
-  <p class="note">Three days a week: A, B, C in any order with a rest day between. Day 4 is optional conditioning and core for the weeks you have more in the tank. When every set hits the top of its rep range two sessions running, add a small amount of weight.</p>
+  <p class="note">Three strength days a week: A, B, C in order, with a recovery day between hard sessions when possible. Day 4 is optional and should feel easier, not like another test.</p>
+  <div class="callout"><strong>How this programme was built</strong><ul class="plain">${PROGRAM_GUIDE.map(x=>`<li>${x}</li>`).join('')}</ul></div>
   ${PROGRAM.map(pd=>`<div class="card">
     <button class="cardhead" data-day="${pd.id}"><span><strong>${esc(pd.title)}</strong> <span class="dim">${esc(pd.sub)}</span></span><span class="dim">${openDay===pd.id?'Close':'Open'}</span></button>
     ${openDay===pd.id?`<div class="list">${pd.exercises.map(ex=>`<div class="row rowc"><span><strong>${esc(ex.name)}</strong> <span class="dim">${esc(ex.sets)}</span>${ex.note?`<br><span class="dim">${esc(ex.note)}</span>`:''}</span><span class="tiny">${esc(lastPerf(ex.name))}</span></div>`).join('')}</div>
@@ -768,4 +777,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
