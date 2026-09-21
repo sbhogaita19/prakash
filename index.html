@@ -804,7 +804,7 @@ TAB_RENDER.data = function(){
   <div class="qr"><button class="btn primary" id="d-gemini-save">Save key on this phone</button>${p.geminiKey?'<button class="btn danger" id="d-gemini-clear">Remove key</button>':''}</div>
   <h2>Fill in missing fat and carbs</h2>
   <p class="note">Entries saved before fat and carbs were tracked have no values, so old days look empty in the charts. This estimates the missing numbers on this phone${p.geminiKey?', using your Gemini key for dishes it does not recognise':''}, shows you every change first, and only writes after you confirm. Existing values are never changed.</p>
-  ${backfillList===null?'<button class="btn primary" id="d-backfill">Review what is missing</button>':backfillList.length===0?'<p class="note">Nothing to fill - every saved entry already has fat and carbs.</p><button class="btn" id="d-bf-cancel">Close</button>':`<div class="list">${backfillList.map(it=>`<div class="row"><span><strong>${esc(it.name)}</strong><br><span class="dim">${it.dayKey}: + ${it.fat} g fat, + ${it.carbs} g carbs <span class="tiny">(${it.src})</span></span></span></div>`).join('')}</div>
+  ${backfillList===null?'<button class="btn primary" id="d-backfill">Review what is missing</button>':backfillList.length===0?'<p class="note">Nothing to fill - every saved entry already has fat and carbs.</p><button class="btn" id="d-bf-cancel">Close</button>':`<div class="list">${backfillList.map(it=>`<div class="row"><span><strong>${esc(it.name)}</strong><br><span class="dim">${it.dayKey}: ${[it.needFat?'+ '+it.fat+' g fat':'', it.needCarbs?'+ '+it.carbs+' g carbs':''].filter(Boolean).join(', ')} <span class="tiny">(${it.src})</span></span></span></div>`).join('')}</div>
   <div class="qr"><button class="btn primary" id="d-bf-apply">Apply to ${backfillList.length} entr${backfillList.length===1?'y':'ies'}</button><button class="btn" id="d-bf-cancel">Cancel</button></div>`}
   <h2>Backup and restore</h2>
   <p class="note">Everything lives on this phone, private to you. Export a backup every week or two, especially before clearing browser data or changing phones.</p>
@@ -831,7 +831,7 @@ TAB_RENDER.data = function(){
   q('#d-gemini-save').onclick=()=>{ const v=q('#d-gemini').value.trim(); p.geminiKey=v; save(); TAB_RENDER.data(); toast(v?'Key saved on this phone.':'Key field cleared - tap Save again if you meant to remove it.'); };
   if(q('#d-gemini-clear')) q('#d-gemini-clear').onclick=()=>{ delete p.geminiKey; save(); TAB_RENDER.data(); toast('Key removed from this phone.'); };
   if(q('#d-backfill')) q('#d-backfill').onclick=async()=>{
-    const missing=[]; for(const kk of Object.keys(state.days)){ for(const f of (state.days[kk].foods||[])){ if(f.fat==null||f.carbs==null) missing.push({dayKey:kk,id:f.id,name:f.name,kcal:f.kcal,protein:f.protein}); } }
+    const missing=[]; for(const kk of Object.keys(state.days)){ for(const f of (state.days[kk].foods||[])){ if(f.fat==null||f.carbs==null) missing.push({dayKey:kk,id:f.id,name:f.name,kcal:f.kcal,protein:f.protein,needFat:f.fat==null,needCarbs:f.carbs==null}); } }
     if(!missing.length){ backfillList=[]; TAB_RENDER.data(); return; }
     function estimate(m){ const st=STAPLES.find(s=>m.name.indexOf(s[0])===0); if(st){ return {fat:Math.round(m.kcal*st[3]/st[1]*10)/10, carbs:Math.round(m.kcal*st[4]/st[1]*10)/10, src:'matches '+st[0]}; }
       const rem=Math.max(0, m.kcal-m.protein*4); return {fat:Math.round(rem*0.4/9*10)/10, carbs:Math.round(rem*0.6/4*10)/10, src:'estimate'}; }
