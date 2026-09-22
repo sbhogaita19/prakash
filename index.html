@@ -103,6 +103,13 @@ nav.tabs button{font-size:12px;min-width:55px;padding:9px 4px 8px}nav.tabs butto
 @media(max-width:390px){nav.tabs button{min-width:48px}.hub-links{grid-template-columns:1fr 1fr}.week-days{gap:1px}}
 
 
+/* v34 dark appearance: soft charcoal, readable contrast, one calm green */
+:root{--page:#121615;--card:#1c2220;--ink:#f0f2ef;--ink2:#adb8b3;--hair:#343c39;--sand:#252c29;--green:#67b695;--green2:#203d33;--shadow:0 8px 30px rgba(0,0,0,.28)}
+body{background:#121615;color:var(--ink);color-scheme:dark}.wrap,.sheet,#setup{background:#121615}.card,.journal-entry,.pattern-card,.onboard-choice,.row,.rowbtn{background:#1c2220;color:var(--ink)}.input,input,textarea,select{background:#171c1a!important;color:var(--ink)!important;border-color:var(--hair)!important}.callout,.fresh-card{background:#252c29;border-color:#48524e}.seg{background:#252b29}.seg button.on{background:#35403c}.sheet-back{background:#000a}nav.tabs{background:rgba(20,25,23,.97);border-color:var(--hair)}.journal-hero{background:linear-gradient(145deg,#1d3029,#1b211f)}.import-result,.fresh-confirm{background:#203d33}.workout-player{background:#131817!important;color:#f0f2ef}.workout-player .card{background:#232a27}.rest-overlay{background:#101412f2}.toast{background:#eef2ef!important;color:#16201c!important}.btn{background:#252d2a;color:var(--ink);border-color:var(--hair)}.btn.primary,.primary-action{background:var(--green);color:#0c1813}.danger{color:#ffaaa0}.quote,.journal-prompt,h1,h2,h3,strong{color:var(--ink)}a{color:#88d0b1}
+/* v34: safe fresh start + calm goal onboarding */
+.onboard-progress{display:flex;gap:6px;margin:18px 0}.onboard-progress i{height:4px;flex:1;border-radius:4px;background:#ddd}.onboard-progress i.on{background:var(--green)}
+.onboard-choice{display:block;width:100%;text-align:left;min-height:54px;margin:8px 0;padding:14px;border:1px solid var(--hair);border-radius:14px;background:white}.onboard-choice.on{border-color:var(--green);background:var(--green2)}
+.fresh-card{border:1px solid #e3c7c2;background:#fff8f6}.fresh-confirm{background:#f5ece8;padding:14px;border-radius:14px;margin-top:10px}
 /* v33: one calm app, five destinations, Witness Journal inside Mind */
 nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.tabs button[data-tab=more]:before{content:'•••'}
 .journal-hero{background:linear-gradient(145deg,#eef8f3,#fff);padding:18px;border-radius:20px;margin:16px 0}.seg{display:flex;overflow-x:auto;gap:6px;padding:4px;background:#ecebe7;border-radius:14px}.seg button{border:0;background:transparent;min-height:44px;padding:8px 14px;border-radius:11px;white-space:nowrap}.seg button.on{background:white;box-shadow:0 2px 10px #0001}.journal-entry{padding:16px;background:#fff;border-radius:16px;margin:10px 0;box-shadow:var(--shadow)}.journal-entry p{white-space:pre-wrap}.journal-prompt{font-family:Georgia,serif;font-size:22px}.sheet-back{position:fixed;inset:0;z-index:60;background:#0008;display:flex;align-items:flex-end}.sheet{width:min(100%,640px);max-height:88vh;overflow:auto;margin:auto;background:#f7f6f3;border-radius:24px 24px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -20px 60px #0004}.sheet .btn,.sheet .input{min-height:48px}.food-actions{min-width:44px}.meal-row-controls{display:none}.more-list .btn{width:100%;justify-content:flex-start;margin:6px 0;min-height:52px}.primary-action{width:100%;min-height:52px;font-size:16px}.voice-box{padding:14px;background:#eef8f3;border-radius:14px}.pattern-card{border-left:3px solid var(--green);padding:14px;background:white;border-radius:12px;margin:10px 0}.import-result{background:#e2f3e9;border-radius:14px;padding:14px;margin-top:10px}.quiet{color:var(--ink2);font-size:13px}.hidden{display:none!important}
@@ -128,7 +135,7 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.
 <section class="tab" id="tab-mind"></section>
 <section class="tab" id="tab-data"></section>
 <section class="tab" id="tab-more"></section>
-<p class="note"><strong>v33</strong> · One calm app: five simple destinations, Witness Journal inside Mind, and every existing record preserved.</p>
+<p class="note"><strong>v34</strong> · A safe fresh start and quiet goal onboarding, with your private backup first.</p>
 <p class="closing">Your data never leaves this phone unless you export it. Export a backup from the Data tab every week or two.</p>
 </div>
 <script>
@@ -1079,7 +1086,7 @@ TAB_RENDER.data = function(){
     <button class="btn primary" id="d-export">Export backup</button>
     <label class="btn filebtn">Restore backup<input type="file" accept="application/json,.json" id="d-import"></label>
   </div>
-  <div class="qr"><button class="btn danger" id="d-clear">Clear all data</button></div>
+  <div class="card fresh-card"><h2>Start fresh</h2><p class="note">Begin again without losing the past. Sadhana first downloads one complete backup, including journal voice notes. Only your logs are then cleared; the app and your saved settings stay.</p><button class="btn danger" id="d-fresh">Download backup and start fresh</button><div id="d-fresh-status"></div></div>
   <h2>Good to know</h2>
   <ul class="plain">
     <li>Food search and barcode scanning use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need internet. The camera is used only to read barcodes, on this phone, and no camera images are saved or sent anywhere. Dish photo estimates can run automatically with your own Gemini key (see AI dish estimates above): the photo then goes directly from this phone to Google, only when you tap Estimate. Share with AI instead opens an AI app you choose yourself. Staples, custom foods and everything else work offline.</li>
@@ -1127,13 +1134,14 @@ TAB_RENDER.data = function(){
   function downloadCsv(fname, rows){ const csv=rows.map(r=>r.map(x=>{ x=String(x==null?'':x); return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x; }).join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }
   if(q('#d-csvlog')) q('#d-csvlog').onclick=()=>{ const rows=[['date','time','slot','name','grams','kcal','protein_g','fat_g','carbs_g','fibre_g','snack','trigger']]; Object.keys(state.days).sort().forEach(kk=>{ (state.days[kk].foods||[]).forEach(f=>{ const dt=f.ts?new Date(f.ts):null; rows.push([kk, dt?String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0'):'', f.slot||(f.snack?'snack':''), f.name, f.grams||0, f.kcal, f.protein, f.fat!=null?f.fat:'', f.carbs!=null?f.carbs:'', f.fibre!=null?f.fibre:'', f.snack?'yes':'no', f.trigger||'']); }); }); downloadCsv('sadhana-food-log.csv', rows); toast('Food log downloaded.'); };
   if(q('#d-csvsum')) q('#d-csvsum').onclick=()=>{ const rows=[['date','kcal','protein_g','fat_g','carbs_g','fibre_g','water_glasses','steps','sleep_h','mood']]; Object.keys(state.days).sort().forEach(kk=>{ const dd=state.days[kk]; const t=totals(dd); rows.push([kk, t.kcal, t.protein, t.fat, t.carbs, t.fibre, dd.water||0, dd.steps||0, dd.sleep!=null?dd.sleep:'', dd.mood||'']); }); downloadCsv('sadhana-daily-summary.csv', rows); toast('Daily summary downloaded.'); };
-  q('#d-export').onclick=()=>{
-    const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a');
-    a.href=url; a.download='sadhana-backup-'+new Date().toISOString().slice(0,10)+'.json';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url),5000); toast('Backup downloaded. Keep it in Drive or Files.');
-  };
+  async function completeBackup(){
+    const out=JSON.parse(JSON.stringify(state)); let voices=0;
+    if(out.witness&&Array.isArray(out.witness.entries)) for(const e of out.witness.entries){const a=await wget(e.id).catch(()=>null);if(a&&a.blob){e.audio={mimeType:a.blob.type||a.mime||'audio/webm',seconds:a.seconds||null,base64:await blob64(a.blob)};voices++;}}
+    out.backup={format:'sadhana-v1',version:2,exported:new Date().toISOString(),includesWitnessAudio:true,voiceNotes:voices};
+    const text=JSON.stringify(out,null,2),blob=new Blob([text],{type:'application/json'});if(!text.includes('"profile"')||blob.size<50)throw Error('backup');
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sadhana-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);return {voices,size:blob.size};
+  }
+  q('#d-export').onclick=async()=>{try{const b=await completeBackup();toast('Complete backup downloaded with '+b.voices+' journal voice notes.');}catch(e){toast('Backup could not be prepared. Nothing was changed.');}};
   q('#d-health-import').onchange=e=>{
     const file=e.target.files&&e.target.files[0]; if(!file)return;
     const reader=new FileReader();
@@ -1158,14 +1166,22 @@ TAB_RENDER.data = function(){
   q('#d-import').onchange=e=>{
     const file=e.target.files&&e.target.files[0]; if(!file)return;
     const reader=new FileReader();
-    reader.onload=()=>{ try{ const s=JSON.parse(String(reader.result));
+    reader.onload=async()=>{ try{ const s=JSON.parse(String(reader.result));
         if(!s||s.v!==1||!s.profile){ toast('That file is not a Sadhana backup.'); return; }
-        state=s; save(); TAB_RENDER.data(); toast('Backup restored.'); }catch(err){ toast('Could not read that file.'); } };
+        if(s.witness&&Array.isArray(s.witness.entries))for(const e of s.witness.entries){if(e.audio&&e.audio.base64){await wput(e.id,{blob:b64blob(e.audio.base64,e.audio.mimeType),seconds:e.audio.seconds||null,mime:e.audio.mimeType||'audio/webm'});}delete e.audio;}
+        state=s;if(!state.witness)state.witness={entries:[],readings:[],migration:null};save(); TAB_RENDER.data(); toast('Backup restored.'); }catch(err){ toast('Could not read that file.'); } };
     reader.readAsText(file); e.target.value='';
   };
-  q('#d-clear').onclick=()=>{
-    if(q('#d-clear').dataset.arm==='1'){ localStorage.removeItem(KEY); location.reload(); }
-    else { q('#d-clear').dataset.arm='1'; q('#d-clear').textContent='Tap again to erase everything'; }
+  q('#d-fresh').onclick=async()=>{
+    const b=q('#d-fresh'),status=q('#d-fresh-status');
+    if(b.dataset.arm==='1'){
+      const profile={...state.profile,setupDone:false};
+      state={...seed(),profile,witness:{entries:[],readings:[],migration:null},events:[]};
+      const db=await wdb().catch(()=>null);if(db)await new Promise(r=>{const x=db.transaction('notes','readwrite').objectStore('notes').clear();x.onsuccess=x.onerror=()=>r();});
+      save();location.reload();return;
+    }
+    b.disabled=true;b.textContent='Preparing your complete backup…';
+    try{const made=await completeBackup();b.disabled=false;b.dataset.arm='1';b.textContent='Confirm: clear logs and begin onboarding';status.innerHTML='<div class="fresh-confirm"><strong>Backup prepared and download started.</strong><br>'+made.voices+' journal voice notes included. Nothing has been cleared yet. Keep the downloaded file, then tap Confirm.</div>';}catch(e){b.disabled=false;b.textContent='Download backup and start fresh';status.innerHTML='<p class="note">The backup could not be prepared, so nothing was cleared.</p>';}
   };
   q('#d-setup').onclick=()=>{ showSetup(); };
 };
@@ -1188,61 +1204,29 @@ function parseHeight(value){
   return cm>=90&&cm<=250?Math.round(cm*10)/10:null;
 }
 function displayHeight(cm){ return cm==null?'':Math.round(cm)+'cm'; }
+let setupStep=0;
 function showSetup(){
-  const el=document.getElementById('setup');
-  const box=el.querySelector('.inner');
-  const p=state.profile;
-  box.innerHTML=`
-  <h1>Sadhana</h1>
-  <p class="tag">Body, food, movement and awareness as one daily practice.</p>
-  <h2>Begin your practice</h2>
-  <p class="note">Sadhana keeps everything on this device only. Nothing you enter here is sent anywhere. Set your baseline once; you can change it later in the Data tab.</p>
-  <div class="grid2">
-    <div class="field"><label class="label">Date of birth</label><input class="input" type="date" id="s-dob" max="${todayKey()}" value="${p.dob||''}"><p class="tiny" id="s-age-readout">${p.dob&&calcAge(p.dob)!=null?'Age '+calcAge(p.dob):'Your age is worked out automatically.'}</p></div>
-    <div class="field"><label class="label">Height</label><input class="input" id="s-height" placeholder="e.g. 178cm or 5'10&quot;" value="${displayHeight(p.heightCm)}"><p class="tiny">Metric or imperial. Stored as centimetres.</p></div>
-  </div>
-  <div class="grid2">
-    <div class="field"><label class="label">Current weight (kg)</label><input class="input" inputmode="decimal" id="s-wt" value="${p.startWeight==null?'':p.startWeight}"></div>
-    <div class="field"><label class="label">Current waist (cm)</label><input class="input" inputmode="decimal" id="s-waist" value="${p.startWaist==null?'':p.startWaist}"></div>
-  </div>
-  <div class="field"><label class="label">Goal weight (kg)</label><input class="input" inputmode="decimal" id="s-goal" value="${p.goalWeight==null?'':p.goalWeight}"></div>
-  <div class="qr"><button class="btn" id="s-suggest">Suggest my daily targets</button></div>
-  <div class="grid2">
-    <div class="field"><label class="label">Calories (kcal)</label><input class="input" inputmode="numeric" id="s-kcal" value="${p.kcalTarget}"></div>
-    <div class="field"><label class="label">Protein (g)</label><input class="input" inputmode="numeric" id="s-prot" value="${p.proteinTarget}"></div>
-    <div class="field"><label class="label">Water (glasses)</label><input class="input" inputmode="numeric" id="s-water" value="${p.waterTarget}"></div>
-    <div class="field"><label class="label">Steps</label><input class="input" inputmode="numeric" id="s-steps" value="${p.stepsTarget}"></div>
-  </div>
-  <label class="check"><input type="checkbox" id="s-bp"${p.bpSafe?' checked':''}><span>I lift with controlled blood pressure. Show the BP-safe lifting and breathwork rules.</span></label>
-  <div class="qr" style="margin-top:16px"><button class="btn primary" id="s-save">Begin</button><button class="btn" id="s-skip">Set up later</button></div>`;
-  el.classList.add('open');
-  const q=s=>box.querySelector(s);
-  q('#s-dob').oninput=()=>{ const a=calcAge(q('#s-dob').value); q('#s-age-readout').textContent=a==null?'Enter a valid date of birth.':'Age '+a; };
-  q('#s-suggest').onclick=()=>{
-    const age=calcAge(q('#s-dob').value), cm=parseHeight(q('#s-height').value), kg=parseFloat(q('#s-wt').value);
-    if(!age||isNaN(age)||!cm||!kg||isNaN(kg)){ toast('Enter age, height and weight first.'); return; }
-    const bmr=10*kg+6.25*cm-5*age+5;
-    q('#s-kcal').value=Math.max(1200,Math.round((bmr*1.5-400)/50)*50);
-    q('#s-prot').value=Math.round(kg*1.8);
+  const el=document.getElementById('setup'),box=el.querySelector('.inner'),p=state.profile;
+  const steps=[
+    {k:'goal',title:'What are you working towards?',note:'Choose the direction that matters now. You can change it later.',body:`${[['Lose fat gently','fat-loss'],['Build strength and muscle','strength'],['Maintain health and energy','maintain'],['Move and feel better','wellbeing']].map(x=>`<button class="onboard-choice${p.primaryGoal===x[1]?' on':''}" data-pick="primaryGoal" data-value="${x[1]}">${x[0]}</button>`).join('')}<div class="field"><label class="label">Goal weight (kg)</label><input class="input" inputmode="decimal" id="ob-goal" value="${p.goalWeight==null?'':p.goalWeight}"></div>`},
+    {k:'body',title:'Your starting point',note:'These basics help Sadhana keep guidance personal and sensible.',body:`<div class="field"><label class="label">Date of birth</label><input class="input" type="date" id="ob-dob" max="${todayKey()}" value="${p.dob||''}"></div><div class="field"><label class="label">Height</label><input class="input" id="ob-height" placeholder="178cm or 5'10&quot;" value="${displayHeight(p.heightCm)}"></div><div class="field"><label class="label">Current weight (kg)</label><input class="input" inputmode="decimal" id="ob-weight" value="${p.startWeight==null?'':p.startWeight}"></div>`},
+    {k:'targets',title:'Your daily anchors',note:'Your saved targets are already here. Confirm them or adjust.',body:`<div class="field"><label class="label">Calories (kcal)</label><input class="input" inputmode="numeric" id="ob-kcal" value="${p.kcalTarget||1700}"></div><div class="field"><label class="label">Protein (g)</label><input class="input" inputmode="numeric" id="ob-protein" value="${p.proteinTarget||130}"></div><div class="field"><label class="label">Water (glasses)</label><input class="input" inputmode="numeric" id="ob-water" value="${p.waterTarget||8}"></div><div class="field"><label class="label">Steps</label><input class="input" inputmode="numeric" id="ob-steps" value="${p.stepsTarget||8000}"></div>`},
+    {k:'training',title:'How do you want to train?',note:'Choose a realistic weekly rhythm. The programme remains adjustable.',body:`${[[2,'2 strength days'],[3,'3 strength days'],[4,'3 strength + optional recovery day']].map(x=>`<button class="onboard-choice${Number(p.trainingDays||3)===x[0]?' on':''}" data-pick="trainingDays" data-value="${x[0]}">${x[1]}</button>`).join('')}<label class="check"><input type="checkbox" id="ob-bp"${p.bpSafe?' checked':''}><span>Show the blood-pressure-safe lifting and breathwork rules</span></label>`},
+    {k:'food',title:'How do you prefer to eat?',note:'This shapes food ideas, not rules. Choose what fits your life.',body:`<label class="check"><input type="checkbox" id="ob-veg"${p.vegetarian!==false?' checked':''}><span>Vegetarian</span></label><label class="check"><input type="checkbox" id="ob-eggfree"${p.eggFree!==false?' checked':''}><span>Egg-free</span></label>`}
+  ],st=steps[setupStep];
+  box.innerHTML=`<h1>Sadhana</h1><p class="tag">A quiet practice shaped around you.</p><div class="onboard-progress">${steps.map((_,i)=>`<i class="${i<=setupStep?'on':''}"></i>`).join('')}</div><p class="tiny">${setupStep+1} of ${steps.length}</p><h2>${st.title}</h2><p class="note">${st.note}</p>${st.body}<div class="qr" style="margin-top:20px">${setupStep?'<button class="btn" id="ob-back">Back</button>':''}<button class="btn primary" id="ob-next">${setupStep===steps.length-1?'Finish':'Continue'}</button></div><button class="btn" id="ob-skip" style="margin-top:10px">Set up later</button>`;
+  el.classList.add('open');const q=x=>box.querySelector(x);
+  box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{p[b.dataset.pick]=b.dataset.pick==='trainingDays'?Number(b.dataset.value):b.dataset.value;box.querySelectorAll(`[data-pick="${b.dataset.pick}"]`).forEach(x=>x.classList.toggle('on',x===b));});
+  if(q('#ob-back'))q('#ob-back').onclick=()=>{setupStep--;showSetup();};
+  q('#ob-skip').onclick=()=>el.classList.remove('open');
+  q('#ob-next').onclick=()=>{
+    if(st.k==='goal'){const n=parseFloat(q('#ob-goal').value);if(!isNaN(n))p.goalWeight=n;}
+    if(st.k==='body'){const dob=q('#ob-dob').value,age=calcAge(dob),cm=parseHeight(q('#ob-height').value),wt=parseFloat(q('#ob-weight').value);if(dob&&age==null){toast('Add a valid date of birth.');return}if(q('#ob-height').value&&cm==null){toast('Add height as centimetres or feet and inches.');return}if(dob){p.dob=dob;p.age=age}if(cm)p.heightCm=cm;if(!isNaN(wt)){p.startWeight=wt;p.startDate=todayKey();}}
+    if(st.k==='targets'){[['kcalTarget','#ob-kcal'],['proteinTarget','#ob-protein'],['waterTarget','#ob-water'],['stepsTarget','#ob-steps']].forEach(x=>{const n=parseInt(q(x[1]).value,10);if(n>0)p[x[0]]=n;});}
+    if(st.k==='training')p.bpSafe=q('#ob-bp').checked;
+    if(st.k==='food'){p.vegetarian=q('#ob-veg').checked;p.eggFree=q('#ob-eggfree').checked;}
+    save();if(setupStep<steps.length-1){setupStep++;showSetup();}else{p.setupDone=true;p.onboardingVersion=34;save();el.classList.remove('open');TAB_RENDER.today();window.scrollTo(0,0);}
   };
-  q('#s-save').onclick=()=>{
-    const dob=q('#s-dob').value, age=calcAge(dob), cm=parseHeight(q('#s-height').value);
-    const wt=parseFloat(q('#s-wt').value), waist=parseFloat(q('#s-waist').value), goal=parseFloat(q('#s-goal').value);
-    if(age==null){ toast('Add a valid date of birth.'); return; }
-    if(cm==null){ toast('Add height as centimetres or feet and inches, for example 178cm or 5\'10".'); return; }
-    if(isNaN(wt)||isNaN(goal)){ toast('Add your current and goal weight to begin.'); return; }
-    p.dob=dob; p.age=age;
-    p.heightCm=cm;
-    p.startWeight=wt; p.startWaist=isNaN(waist)?null:waist; p.goalWeight=goal;
-    p.startDate=todayKey(); p.bpSafe=q('#s-bp').checked;
-    const k=parseInt(q('#s-kcal').value,10), pr=parseInt(q('#s-prot').value,10), w=parseInt(q('#s-water').value,10), st=parseInt(q('#s-steps').value,10);
-    if(!isNaN(k)&&k>0)p.kcalTarget=k; if(!isNaN(pr)&&pr>0)p.proteinTarget=pr; if(!isNaN(w)&&w>0)p.waterTarget=w; if(!isNaN(st)&&st>0)p.stepsTarget=st;
-    if(!state.weights.length) state.weights=[{date:p.startDate,kg:wt}];
-    if(p.startWaist!=null&&!state.waists.length) state.waists=[{date:p.startDate,cm:p.startWaist}];
-    p.setupDone=true; save();
-    el.classList.remove('open'); TAB_RENDER.today(); window.scrollTo(0,0);
-  };
-  q('#s-skip').onclick=()=>{ el.classList.remove('open'); };
 }
 /* ---------- boot ---------- */
 TAB_RENDER.today();
@@ -1271,4 +1255,4 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 </body>
-  </html>
+</html>
