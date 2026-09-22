@@ -1,12 +1,12 @@
 {
-  "name": "Sadhana",
-  "short_name": "Sadhana",
-  "description": "Body, food, movement and awareness as one daily practice.",
+  "name": "Prakash",
+  "short_name": "Prakash",
+  "description": "Food, training, health and reflection in one private app.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fbfaf9",
-  "theme_color": "#fbfaf9",
+  "background_color": "#121615",
+  "theme_color": "#121615",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
