@@ -1076,8 +1076,9 @@ function renderMindPractice(){
     <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
   </div>
   ${recent.length?`<div class="list">${recent.map(m=>`<div class="row"><span>${fmtDate(m.date)}</span><strong>${m.minutes} min</strong></div>`).join('')}</div>`:''}
-  <h2>What happened</h2>
-  <div class="facts plain-record"><div class="fact"><span>Walk today</span><strong>${d.walkMin||0} min</strong></div><div class="fact"><span>Sleep</span><strong>${d.sleep==null?'not logged':d.sleep+' h'}</strong></div></div>
+  <h2>Truths</h2>
+  <p class="note">Only the plain facts you recorded. Nothing inferred.</p>
+  <div class="facts plain-record"><div class="fact"><span>Walked</span><strong>${d.walkMin||0} min</strong></div><div class="fact"><span>Sat</span><strong>${(state.meditations||[]).filter(m=>m.date===viewDate).reduce((a,m)=>a+(Number(m.minutes)||0),0)} min</strong></div><div class="fact"><span>Slept</span><strong>${d.sleep==null?'not recorded':d.sleep+' h'}</strong></div><div class="fact"><span>Ate</span><strong>${(d.foods||[]).length} item${(d.foods||[]).length===1?'':'s'} · ${totals(d).kcal} kcal</strong></div><div class="fact"><span>Weight</span><strong>${(state.weights||[]).find(w=>w.date===viewDate)?.kg!=null?(state.weights||[]).find(w=>w.date===viewDate).kg+' kg':'not recorded'}</strong></div><div class="fact"><span>Blood pressure</span><strong>${(()=>{const b=(state.bloodPressures||[]).find(x=>x.date===viewDate);return b?b.systolic+'/'+b.diastolic+' mmHg':'not recorded'})()}</strong></div></div>
   <h2>Gratitude</h2>
   <p class="note">Three lines before bed. Small things count the most.</p>
   ${[0,1,2].map(i=>`<div class="field"><input class="input" data-grat="${i}" value="${esc(d.gratitude[i]||'')}" placeholder="${i+1}."></div>`).join('')}
