@@ -149,7 +149,7 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.
 <section class="tab" id="tab-data"></section>
 <section class="tab" id="tab-more"></section>
 
-<p class="closing">Your data never leaves this phone unless you export it. Export a backup from the Data tab every week or two.</p>
+
 </div>
 <script>
 'use strict';
@@ -791,9 +791,7 @@ TAB_RENDER.train = function(){
   document.getElementById('tab-train').innerHTML=`
   <h2>Before you lift</h2>
   ${state.profile.bpSafe?`<div class="callout"><strong>Blood pressure rules</strong><ul class="plain">${SAFETY.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div>`:''}
-  <p class="note">Three slow breaths before the first set. Leave the ego at the door: RPE 7 to 8 is the work, and the stomach shrinks from the kitchen and the walking, not from grinding reps.</p>
   <h2>The programme</h2>
-  <p class="note">Three strength days a week: A, B, C in order, with a recovery day between hard sessions when possible. Day 4 is optional and should feel easier, not like another test.</p>
   <p class="note">RPE 7-8, usually two reps in reserve. Breathe through effort; no grinders or long breath-holds.</p><details class="card fold"><summary>Why this programme</summary><ul class="plain">${PROGRAM_GUIDE.map(x=>`<li>${x}</li>`).join('')}</ul></details>
   ${PROGRAM.map(pd=>`<div class="card">
     <button class="cardhead" data-day="${pd.id}"><span><strong>${esc(pd.title)}</strong> <span class="dim">${esc(pd.sub)}</span></span><span class="dim">${openDay===pd.id?'Close':'Open'}</span></button>
