@@ -128,7 +128,7 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.
 
 .card,.facts,.quote,.callout,.stat,.hub-link,.today-food,.day-progress,.journal-entry,.pattern-card,.more-list .btn{border-radius:16px!important;border:1px solid var(--hair)!important;box-shadow:var(--shadow)!important;background:var(--card)!important}.journal-hero{background:var(--card)!important;border:1px solid var(--hair);color:var(--ink)!important}.journal-hero h2,.journal-hero p{color:var(--ink)!important}.v38-actions{display:flex;gap:8px;grid-column:1/-1}.v38-actions .btn{flex:1}.plain-record .fact strong{font-weight:600}.fold{margin:12px 0}.fold>summary{min-height:48px;display:flex;align-items:center;font-weight:600;cursor:pointer}.fold[open]>summary{border-bottom:1px solid var(--hair);margin-bottom:10px}
 
-.bp-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.bp-form .field{margin:4px 0}.bp-report{display:none}.bp-table{width:100%;border-collapse:collapse;font-size:13px}.bp-table th,.bp-table td{padding:7px 5px;border-bottom:1px solid var(--hair);text-align:left}.bp-reading{font-size:18px}.bp-range{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media print{body{background:#fff!important;color:#000!important}.wrap>*,#setup,nav.tabs{display:none!important}.wrap{max-width:none;padding:0}.bp-report{display:block!important;color:#000!important}.bp-report *{color:#000!important}.bp-report .bp-table th,.bp-report .bp-table td{border-color:#999!important}.bp-report .facts{box-shadow:none!important;border:1px solid #999!important}.bp-report a{display:none}}
+.bp-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.bp-form .field{margin:4px 0}.bp-report{display:none}.bp-table{width:100%;border-collapse:collapse;font-size:13px}.bp-table th,.bp-table td{padding:7px 5px;border-bottom:1px solid var(--hair);text-align:left}.bp-reading{font-size:18px}.bp-range{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media print{body{background:#fff!important;color:#000!important}.wrap>*,#setup,nav.tabs{display:none!important}.wrap{max-width:none;padding:0}.wrap>.bp-report{display:block!important;color:#000!important;background:#fff!important}.bp-report *{color:#000!important;background:#fff!important}.bp-report .bp-table th,.bp-report .bp-table td{border-color:#999!important}.bp-report .facts{box-shadow:none!important;border:1px solid #999!important}.bp-report a{display:none}}
 </style>
 </head>
 <body>
@@ -440,7 +440,14 @@ TAB_RENDER.today = function(){
   const sorted=[...state.weights].sort((a,b)=>a.date<b.date?-1:1);
   const lastW=sorted.slice(-7);
   const avg7=lastW.length?Math.round(lastW.reduce((s,x)=>s+x.kg,0)/lastW.length*10)/10:null;
-  let pdays=0; for(const kk of lastDays(7)){ if(totals(dayOf(kk)).protein>=p.proteinTarget) pdays++; }
+  const mirrorKeys=lastDays(7), mirrorDays=mirrorKeys.map(kk=>state.days[kk]||emptyDay()), mirrorTotals=mirrorDays.map(totals);
+  const mean=v=>v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;
+  const loggedFood=mirrorTotals.filter(x=>x.kcal>0), sleepVals=mirrorDays.map(x=>Number(x.sleep)).filter(x=>x>0), stepVals=mirrorDays.map(x=>Number(x.steps)||0);
+  const weekWeights=state.weights.filter(x=>mirrorKeys.includes(x.date)), latestWaist=[...state.waists].sort((a,b)=>a.date<b.date?1:-1)[0];
+  const weekWorkouts=state.workouts.filter(x=>mirrorKeys.includes(x.date)), walkMinutes=mirrorDays.reduce((n,x)=>n+(Number(x.walkMin)||0),0);
+  const weekMeds=state.meditations.filter(x=>mirrorKeys.includes(todayKey(new Date(x.at||x.date))));
+  const weekBps=state.bloodPressures.filter(x=>Date.now()-new Date(x.at).getTime()<=7*864e5), mirrorBp=weekBps.length?{sys:Math.round(weekBps.reduce((n,x)=>n+x.sys,0)/weekBps.length),dia:Math.round(weekBps.reduce((n,x)=>n+x.dia,0)/weekBps.length)}:null;
+  let pdays=0; for(const x of mirrorTotals){ if(x.protein>=p.proteinTarget) pdays++; }
   const metrics=[
     {key:'calories',label:'Calories',value:t.kcal,target:p.kcalTarget,unit:'kcal',detail:Math.max(0,p.kcalTarget-t.kcal)+' kcal remaining'},
     {key:'protein',label:'Protein',value:t.protein,target:p.proteinTarget,unit:'g',detail:t.protein+' / '+p.proteinTarget+' g'},
@@ -453,6 +460,14 @@ TAB_RENDER.today = function(){
   ${weekStrip()}
   <div class="day-progress"><h2>Day progress</h2><div class="progress-rings" id="progress-rings" aria-label="Calories, protein, water and steps progress">${metrics.map((m,i)=>`<button class="progress-ring ${m.key}${i===0?' on':''}" data-progress="${m.key}" aria-label="Show ${m.label.toLowerCase()}" style="--fill:${Math.max(0,Math.min(100,m.value/m.target*100))}"></button>`).join('')}<div class="progress-centre"><strong id="progress-value">${t.kcal}</strong><span id="progress-unit">kcal</span></div></div><div class="progress-lines">${metrics.map((m,i)=>`<button class="progress-line${i===0?' on':''}" data-progress="${m.key}" style="--lc:${['#73c5a2','#60aa8c','#4b8d75','#386c5a'][i]}"><strong>${m.label}</strong><span>${m.detail}</span></button>`).join('')}</div><div class="v38-actions"><button class="btn" data-act="water">+ water</button><button class="btn" data-act="steps1k">+ 1,000 steps</button></div><p class="progress-note">A quiet view of the day. The rings show what is logged, without scoring it.</p></div>
   <div class="today-food"><div class="today-food-head"><h2>Today's food</h2><span class="tiny">${d.foods.length} item${d.foods.length===1?'':'s'} · ${t.kcal} kcal</span></div>${mealRows}</div>
+  <details class="card fold"><summary>Whole mirror · last 7 days</summary><p class="note">Body, food, movement and stillness are experiences being noticed. They are not who you are.</p><div class="facts">
+    <div class="fact"><span>Food logged</span><strong>${loggedFood.length?loggedFood.length+' days · avg '+Math.round(mean(loggedFood.map(x=>x.kcal)))+' kcal · '+Math.round(mean(loggedFood.map(x=>x.protein)))+' g protein':'-'}</strong></div>
+    <div class="fact"><span>Body</span><strong>${weekWeights.length?'avg '+mean(weekWeights.map(x=>x.kg))+' kg':'no weigh-ins'}${latestWaist?' · waist '+latestWaist.cm+' cm':''}</strong></div>
+    <div class="fact"><span>Movement</span><strong>${weekWorkouts.length} strength session${weekWorkouts.length===1?'':'s'} · ${walkMinutes} walking min · avg ${Math.round(mean(stepVals)||0).toLocaleString()} steps</strong></div>
+    <div class="fact"><span>Sleep</span><strong>${sleepVals.length?'avg '+mean(sleepVals)+' h · '+sleepVals.length+' nights':'-'}</strong></div>
+    <div class="fact"><span>Blood pressure</span><strong>${mirrorBp?mirrorBp.sys+'/'+mirrorBp.dia+' avg · '+weekBps.length+' readings':'-'}</strong></div>
+    <div class="fact"><span>Meditation</span><strong>${weekMeds.length?weekMeds.length+' sits · '+weekMeds.reduce((n,x)=>n+(Number(x.minutes)||0),0)+' min':'-'}</strong></div>
+  </div></details>
   <div class="hub-links"><button class="hub-link" data-jump="food"><strong>Food diary</strong><span>${d.foods.length} items logged</span></button><button class="hub-link" data-jump="train"><strong>Training</strong><span>Open today's programme</span></button><button class="hub-link" data-jump="body"><strong>Body</strong><span>Weight, waist and sleep</span></button><button class="hub-link" data-jump="mind"><strong>Awareness</strong><span>Pause, notice, reflect</span></button></div>
   <div class="quote"><div class="t">"${esc(quote.t)}"</div><div class="b">${esc(quote.b)}</div></div>
   `;
@@ -808,7 +823,7 @@ TAB_RENDER.train = function(){
     ${flow.poses.map((pose,pi)=>{ const pid=flow.id+':'+pi; return `<label class="check${done.indexOf(pid)>=0?' done':''}"><input type="checkbox" data-pose="${pid}" ${done.indexOf(pid)>=0?'checked':''}><span>${esc(pose)}</span></label>`; }).join('')}</div>`; }).join('')}
   <h2>Walks</h2>
   <div class="field"><label class="label">Walking minutes today</label><input class="input" inputmode="numeric" id="t-walk" value="${d.walkMin||''}" placeholder="30"></div>
-  <p class="note">Brisk walking is the quiet engine of this plan. It burns steadily without spiking appetite. Aim for a daily walk on top of training.</p>
+  <p class="note">Walking minutes sit beside training as a plain movement record.</p>
   <h2>Recent sessions</h2>
   ${recent.length===0?'<p class="note">No sessions logged yet. Your history and progression will build here.</p>':`<div class="list">${recent.map(w=>`<div class="row rowc"><span><strong>${esc(w.title)}</strong> <span class="dim">${fmtDate(w.date)}</span></span><span class="dim">${w.exercises.length} exercise${w.exercises.length===1?'':'s'}, ${w.exercises.reduce((a,e)=>a+e.sets.length,0)} sets</span></div>`).join('')}</div>`}`;
   const sec=document.getElementById('tab-train');
@@ -1095,7 +1110,7 @@ TAB_RENDER.data = function(){
   const p=state.profile;
   document.getElementById('tab-data').innerHTML=`<div class="callout"><strong>Private by default</strong><p>Data stays on this device unless you export it or use a clearly marked online food or AI feature. Export a backup regularly.</p></div>
   <h2>Daily targets</h2>
-  <p class="note">Set for a gentle deficit with high protein: about 0.4 to 0.5 kg loss a week while muscle is preserved. Adjust only after two still weeks.</p>
+  <p class="note">These are the current food and movement targets. The logs show what happened; targets can be changed here.</p>
   <div class="grid2">
     <div class="field"><label class="label">Calories (kcal)</label><input class="input" inputmode="numeric" id="d-kcal" value="${p.kcalTarget}"></div>
     <div class="field"><label class="label">Protein (g)</label><input class="input" inputmode="numeric" id="d-prot" value="${p.proteinTarget}"></div>
