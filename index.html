@@ -236,6 +236,8 @@ if(!Array.isArray(state.witness.readings)) state.witness.readings=[];
 if(!state.awareness) state.awareness={done:{},notes:{},generated:[]};
 if(!Array.isArray(state.bloodPressures)) state.bloodPressures=[];
 if(!state.walkTimer) state.walkTimer={startedAt:null};
+if(!state.meditationTimer) state.meditationTimer={startedAt:null};
+if(!state.sleepTimer) state.sleepTimer={startedAt:null};
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ toast('Storage is full. Export a backup and delete old photos.'); } }
 function todayKey(d){ d=d||new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
 function fmtDate(key){ const p=key.split('-'); const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return parseInt(p[2],10)+' '+(M[parseInt(p[1],10)-1]||''); }
@@ -925,7 +927,7 @@ TAB_RENDER.body = function(){
     </svg></div>`;
   } else chartHtml=`<p class="note">The chart appears after your second weigh-in.</p>`;
   document.getElementById('tab-body').innerHTML=`
-  <h2>Today</h2><div class="grid2"><div class="field"><label class="label">Bedtime</label><input class="input" type="time" id="b-bed" value="${esc(dayOf(todayKey()).bedTime||'')}"></div><div class="field"><label class="label">Woke</label><input class="input" type="time" id="b-woke" value="${esc(dayOf(todayKey()).wokeTime||'')}"></div></div><div class="field"><label class="label">Sleep hours</label><input class="input" inputmode="decimal" id="b-sleep" value="${dayOf(todayKey()).sleep==null?'':dayOf(todayKey()).sleep}"></div><details class="card fold"><summary>Daily rhythm</summary><p class="note">Asleep by 10 pm. Awake 4:15 on weekdays, 6:00 on weekends. Food roughly 6:30 am to 6:30 pm; caffeine by midday; wind down from 8:30.</p></details>
+  <h2>Today</h2><div class="card"><strong>Sleep timer</strong><div class="walk-timer" id="sleep-time">00:00</div>${state.sleepTimer.startedAt?'<button class="btn primary" id="sleep-stop">I woke up</button>':'<button class="btn primary" id="sleep-start">Going to bed</button>'}<p class="note">One sleep period per night. If the timer was forgotten, edit the facts below rather than guessing.</p></div><div class="grid2"><div class="field"><label class="label">Bedtime</label><input class="input" type="time" id="b-bed" value="${esc(dayOf(todayKey()).bedTime||'')}"></div><div class="field"><label class="label">Woke</label><input class="input" type="time" id="b-woke" value="${esc(dayOf(todayKey()).wokeTime||'')}"></div></div><div class="field"><label class="label">Sleep hours</label><input class="input" inputmode="decimal" id="b-sleep" value="${dayOf(todayKey()).sleep==null?'':dayOf(todayKey()).sleep}"></div><details class="card fold"><summary>Daily rhythm</summary><p class="note">Asleep by 10 pm. Awake 4:15 on weekdays, 6:00 on weekends. Food roughly 6:30 am to 6:30 pm; caffeine by midday; wind down from 8:30.</p></details>
   <h2>Blood pressure</h2>
   <p class="note"><a href="https://www.bhf.org.uk/-/media/files/information-and-support/publications/living-with-a-heart-condition/bhf_bp_diary_1224.pdf" target="_blank" rel="noopener">BHF diary guidance</a>: for a 7-day diary, measure once in the morning (6am-12pm) and once in the evening (6pm-midnight). Each time, take 2 readings a couple of minutes apart. Sit calm and upright, back supported, feet flat, arm on a table and hand relaxed.</p>
   <div class="field"><label class="label">Date and time</label><input class="input" type="datetime-local" id="bp-at" value="${localStamp}"></div><div class="chips"><button class="chip${defaultPeriod==='Morning'?' on':''}" data-bp-period="Morning">Morning</button><button class="chip${defaultPeriod==='Evening'?' on':''}" data-bp-period="Evening">Evening</button></div>
@@ -957,7 +959,7 @@ TAB_RENDER.body = function(){
   <details class="card fold"><summary>How to read this</summary><ul class="plain"><li>Compare weekly averages rather than single days.</li><li>Weight, waist and strength are separate facts; view them together.</li><li>Discuss changes to targets with your healthcare team when relevant.</li></ul></details>`;
   const sec=document.getElementById('tab-body');
   const q=s=>sec.querySelector(s); const qa=s=>sec.querySelectorAll(s);
-  const td=dayOf(todayKey());let sleepCeremonyShown=false;q('#b-sleep').onfocus=()=>{if(!sleepCeremonyShown){sleepCeremonyShown=true;openCeremony('Evening rest','The day returns to silence. Nothing needs to be carried.','May all beings rest in peace, awareness, and love.',()=>{},'Return to sleep log')}};q('#b-bed').onchange=e=>{td.bedTime=e.target.value;save();};q('#b-woke').onchange=e=>{td.wokeTime=e.target.value;save();};q('#b-sleep').onchange=e=>{const v=parseFloat(e.target.value);td.sleep=isNaN(v)?null:v;save();};
+  const td=dayOf(todayKey());let sleepCeremonyShown=false;let stimer=null;const showSleep=()=>{const el=q('#sleep-time');if(!el)return;const sec=state.sleepTimer.startedAt?Math.max(0,Math.floor((Date.now()-new Date(state.sleepTimer.startedAt).getTime())/1000)):0;el.textContent=String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor(sec%3600/60)).padStart(2,'0')};showSleep();if(state.sleepTimer.startedAt)stimer=setInterval(showSleep,60000);if(q('#sleep-start'))q('#sleep-start').onclick=()=>openCeremony('Evening rest','The day returns to silence. Nothing needs to be carried.','May all beings rest in peace, awareness, and love.',()=>{state.sleepTimer.startedAt=new Date().toISOString();save();TAB_RENDER.body();},'Going to bed');if(q('#sleep-stop'))q('#sleep-stop').onclick=()=>{const a=new Date(state.sleepTimer.startedAt),b=new Date(),hours=Math.round((b-a)/36e5*10)/10;if(hours>16){toast('This timer may have been left running. Edit bedtime, wake time and hours below.');return;}td.bedTime=a.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});td.wokeTime=b.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});td.sleep=hours;state.sleepTimer.startedAt=null;save();TAB_RENDER.body();toast(hours+' hours logged.');};q('#b-sleep').onfocus=()=>{if(!sleepCeremonyShown){sleepCeremonyShown=true;openCeremony('Evening rest','The day returns to silence. Nothing needs to be carried.','May all beings rest in peace, awareness, and love.',()=>{},'Return to sleep log')}};q('#b-bed').onchange=e=>{td.bedTime=e.target.value;save();};q('#b-woke').onchange=e=>{td.wokeTime=e.target.value;save();};q('#b-sleep').onchange=e=>{const v=parseFloat(e.target.value);td.sleep=isNaN(v)?null:v;save();};
   let bpPeriod=defaultPeriod;qa('[data-bp-period]').forEach(b=>b.onclick=()=>{bpPeriod=b.dataset.bpPeriod;qa('[data-bp-period]').forEach(x=>x.classList.toggle('on',x===b));});
   q('#bp-add').onclick=()=>{const sys=parseInt(q('#bp-sys').value,10),dia=parseInt(q('#bp-dia').value,10),pulse=parseInt(q('#bp-pulse').value,10),at=q('#bp-at').value;if(!at||!(sys>=50&&sys<=300)||!(dia>=30&&dia<=200)||!(pulse>=25&&pulse<=250)){toast('Enter the date, systolic, diastolic and pulse.');return;}state.bloodPressures.push({id:uid(),at:new Date(at).toISOString(),period:bpPeriod,sys,dia,pulse,note:q('#bp-note').value.trim()});save();TAB_RENDER.body();toast('Reading saved.');};
   qa('[data-bp-del]').forEach(b=>b.onclick=()=>{state.bloodPressures=state.bloodPressures.filter(x=>x.id!==b.dataset.bpDel);save();TAB_RENDER.body();});
@@ -1057,12 +1059,7 @@ function renderMindPractice(){
   document.getElementById('tab-mind').innerHTML=`
   <h2>Meditation</h2>
   <p class="note">Sit comfortably, spine easy. Watch the breath come and go. When the mind wanders, noticing the wandering is the practice, not a failure.</p>
-  <div class="chips">${[5,10,15,20].map(m=>`<button class="chip${medMin===m?' on':''}" data-min="${m}">${m} min</button>`).join('')}</div>
-  <div class="timer" id="m-timer">${Math.floor(medLeft/60)}:${String(medLeft%60).padStart(2,'0')}</div>
-  <div class="qr">
-    ${running?'<button class="btn" id="m-pause">Pause</button>':`<button class="btn primary" id="m-start">${medLeft===0?'Again':medLeft<medMin*60?'Resume':'Begin'}</button>`}
-    <button class="btn" id="m-reset">Reset</button>
-  </div>
+  <div class="timer" id="m-timer">00:00</div><div class="qr">${state.meditationTimer.startedAt?'<button class="btn primary" id="m-stop">Stop and log</button>':'<button class="btn primary" id="m-start">Begin Gauri Shankar</button>'}</div><p class="note">The fixed hour is held by the timer; stopping early logs the minutes that happened.</p>
   <div class="facts">
     <div class="fact"><span>This week</span><strong>${wses} sits, ${wmin} min</strong></div>
     <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
@@ -1080,10 +1077,9 @@ function renderMindPractice(){
   ${state.profile.bpSafe?`<h2>Breathwork note</h2><p class="note">With blood pressure, keep breathwork gentle: slow nasal breathing, easy counts, no long retentions and no forceful techniques. Stillness, not strain.</p>`:''}`;
   const sec=document.getElementById('tab-mind');
   const q=s=>sec.querySelector(s); const qa=s=>sec.querySelectorAll(s);
-  qa('[data-min]').forEach(b=>b.onclick=()=>{ medMin=parseInt(b.dataset.min,10); medLeft=medMin*60; clearInterval(medTimer); medTimer=null; TAB_RENDER.mind(); });
-  if(q('#m-start')) q('#m-start').onclick=()=>{ if(medLeft===0) medLeft=medMin*60; clearInterval(medTimer); medTimer=setInterval(tickTimer,1000); TAB_RENDER.mind(); };
-  if(q('#m-pause')) q('#m-pause').onclick=()=>{ clearInterval(medTimer); medTimer=null; TAB_RENDER.mind(); };
-  if(q('#m-reset')) q('#m-reset').onclick=()=>{ clearInterval(medTimer); medTimer=null; medLeft=medMin*60; TAB_RENDER.mind(); };
+  let mt=null;const showMeditation=()=>{const el=q('#m-timer');if(!el)return;const sec=state.meditationTimer.startedAt?Math.max(0,Math.floor((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/1000)):0;el.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')};showMeditation();if(state.meditationTimer.startedAt)mt=setInterval(showMeditation,1000);
+  if(q('#m-start'))q('#m-start').onclick=()=>openCeremony('Meditation','The hour needs nothing from you. Sit, breathe, and let what is be seen.','',()=>{state.meditationTimer.startedAt=new Date().toISOString();save();TAB_RENDER.mind();},'Begin');
+  if(q('#m-stop'))q('#m-stop').onclick=()=>{const mins=Math.max(1,Math.round((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/60000));state.meditations.push({id:uid(),date:todayKey(),minutes:mins});state.meditationTimer.startedAt=null;save();TAB_RENDER.mind();toast(mins>=60?'The hour is complete.':mins+' minutes logged.');};
   qa('[data-grat]').forEach(inp=>inp.onchange=()=>{ d.gratitude[parseInt(inp.dataset.grat,10)]=inp.value; save(); });
 };
 
