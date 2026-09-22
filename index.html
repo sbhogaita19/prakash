@@ -966,6 +966,58 @@ TAB_RENDER.body = function(){
   qa('[data-pdel]').forEach(b=>b.onclick=()=>{ state.photos=state.photos.filter(x=>x.id!==b.dataset.pdel); save(); TAB_RENDER.body(); });
 };
 /* ---------- Mind ---------- */
+const PRAYERS=[
+{title:'Morning - on waking',text:`ॐ
+
+Gratitude for this breath.
+
+Gratitude for the life moving through the heart.
+
+Awareness is already here, before thought and before the activity of the day.
+
+May the walk and meditation unfold in stillness, love, and totality.
+
+ॐ`},
+{title:'Noon pause - 12:00',text:`Pause. Breathe gently into the heart.
+
+Nothing to become. Nothing to prove.
+
+Awareness is present, holding this moment and all existence within it.
+
+Gratitude for life as it is.
+
+ॐ`},
+{title:'Before eating - lunch from 12:30 / dinner at 18:00',text:`ॐ Brahmārpaṇam
+
+The food, the giver, the receiving, and the life it sustains are one movement of existence.
+
+Gratitude to the earth, rain, sun, hands, and life that brought this meal.
+
+May it nourish awareness, compassion, and right action.
+
+ॐ`},
+{title:'Evening - 20:30 wind-down',text:`ॐ
+
+Gratitude to nature, the Self, and all that appeared today.
+
+Gratitude for every breath, meeting, challenge, and gift.
+
+The day returns to silence. Nothing needs to be carried.
+
+May all beings rest in peace, awareness, and love.
+
+ॐ`},
+{title:'Before work',text:`Before work begins, a quiet bow of gratitude for this life, this breath and the opportunity to serve.
+
+May love move through every word and action. May awareness remain present through effort, pressure and success.
+
+Let the work be done fully, without losing the stillness within. Om. 🙏`},
+{title:'Before exercise',text:`A quiet bow of gratitude for the body as an instrument of life.
+
+May the breath stay steady, awareness remain in every movement, and strength grow without strain.
+
+Let training and yoga unfold with balance, presence and care. Om.`}
+];
 let medMin=10, medLeft=600, medTimer=null;
 function bell(){ try{ const AC=window.AudioContext||window.webkitAudioContext; const ctx=new AC();
   const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=528;
@@ -1006,6 +1058,8 @@ function renderMindPractice(){
   <h2>Gratitude</h2>
   <p class="note">Three lines before bed. Small things count the most.</p>
   ${[0,1,2].map(i=>`<div class="field"><input class="input" data-grat="${i}" value="${esc(d.gratitude[i]||'')}" placeholder="${i+1}."></div>`).join('')}
+  <h2>Prayers</h2>
+  <div class="list prayer-list">${PRAYERS.map(p=>`<details class="card"><summary><strong>${esc(p.title)}</strong></summary><p style="white-space:pre-line;margin:14px 0 0">${esc(p.text)}</p></details>`).join('')}</div>
   <h2>Words to sit with</h2>
   ${QUOTES.map(qt=>`<div class="card"><div class="quote" style="border:none;padding:0;margin:0"><div class="t">"${esc(qt.t)}"</div><div class="b">${esc(qt.b)}</div></div></div>`).join('')}
   ${state.profile.bpSafe?`<h2>Breathwork note</h2><p class="note">With blood pressure, keep breathwork gentle: slow nasal breathing, easy counts, no long retentions and no forceful techniques. Stillness, not strain.</p>`:''}`;
