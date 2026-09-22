@@ -124,7 +124,7 @@ nav.tabs button{font-size:12px;min-width:55px;padding:9px 4px 8px}nav.tabs butto
 <section class="tab" id="tab-body"></section>
 <section class="tab" id="tab-mind"></section>
 <section class="tab" id="tab-data"></section>
-<p class="note"><strong>v31</strong> · MyFitnessPal-style daily diary and Technogym-style focused workouts. Every existing record and feature is preserved.</p>
+<p class="note"><strong>v32</strong> · MyFitnessPal-style daily diary and Technogym-style focused workouts. Every existing record and feature is preserved.</p>
 <p class="closing">Your data never leaves this phone unless you export it. Export a backup from the Data tab every week or two.</p>
 </div>
 <script>
@@ -581,14 +581,14 @@ TAB_RENDER.food = function(){
   ${weekCharts(p)}
   <h2>Macros</h2>
   ${macrosHtml(p)}
-  ${d.foods.length===0?'<p class="note">Nothing logged yet today.</p>':['breakfast','lunch','dinner','snack',''].filter(sl=>d.foods.some(f=>(f.slot||(f.snack?'snack':''))===sl)).map(sl=>`<div class="meal-head" data-meal="${sl}"><strong>${{breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner',snack:'Snacks','':'Meals'}[sl]}</strong><small>Swipe right to repeat</small></div><div class="list">${d.foods.filter(f=>(f.slot||(f.snack?'snack':''))===sl).map(f=>`<div class="row"><span><strong>${esc(f.name)}</strong>${f.snack&&f.trigger?`<span class="tagchip">${esc(f.trigger)}</span>`:''}<br><span class="dim">${f.kcal} kcal, ${f.protein} g protein${f.fat!=null?', '+f.fat+' g fat':''}${f.carbs!=null?', '+f.carbs+' g carbs':''}${f.fibre!=null?', '+f.fibre+' g fibre':''}</span></span><button class="del" data-edit="${f.id}">Edit</button><button class="del" data-del="${f.id}">Remove</button></div>
+  ${['breakfast','lunch','dinner','snack'].map(sl=>`<div class="meal-head" data-meal="${sl}"><strong>${{breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner',snack:'Snacks'}[sl]}</strong><small>Swipe right to repeat</small></div>${d.foods.some(f=>(f.slot||(f.snack?'snack':''))===sl)?`<div class="list">${d.foods.filter(f=>(f.slot||(f.snack?'snack':''))===sl).map(f=>`<div class="row"><span><strong>${esc(f.name)}</strong>${f.snack&&f.trigger?`<span class="tagchip">${esc(f.trigger)}</span>`:''}<br><span class="dim">${f.kcal} kcal, ${f.protein} g protein${f.fat!=null?', '+f.fat+' g fat':''}${f.carbs!=null?', '+f.carbs+' g carbs':''}${f.fibre!=null?', '+f.fibre+' g fibre':''}</span></span><select class="input mini" data-move="${f.id}" aria-label="Move ${esc(f.name)} to another meal"><option value="breakfast" ${sl==='breakfast'?'selected':''}>Breakfast</option><option value="lunch" ${sl==='lunch'?'selected':''}>Lunch</option><option value="dinner" ${sl==='dinner'?'selected':''}>Dinner</option><option value="snack" ${sl==='snack'?'selected':''}>Snacks</option></select><button class="del" data-edit="${f.id}">Edit</button><button class="del" data-del="${f.id}">Remove</button></div>
       ${editId===f.id?`<div class="pickbox"><strong>Edit: ${esc(f.name)}</strong>
         <div class="grid2"><div class="field"><label class="label">Calories (kcal)</label><input class="input" inputmode="numeric" id="e-kcal" value="${f.kcal}"></div><div class="field"><label class="label">Protein (g)</label><input class="input" inputmode="decimal" id="e-prot" value="${f.protein}"></div></div>
         <div class="grid2"><div class="field"><label class="label">Fat (g)</label><input class="input" inputmode="decimal" id="e-fat" value="${f.fat!=null?f.fat:''}"></div><div class="field"><label class="label">Carbs (g)</label><input class="input" inputmode="decimal" id="e-carbs" value="${f.carbs!=null?f.carbs:''}"></div></div>
         <div class="field"><label class="label">Fibre (g)</label><input class="input" inputmode="decimal" id="e-fib" value="${f.fibre!=null?f.fibre:''}"></div>
         <div class="field"><label class="label">Servings (scales all the numbers)</label>
         <div class="setrow"><button class="btn mini" id="e-sminus" aria-label="Less">-</button><input class="input mini" style="width:96px" inputmode="decimal" id="e-serv" value="${editServ}"><button class="btn mini" id="e-splus" aria-label="More">+</button></div></div>
-        <div class="qr"><button class="btn primary" id="e-save">Save changes</button><button class="btn" id="e-cancel">Cancel</button></div></div>`:''}`).join('')}</div>`).join('')}
+        <div class="qr"><button class="btn primary" id="e-save">Save changes</button><button class="btn" id="e-cancel">Cancel</button></div></div>`:''}`).join('')}</div>`:`<div class="card"><span class="dim">Nothing logged here yet. Swipe the header right to repeat yesterday's ${sl==='snack'?'snacks':sl}.</span></div>`}`).join('')}
   ${(()=>{ const hist=lastDays(8).slice(0,-1).reverse().filter(kk=>{ const dd=state.days[kk]; return dd&&dd.foods&&dd.foods.length>0; }).slice(0,7); if(!hist.length) return ''; return `<h2>Repeat a previous day</h2><div class="list">${hist.map(kk=>{ const dd=state.days[kk]; const tt=totals(dd); return `<div class="row"><span><strong>${kk===todayKey(new Date(Date.now()-864e5))?'Yesterday':kk}</strong><br><span class="dim">${dd.foods.length} item${dd.foods.length>1?'s':''}, ${tt.kcal} kcal, ${tt.protein} g protein${tt.fat?', '+tt.fat+' g fat':''}${tt.carbs?', '+tt.carbs+' g carbs':''}${tt.fibre?', '+tt.fibre+' g fibre':''}</span></span><button class="btn mini" data-copyday="${kk}">Copy to today</button></div>`; }).join('')}</div>`; })()}
   <h2>Snacks this week</h2>
   ${snackTotal===0?'<p class="note">No snacks logged in the last 7 days.</p>':`<div class="facts">${Object.keys(counts).map(tr=>`<div class="fact"><span>${esc(tr)}</span><strong>${counts[tr]}</strong></div>`).join('')}</div>`}
@@ -604,6 +604,7 @@ TAB_RENDER.food = function(){
   if(q('#f-start')) q('#f-start').onclick=()=>{ foodStage='pause'; TAB_RENDER.food(); };
   qa('[data-pc]').forEach(b=>b.onclick=()=>{ pauseChoice=b.dataset.pc; TAB_RENDER.food(); });
   if(q('#f-continue')) q('#f-continue').onclick=()=>{ d.pauses++; save(); foodStage='log'; TAB_RENDER.food(); };
+  qa('[data-move]').forEach(sel=>sel.onchange=()=>{ const f=d.foods.find(x=>x.id===sel.dataset.move); if(!f)return; f.slot=sel.value; f.snack=sel.value==='snack'; if(!f.snack) f.trigger=''; save(); TAB_RENDER.food(); toast('Moved to '+sel.options[sel.selectedIndex].text+'.'); });
   qa('[data-ft]').forEach(b=>b.onclick=()=>{ if(b.dataset.ft!=='scan') stopScan(); foodTab=b.dataset.ft; pick=null; TAB_RENDER.food(); });
   qa('[data-staple]').forEach(b=>b.onclick=()=>{ const s=STAPLES[parseInt(b.dataset.staple,10)]; const dg=s[0].indexOf('scoop')>=0?'30':'100';
     pick={name:s[0],kcal100:s[1],prot100:s[2],fat100:s[3],carb100:s[4],per:s[5],defGrams:dg,qty:dg,mode:'w'};
