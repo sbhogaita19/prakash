@@ -8,7 +8,7 @@
   "background_color": "#121615",
   "theme_color": "#121615",
   "icons": [
-    { "src": "prakash-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "prakash-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "prakash-om-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "prakash-om-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

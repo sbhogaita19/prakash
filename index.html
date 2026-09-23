@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Prakash">
 <title>Prakash</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="64x64" href="prakash-favicon.png">
-<link rel="apple-touch-icon" sizes="192x192" href="prakash-icon-192.png">
+<link rel="icon" type="image/png" sizes="64x64" href="prakash-om-favicon.png">
+<link rel="apple-touch-icon" sizes="192x192" href="prakash-om-192.png">
 <style>
 :root { --ink:#251f21; --ink2:#585254; --ink3:#969394; --hair:#eae9ea; --teal:#73a89a; --red:#ed313e; --sand:#f4efec; --page:#fbfaf9; }
 * { box-sizing: border-box; }
@@ -133,7 +133,7 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.
 <body>
 <div id="setup"><div class="inner"></div></div>
 <div class="wrap">
-<h1><img src="prakash-icon-192.png" alt="Om" width="32" height="32" style="border-radius:8px;vertical-align:-6px;margin-right:9px">Prakash</h1>
+<h1><img src="prakash-om-192.png" alt="Om" width="32" height="32" style="border-radius:8px;vertical-align:-6px;margin-right:9px">Prakash</h1>
 <p class="tag">Your day, clearly.</p>
 <nav class="tabs" id="tabs">
 <button data-tab="today" class="on">Today</button>
@@ -570,7 +570,7 @@ TAB_RENDER.food = function(){
       <button class="btn primary" id="f-cadd">Add to today</button>`;
     else body=`<div class="field"><label class="label">Dish name and portion</label><input class="input" id="f-an" value="${esc(dishName)}" placeholder="e.g. homemade chana masala, 1 medium bowl"></div>
       <div class="field"><label class="label">What is in it? (optional but improves the estimate)</label><input class="input" id="f-ai" value="${esc(dishIng)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
-      <label class="btn filebtn">${dishPhotoFile?'Change photo':'Take or choose photo'}<input type="file" accept="image/*" id="f-photo"></label>
+      <label class="btn filebtn">${dishPhotoFile?'Retake photo':'Take photo'}<input type="file" accept="image/*" capture="environment" id="f-photo-cam"></label> <label class="btn filebtn">Choose photo<input type="file" accept="image/*" id="f-photo"></label>
       ${dishPhotoUrl?`<img class="dishpreview" src="${dishPhotoUrl}" alt="Dish photo ready to share">`:''}
       <p class="note">Estimate works from the dish name and portion alone; a photo usually makes it better. Your photo stays on this phone unless you tap Estimate with Gemini or Share with AI. Any estimate is only a starting point: photos cannot reliably see portion weight, oil, ghee, sauces or hidden ingredients.</p>
       ${state.profile.geminiKey?`<button class="btn primary" id="f-est">Estimate automatically with Gemini</button>`:`<p class="note">Want automatic estimates? Add your own free Gemini API key in the Data tab (AI dish estimates), then come back here.</p>`}
@@ -680,6 +680,7 @@ TAB_RENDER.food = function(){
     if(dishPhotoUrl) URL.revokeObjectURL(dishPhotoUrl);
     dishPhotoFile=file; dishPhotoUrl=URL.createObjectURL(file); TAB_RENDER.food();
   };
+  if(q('#f-photo-cam')&&q('#f-photo')) q('#f-photo-cam').onchange=q('#f-photo').onchange;
   if(q('#f-an')) q('#f-an').oninput=e=>{ dishName=e.target.value; };
   if(q('#f-ai')) q('#f-ai').oninput=e=>{ dishIng=e.target.value; };
   if(q('#f-est')) q('#f-est').onclick=async()=>{
@@ -967,7 +968,7 @@ TAB_RENDER.body = function(){
   <div class="list">${waists.slice(0,5).map(w=>`<div class="row"><span>${fmtDate(w.date)}</span><strong>${w.cm} cm</strong></div>`).join('')}</div>
   <h2>Progress photos</h2>
   <p class="note">Same light, same spot, same pose, every two weeks. Front and side. Photos stay on this phone only, and they are included in your backup export.</p>
-  <label class="btn primary filebtn">Add a photo<input type="file" accept="image/*" id="b-photo"></label>
+  <label class="btn primary filebtn">Take photo<input type="file" accept="image/*" capture="environment" id="b-photo-cam"></label> <label class="btn filebtn">Choose photo<input type="file" accept="image/*" id="b-photo"></label>
   <div class="photogrid">${state.photos.map(ph=>`<div class="photo"><img src="${ph.dataUrl}" alt="Progress photo from ${fmtDate(ph.date)}"><div class="photofoot"><span class="dim">${fmtDate(ph.date)}</span><button class="del" data-pdel="${ph.id}">Delete</button></div></div>`).join('')}</div>
   <details class="card fold"><summary>How to read this</summary><ul class="plain"><li>Compare weekly averages rather than single days.</li><li>Weight, waist and strength are separate facts; view them together.</li><li>Discuss changes to targets with your healthcare team when relevant.</li></ul></details>`;
   const sec=document.getElementById('tab-body');
@@ -993,7 +994,8 @@ TAB_RENDER.body = function(){
       img.src=String(reader.result); };
     reader.onerror=()=>toast('Could not read that photo.');
     reader.readAsDataURL(file); e.target.value='';
-  };
+  };  if(q('#b-photo-cam')) q('#b-photo-cam').onchange=q('#b-photo').onchange;
+
   qa('[data-pdel]').forEach(b=>b.onclick=()=>{ state.photos=state.photos.filter(x=>x.id!==b.dataset.pdel); save(); TAB_RENDER.body(); });
 };
 /* ---------- Mind ---------- */
@@ -1287,7 +1289,7 @@ function showSetup(){
     {k:'training',title:'How do you want to train?',note:'Choose your rhythm.',body:`${[[2,'2 strength days'],[3,'3 strength days'],[4,'3 strength + optional recovery day']].map(x=>`<button class="onboard-choice${Number(p.trainingDays||3)===x[0]?' on':''}" data-pick="trainingDays" data-value="${x[0]}">${x[1]}</button>`).join('')}<label class="check"><input type="checkbox" id="ob-bp"${p.bpSafe?' checked':''}><span>Show the blood-pressure-safe lifting and breathwork rules</span></label>`},
     {k:'food',title:'How do you prefer to eat?',note:'Choose what fits.',body:`<label class="check"><input type="checkbox" id="ob-veg"${p.vegetarian!==false?' checked':''}><span>Vegetarian</span></label><label class="check"><input type="checkbox" id="ob-eggfree"${p.eggFree!==false?' checked':''}><span>Egg-free</span></label>`}
   ],st=steps[setupStep];
-  box.innerHTML=`<h1><img src="prakash-icon-192.png" alt="Om" width="48" height="48" style="display:block;border-radius:12px;margin-bottom:10px">Prakash</h1><p class="tag">Made for you.</p><div class="onboard-progress">${steps.map((_,i)=>`<i class="${i<=setupStep?'on':''}"></i>`).join('')}</div><p class="tiny">${setupStep+1} of ${steps.length}</p><h2>${st.title}</h2><p class="note">${st.note}</p>${st.body}<div class="qr" style="margin-top:20px">${setupStep?'<button class="btn" id="ob-back">Back</button>':''}<button class="btn primary" id="ob-next">${setupStep===steps.length-1?'Finish':'Continue'}</button></div><button class="btn" id="ob-skip" style="margin-top:10px">Set up later</button>`;
+  box.innerHTML=`<h1><img src="prakash-om-192.png" alt="Om" width="48" height="48" style="display:block;border-radius:12px;margin-bottom:10px">Prakash</h1><p class="tag">Made for you.</p><div class="onboard-progress">${steps.map((_,i)=>`<i class="${i<=setupStep?'on':''}"></i>`).join('')}</div><p class="tiny">${setupStep+1} of ${steps.length}</p><h2>${st.title}</h2><p class="note">${st.note}</p>${st.body}<div class="qr" style="margin-top:20px">${setupStep?'<button class="btn" id="ob-back">Back</button>':''}<button class="btn primary" id="ob-next">${setupStep===steps.length-1?'Finish':'Continue'}</button></div><button class="btn" id="ob-skip" style="margin-top:10px">Set up later</button>`;
   el.classList.add('open');const q=x=>box.querySelector(x);
   box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{p[b.dataset.pick]=b.dataset.pick==='trainingDays'?Number(b.dataset.value):b.dataset.value;box.querySelectorAll(`[data-pick="${b.dataset.pick}"]`).forEach(x=>x.classList.toggle('on',x===b));});
   if(q('#ob-back'))q('#ob-back').onclick=()=>{setupStep--;showSetup();};
@@ -1321,8 +1323,15 @@ if ('serviceWorker' in navigator) {
     // updateViaCache:'none' makes update checks bypass the HTTP cache, so a new
     // sw.js is seen within minutes of a deploy instead of after cache expiry.
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){
-      reg.update().catch(function(){});
-      document.addEventListener('visibilitychange', function(){ if (!document.hidden) reg.update().catch(function(){}); });
+      function check(){ reg.update().catch(function(){}); }
+      function activateWaiting(){ if (reg.waiting && navigator.serviceWorker.controller) reg.waiting.postMessage('skipWaiting'); }
+      reg.addEventListener('updatefound', function(){ var w = reg.installing; if (w) w.addEventListener('statechange', function(){ if (w.state === 'installed') activateWaiting(); }); });
+      activateWaiting();
+      check();
+      document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
+      window.addEventListener('focus', check);
+      window.addEventListener('online', check);
+      setInterval(function(){ if (!document.hidden) check(); }, 15 * 60 * 1000);
     }).catch(function(){});
   });
 }
