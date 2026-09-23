@@ -133,7 +133,7 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.
 <body>
 <div id="setup"><div class="inner"></div></div>
 <div class="wrap">
-<h1><img src="prakash-icon-192.png" alt="" width="32" height="32" style="border-radius:8px;vertical-align:-6px;margin-right:9px">Prakash</h1>
+<h1><img src="prakash-icon-192.png" alt="Om" width="32" height="32" style="border-radius:8px;vertical-align:-6px;margin-right:9px">Prakash</h1>
 <p class="tag">Your day, clearly.</p>
 <nav class="tabs" id="tabs">
 <button data-tab="today" class="on">Today</button>
@@ -239,6 +239,7 @@ if(!state.walkTimer) state.walkTimer={startedAt:null};
 if(!state.meditationTimer) state.meditationTimer={startedAt:null};
 if(!state.sleepTimer) state.sleepTimer={startedAt:null};
 if(!Array.isArray(state.foodFavourites)) state.foodFavourites=[];
+if(!Array.isArray(state.speakingNotices)) state.speakingNotices=[];
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ toast('Storage is full. Export a backup and delete old photos.'); } }
 function todayKey(d){ d=d||new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
 function fmtDate(key){ const p=key.split('-'); const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return parseInt(p[2],10)+' '+(M[parseInt(p[1],10)-1]||''); }
@@ -253,6 +254,7 @@ function bindWeek(sec,rerender){ const strip=sec.querySelector('#week-strip'); i
 function switchTab(name){ const b=document.querySelector(`nav.tabs button[data-tab="${name}"]`); if(b)b.click(); }
 function closeSheet(){const x=document.querySelector('.sheet-back');if(x)x.remove()}
 function openSheet(html,bind){closeSheet();const back=document.createElement('div');back.className='sheet-back';back.innerHTML=`<div class="sheet"><button class="btn" data-close style="float:right">Done</button>${html}</div>`;document.body.appendChild(back);back.onclick=e=>{if(e.target===back||e.target.closest('[data-close]'))closeSheet()};if(bind)bind(back.querySelector('.sheet'));}
+function foodAwareness(onContinue){openCeremony('Eating','One breath before this is logged. Let the first bite be fully tasted.','',onContinue,'Continue to log');}
 function openCeremony(title,line,prayer,onContinue,label){openSheet(`<h2>${esc(title)}</h2><p class="journal-prompt">One breath. ${esc(line)}</p>${prayer?'<p class="note" style="white-space:pre-line">'+esc(prayer)+'</p>':''}<div class="qr"><button class="btn primary" id="ceremony-continue">${esc(label||'Continue')}</button><button class="btn" id="ceremony-skip">Skip</button></div>`,sheet=>{const go=()=>{closeSheet();onContinue()};sheet.querySelector('#ceremony-continue').onclick=go;sheet.querySelector('#ceremony-skip').onclick=go;});}
 
 
@@ -634,8 +636,8 @@ TAB_RENDER.food = function(){
   const qa=s=>sec.querySelectorAll(s);
   bindWeek(sec,TAB_RENDER.food);
   qa('[data-daynav]').forEach(b=>b.onclick=()=>{viewDate=addDaysKey(viewDate,Number(b.dataset.daynav));weekOffset=0;TAB_RENDER.food();});
-  qa('[data-quickfood]').forEach(b=>b.onclick=()=>{const f=quickFoods[Number(b.dataset.quickfood)];if(!f)return;d.foods.push({...f,id:uid(),ts:Date.now(),slot:f.slot||slot,snack:(f.slot||slot)==='snack',source:f._quick==='Favourite'?'Favourite reuse':'Recent reuse'});save();TAB_RENDER.food();toast('Added '+f.name+'.');});
-  const repeatMeal=sl=>{const prev=state.days[addDaysKey(k,-1)],items=prev?(prev.foods||[]).filter(f=>(f.slot||(f.snack?'snack':''))===sl):[];if(!items.length){toast('No matching meal on the previous day.');return;}items.forEach(f=>d.foods.push({...f,id:uid(),ts:Date.now(),source:'Repeated from previous day'}));save();TAB_RENDER.food();toast('Previous meal repeated.');};
+  qa('[data-quickfood]').forEach(b=>b.onclick=()=>{const f=quickFoods[Number(b.dataset.quickfood)];if(!f)return;foodAwareness(()=>{d.foods.push({...f,id:uid(),ts:Date.now(),slot:f.slot||slot,snack:(f.slot||slot)==='snack',source:f._quick==='Favourite'?'Favourite reuse':'Recent reuse'});save();TAB_RENDER.food();toast('Added '+f.name+'.');});});
+  const repeatMeal=sl=>{const prev=state.days[addDaysKey(k,-1)],items=prev?(prev.foods||[]).filter(f=>(f.slot||(f.snack?'snack':''))===sl):[];if(!items.length){toast('No matching meal on the previous day.');return;}foodAwareness(()=>{items.forEach(f=>d.foods.push({...f,id:uid(),ts:Date.now(),source:'Repeated from previous day'}));save();TAB_RENDER.food();toast('Previous meal repeated.');});};
   qa('[data-repeatmeal]').forEach(b=>b.onclick=e=>{e.stopPropagation();repeatMeal(b.dataset.repeatmeal)});
   qa('[data-meal]').forEach(h=>{ let sx=0; h.addEventListener('touchstart',e=>sx=e.changedTouches[0].clientX,{passive:true}); h.addEventListener('touchend',e=>{ if(e.changedTouches[0].clientX-sx<65)return; repeatMeal(h.dataset.meal); },{passive:true}); });
   if(q('#f-start')) q('#f-start').onclick=()=>{ foodStage='pause'; TAB_RENDER.food(); };
@@ -644,7 +646,7 @@ TAB_RENDER.food = function(){
   qa('[data-foodact]').forEach(b=>b.onclick=()=>{ const f=d.foods.find(x=>x.id===b.dataset.foodact); if(!f)return; openSheet(`<h2>${esc(f.name)}</h2><p class="quiet">Move, edit or remove this entry.</p><label class="label">Meal</label><select class="input" id="sh-slot"><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snacks</option></select><button class="btn primary-action" id="sh-move">Move to selected meal</button><button class="btn primary-action" id="sh-tom">Move to tomorrow</button><button class="btn" id="sh-edit">Edit details</button><button class="btn" id="sh-favourite">${state.foodFavourites.some(x=>x.name===f.name&&x.kcal===f.kcal)?'Remove favourite':'Add to favourites'}</button><button class="btn danger" id="sh-remove">Remove</button>`, box=>{const sel=box.querySelector('#sh-slot');sel.value=f.slot||(f.snack?'snack':'');box.querySelector('#sh-move').onclick=()=>{f.slot=sel.value;f.snack=sel.value==='snack';if(!f.snack)f.trigger='';save();closeSheet();TAB_RENDER.food();toast('Moved.');};box.querySelector('#sh-tom').onclick=()=>{const ix=d.foods.findIndex(x=>x.id===f.id),nk=addDaysKey(k,1);dayOf(nk).foods.push(d.foods.splice(ix,1)[0]);save();closeSheet();TAB_RENDER.food();toast('Moved to tomorrow.');};box.querySelector('#sh-edit').onclick=()=>{editId=f.id;closeSheet();TAB_RENDER.food();};box.querySelector('#sh-favourite').onclick=()=>{const ix=state.foodFavourites.findIndex(x=>x.name===f.name&&x.kcal===f.kcal);if(ix>=0){state.foodFavourites.splice(ix,1);toast('Removed from favourites.')}else{const keep={...f,id:uid(),source:f.source||'Saved favourite'};state.foodFavourites.push(keep);toast('Added to favourites.')}save();closeSheet();TAB_RENDER.food();};box.querySelector('#sh-remove').onclick=()=>{d.foods=d.foods.filter(x=>x.id!==f.id);save();closeSheet();TAB_RENDER.food();};}); });
   qa('[data-move]').forEach(sel=>sel.onchange=()=>{ const f=d.foods.find(x=>x.id===sel.dataset.move); if(!f)return; f.slot=sel.value; f.snack=sel.value==='snack'; if(!f.snack) f.trigger=''; save(); TAB_RENDER.food(); toast('Moved to '+sel.options[sel.selectedIndex].text+'.'); });
   qa('[data-moveday]').forEach(b=>b.onclick=()=>{ const ix=d.foods.findIndex(x=>x.id===b.dataset.moveday); if(ix<0)return; const f=d.foods.splice(ix,1)[0], nk=addDaysKey(k,1), nd=dayOf(nk); f.ts=dateFromKey(nk).setHours(12,0,0,0); nd.foods.push(f); save(); TAB_RENDER.food(); toast('Moved to tomorrow.'); });
-  qa('[data-copytomorrow]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); const sl=b.dataset.copytomorrow, items=d.foods.filter(f=>(f.slot||(f.snack?'snack':''))===sl); if(!items.length){toast('Nothing in this meal to copy.');return;} const nk=addDaysKey(k,1), nd=dayOf(nk); items.forEach(f=>nd.foods.push({...f,id:uid(),ts:dateFromKey(nk).setHours(12,0,0,0)})); save(); toast('Meal copied to tomorrow.'); });
+  qa('[data-copytomorrow]').forEach(b=>b.onclick=e=>{e.stopPropagation();const sl=b.dataset.copytomorrow,items=d.foods.filter(f=>(f.slot||(f.snack?'snack':''))===sl);if(!items.length){toast('Nothing in this meal to copy.');return;}foodAwareness(()=>{const nk=addDaysKey(k,1),nd=dayOf(nk);items.forEach(f=>nd.foods.push({...f,id:uid(),ts:dateFromKey(nk).setHours(12,0,0,0),source:'Copied by you'}));save();TAB_RENDER.food();toast('Meal copied to tomorrow.');});});
   qa('[data-ft]').forEach(b=>b.onclick=()=>{ if(b.dataset.ft!=='scan') stopScan(); foodTab=b.dataset.ft; pick=null; TAB_RENDER.food(); });
   qa('[data-staple]').forEach(b=>b.onclick=()=>{ const s=STAPLES[parseInt(b.dataset.staple,10)]; const dg=s[0].indexOf('scoop')>=0?'30':'100';
     pick={name:s[0],kcal100:s[1],prot100:s[2],fat100:s[3],carb100:s[4],per:s[5],defGrams:dg,qty:dg,mode:'w'};
@@ -657,7 +659,7 @@ TAB_RENDER.food = function(){
   if(q('#w-evadd')) q('#w-evadd').onclick=()=>{ const n=q('#w-evn').value.trim(), dtv=q('#w-evd').value, ex=parseInt(q('#w-eve').value,10); if(!n||!dtv||!(ex>0)){ toast('Name, date and expected extra are needed.'); return; } (state.events||(state.events=[])).push({id:uid(),name:n,date:dtv,extra:ex}); save(); TAB_RENDER.food(); toast('Event added.'); };
   qa('[data-evdel]').forEach(b=>b.onclick=()=>{ state.events=(state.events||[]).filter(x=>x.id!==b.dataset.evdel); save(); TAB_RENDER.food(); });
   qa('[data-tr]').forEach(b=>b.onclick=()=>{ trigger=b.dataset.tr; TAB_RENDER.food(); });
-  function addEntry(name,kcal,prot,fat,carbs,g,fibre,source){ const e={id:uid(),name,grams:g,kcal:Math.round(kcal),protein:Math.round(prot*10)/10,snack:slot==='snack',slot,trigger:slot==='snack'?trigger:'',ts:Date.now(),source:source||'not recorded'}; if(isFinite(fat)) e.fat=Math.round(fat*10)/10; if(isFinite(carbs)) e.carbs=Math.round(carbs*10)/10; if(isFinite(fibre)) e.fibre=Math.round(fibre*10)/10; d.foods.push(e); save(); pick=null; TAB_RENDER.food(); toast('Logged.'); }
+  function addEntry(name,kcal,prot,fat,carbs,g,fibre,source){foodAwareness(()=>{const e={id:uid(),name,grams:g,kcal:Math.round(kcal),protein:Math.round(prot*10)/10,snack:slot==='snack',slot,trigger:slot==='snack'?trigger:'',ts:Date.now(),source:source||'not recorded'};if(isFinite(fat))e.fat=Math.round(fat*10)/10;if(isFinite(carbs))e.carbs=Math.round(carbs*10)/10;if(isFinite(fibre))e.fibre=Math.round(fibre*10)/10;d.foods.push(e);save();pick=null;TAB_RENDER.food();toast('Logged.');});}
   if(q('#f-addg')) q('#f-addg').onclick=()=>{ if(!pick) return; pick.qty=q('#f-grams').value; const g=pickGrams(); if(g<=0) return;
     const g10=Math.round(g*10)/10;
     const suffix=pick.mode==='s'&&pick.serveGrams?(' ('+pick.qty+' x '+pick.serveLabel+')'):(Math.abs(g-100)>0.001?' ('+g10+' g)':'');
@@ -790,7 +792,7 @@ TAB_RENDER.food = function(){
     if(isFinite(ec)) f.carbs=Math.round(ec*10)/10; else delete f.carbs;
     if(isFinite(eb)) f.fibre=Math.round(eb*10)/10; else delete f.fibre;
     save(); editId=null; TAB_RENDER.food(); toast('Updated.'); };
-  qa('[data-copyday]').forEach(b=>b.onclick=()=>{ const srcDay=state.days[b.dataset.copyday]; if(!srcDay) return; for(const f of srcDay.foods){ d.foods.push(Object.assign({}, f, {id:uid(), ts:Date.now()})); } save(); TAB_RENDER.food(); toast('Copied '+srcDay.foods.length+' item'+(srcDay.foods.length>1?'s':'')+' to today.'); });
+  qa('[data-copyday]').forEach(b=>b.onclick=()=>{const srcDay=state.days[b.dataset.copyday];if(!srcDay)return;foodAwareness(()=>{for(const f of srcDay.foods)d.foods.push({...f,id:uid(),ts:Date.now(),source:'Copied from '+b.dataset.copyday});save();TAB_RENDER.food();toast('Copied '+srcDay.foods.length+' item'+(srcDay.foods.length>1?'s':'')+' to today.');});});
   updatePickPreview();
   if(scanLive){ const v=document.getElementById('f-cam'); if(v&&!v.srcObject&&scanStream){ v.srcObject=scanStream; v.play().catch(()=>{}); } }
   if(!scanLive&&scanStream) stopScan();
@@ -1060,6 +1062,7 @@ function tickTimer(){
   const el=document.getElementById('m-timer'); if(el) el.textContent=Math.floor(medLeft/60)+':'+String(medLeft%60).padStart(2,'0');
   const b=document.getElementById('m-start'); if(b) TAB_RENDER.mind();
 }
+function softMindBell(){try{const AC=window.AudioContext||window.webkitAudioContext,ctx=new AC(),o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(.001,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.12,ctx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+1.1);o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+1.2);}catch(e){}}
 function renderMindPractice(){
   const k=todayKey(), d=dayOf(k);
   const week=lastDays(7); let wmin=0, wses=0;
@@ -1067,6 +1070,7 @@ function renderMindPractice(){
   const recent=[...state.meditations].slice(-5).reverse();
   const pats=detectPatterns();
   const running=!!medTimer;
+  const speakingToday=state.speakingNotices.filter(x=>todayKey(new Date(x.ts))===k),recentSpeaking=state.speakingNotices.slice(-5).reverse();
   document.getElementById('tab-mind').innerHTML=`
   <h2>Meditation</h2>
   <p class="note">Sit comfortably, spine easy. Watch the breath come and go. When the mind wanders, noticing the wandering is the practice, not a failure.</p>
@@ -1076,9 +1080,10 @@ function renderMindPractice(){
     <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
   </div>
   ${recent.length?`<div class="list">${recent.map(m=>`<div class="row"><span>${fmtDate(m.date)}</span><strong>${m.minutes} min</strong></div>`).join('')}</div>`:''}
+  <div class="card"><h2>Bell of mindfulness</h2><p class="note">Tap when speaking is noticed. The bell acknowledges the moment; nothing is scored.</p><button class="btn primary" id="m-speaking">Ring · noticed speaking</button>${recentSpeaking.length?`<p class="tiny">Recent: ${recentSpeaking.map(x=>new Date(x.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})).join(' · ')}</p>`:''}</div>
   <h2>Truths</h2>
   <p class="note">Only the plain facts you recorded. Nothing inferred.</p>
-  <div class="facts plain-record"><div class="fact"><span>Walked</span><strong>${d.walkMin||0} min</strong></div><div class="fact"><span>Sat</span><strong>${(state.meditations||[]).filter(m=>m.date===viewDate).reduce((a,m)=>a+(Number(m.minutes)||0),0)} min</strong></div><div class="fact"><span>Slept</span><strong>${d.sleep==null?'not recorded':d.sleep+' h'}</strong></div><div class="fact"><span>Ate</span><strong>${(d.foods||[]).length} item${(d.foods||[]).length===1?'':'s'} · ${totals(d).kcal} kcal</strong></div><div class="fact"><span>Weight</span><strong>${(state.weights||[]).find(w=>w.date===viewDate)?.kg!=null?(state.weights||[]).find(w=>w.date===viewDate).kg+' kg':'not recorded'}</strong></div><div class="fact"><span>Blood pressure</span><strong>${(()=>{const b=(state.bloodPressures||[]).find(x=>x.date===viewDate);return b?b.systolic+'/'+b.diastolic+' mmHg':'not recorded'})()}</strong></div></div>
+  <div class="facts plain-record"><div class="fact"><span>Walked</span><strong>${d.walkMin||0} min</strong></div><div class="fact"><span>Sat</span><strong>${(state.meditations||[]).filter(m=>m.date===viewDate).reduce((a,m)=>a+(Number(m.minutes)||0),0)} min</strong></div><div class="fact"><span>Slept</span><strong>${d.sleep==null?'not recorded':d.sleep+' h'}</strong></div><div class="fact"><span>Ate</span><strong>${(d.foods||[]).length} item${(d.foods||[]).length===1?'':'s'} · ${totals(d).kcal} kcal</strong></div><div class="fact"><span>Weight</span><strong>${(state.weights||[]).find(w=>w.date===viewDate)?.kg!=null?(state.weights||[]).find(w=>w.date===viewDate).kg+' kg':'not recorded'}</strong></div><div class="fact"><span>Blood pressure</span><strong>${(()=>{const b=(state.bloodPressures||[]).find(x=>x.date===viewDate);return b?b.systolic+'/'+b.diastolic+' mmHg':'not recorded'})()}</strong></div><div class="fact"><span>Noticed speaking</span><strong>${speakingToday.length} time${speakingToday.length===1?'':'s'}</strong></div></div>
   <h2>Gratitude</h2>
   <p class="note">Three lines before bed. Small things count the most.</p>
   ${[0,1,2].map(i=>`<div class="field"><input class="input" data-grat="${i}" value="${esc(d.gratitude[i]||'')}" placeholder="${i+1}."></div>`).join('')}
@@ -1090,6 +1095,7 @@ function renderMindPractice(){
   const sec=document.getElementById('tab-mind');
   const q=s=>sec.querySelector(s); const qa=s=>sec.querySelectorAll(s);
   let mt=null;const showMeditation=()=>{const el=q('#m-timer');if(!el)return;const sec=state.meditationTimer.startedAt?Math.max(0,Math.floor((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/1000)):0;el.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')};showMeditation();if(state.meditationTimer.startedAt)mt=setInterval(showMeditation,1000);
+  if(q('#m-speaking'))q('#m-speaking').onclick=()=>{state.speakingNotices.push({ts:new Date().toISOString()});save();softMindBell();q('#m-speaking').textContent='Noticed · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});setTimeout(()=>TAB_RENDER.mind(),700);};
   if(q('#m-start'))q('#m-start').onclick=()=>openCeremony('Meditation','The hour needs nothing from you. Sit, breathe, and let what is be seen.','',()=>{state.meditationTimer.startedAt=new Date().toISOString();save();TAB_RENDER.mind();},'Begin');
   if(q('#m-stop'))q('#m-stop').onclick=()=>{const mins=Math.max(1,Math.round((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/60000));state.meditations.push({id:uid(),date:todayKey(),minutes:mins});state.meditationTimer.startedAt=null;save();TAB_RENDER.mind();toast(mins>=60?'The hour is complete.':mins+' minutes logged.');};
   qa('[data-grat]').forEach(inp=>inp.onchange=()=>{ d.gratitude[parseInt(inp.dataset.grat,10)]=inp.value; save(); });
@@ -1281,7 +1287,7 @@ function showSetup(){
     {k:'training',title:'How do you want to train?',note:'Choose your rhythm.',body:`${[[2,'2 strength days'],[3,'3 strength days'],[4,'3 strength + optional recovery day']].map(x=>`<button class="onboard-choice${Number(p.trainingDays||3)===x[0]?' on':''}" data-pick="trainingDays" data-value="${x[0]}">${x[1]}</button>`).join('')}<label class="check"><input type="checkbox" id="ob-bp"${p.bpSafe?' checked':''}><span>Show the blood-pressure-safe lifting and breathwork rules</span></label>`},
     {k:'food',title:'How do you prefer to eat?',note:'Choose what fits.',body:`<label class="check"><input type="checkbox" id="ob-veg"${p.vegetarian!==false?' checked':''}><span>Vegetarian</span></label><label class="check"><input type="checkbox" id="ob-eggfree"${p.eggFree!==false?' checked':''}><span>Egg-free</span></label>`}
   ],st=steps[setupStep];
-  box.innerHTML=`<h1>Prakash</h1><p class="tag">Made for you.</p><div class="onboard-progress">${steps.map((_,i)=>`<i class="${i<=setupStep?'on':''}"></i>`).join('')}</div><p class="tiny">${setupStep+1} of ${steps.length}</p><h2>${st.title}</h2><p class="note">${st.note}</p>${st.body}<div class="qr" style="margin-top:20px">${setupStep?'<button class="btn" id="ob-back">Back</button>':''}<button class="btn primary" id="ob-next">${setupStep===steps.length-1?'Finish':'Continue'}</button></div><button class="btn" id="ob-skip" style="margin-top:10px">Set up later</button>`;
+  box.innerHTML=`<h1><img src="prakash-icon-192.png" alt="Om" width="48" height="48" style="display:block;border-radius:12px;margin-bottom:10px">Prakash</h1><p class="tag">Made for you.</p><div class="onboard-progress">${steps.map((_,i)=>`<i class="${i<=setupStep?'on':''}"></i>`).join('')}</div><p class="tiny">${setupStep+1} of ${steps.length}</p><h2>${st.title}</h2><p class="note">${st.note}</p>${st.body}<div class="qr" style="margin-top:20px">${setupStep?'<button class="btn" id="ob-back">Back</button>':''}<button class="btn primary" id="ob-next">${setupStep===steps.length-1?'Finish':'Continue'}</button></div><button class="btn" id="ob-skip" style="margin-top:10px">Set up later</button>`;
   el.classList.add('open');const q=x=>box.querySelector(x);
   box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{p[b.dataset.pick]=b.dataset.pick==='trainingDays'?Number(b.dataset.value):b.dataset.value;box.querySelectorAll(`[data-pick="${b.dataset.pick}"]`).forEach(x=>x.classList.toggle('on',x===b));});
   if(q('#ob-back'))q('#ob-back').onclick=()=>{setupStep--;showSetup();};
