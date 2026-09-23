@@ -252,6 +252,21 @@ function applyModules(){const m=modules();document.querySelectorAll('nav.tabs bu
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ toast('Storage is full. Export a backup and delete old photos.'); } }
 function todayKey(d){ d=d||new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
+const SCALE_FIELDS=[['kg','Weight','kg',20,400],['bodyFat','Body fat','%',2,75],['muscleKg','Muscle mass','kg',5,150],['visceral','Visceral fat','',1,60],['waterPct','Body water','%',20,80]];
+const ONE_PLATE=['One plate. Serve once, eat once.','When your plate is empty, the meal is complete.','Your plate is your meal. Leftovers can wait for tomorrow.'];
+let onePlateIdx=null;
+function onePlateLine(){ if(onePlateIdx==null) onePlateIdx=Math.floor(Math.random()*ONE_PLATE.length); return ONE_PLATE[onePlateIdx]; }
+function kgWeights(){ return (state.weights||[]).filter(w=>Number(w.kg)>0); }
+function scaleHtml(){
+  const all=[...(state.weights||[])].sort((a,b)=>a.date<b.date?-1:1);
+  const rows=SCALE_FIELDS.map(([k,label,unit])=>{ const v=all.filter(x=>Number(x[k])>0); if(!v.length) return ''; const last=v[v.length-1], first=v[Math.max(0,v.length-7)]; const d=v.length>=2?Math.round((Number(last[k])-Number(first[k]))*10)/10:null; const u=unit?(unit==='%'?'%':' '+unit):''; return `<tr><td>${label}</td><td class="bp-reading">${last[k]}${u}</td><td>${fmtDate(last.date)}</td><td>${d==null?'-':(d>0?'+':'')+d+u+' over '+(Math.min(v.length,7))+' readings'}</td></tr>`; }).join('');
+  const recent=all.slice(-8).reverse().filter(x=>SCALE_FIELDS.some(([k])=>Number(x[k])>0));
+  return `<div class="card scale-card"><div class="field"><label class="label" for="b-wdate">Date</label><input class="input" type="date" id="b-wdate" value="${todayKey()}"></div>
+  <div class="grid2">${SCALE_FIELDS.map(([k,label,unit])=>`<div class="field"><label class="label" for="b-s-${k}">${label}${unit?' ('+unit+')':''}</label><input class="input" inputmode="decimal" id="b-s-${k}" placeholder="-"></div>`).join('')}</div>
+  <p class="note">Fill in any you have. All optional.</p><button class="btn primary big" id="b-wadd">Save reading</button></div>
+  ${rows?`<div style="overflow-x:auto"><table class="bp-table scale-table"><thead><tr><th>Reading</th><th>Latest</th><th>Date</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+  ${recent.length?`<details class="card fold"><summary>Recent scale readings</summary><ul class="plain">${recent.map(x=>`<li>${fmtDate(x.date)}: ${SCALE_FIELDS.filter(([k])=>Number(x[k])>0).map(([k,label,unit])=>label+' '+x[k]+(unit==='%'?'%':unit?' '+unit:'')).join(' · ')}</li>`).join('')}</ul></details>`:''}`;
+}
 function fmtDate(key){ const p=key.split('-'); const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return parseInt(p[2],10)+' '+(M[parseInt(p[1],10)-1]||''); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function emptyDay(){ return { water:0, steps:0, walkMin:0, foods:[], pauses:0, sleep:null, bedTime:'', wokeTime:'', mood:'', intention:'', gratitude:['','',''], wentWell:'', noticed:'' }; }
@@ -349,7 +364,7 @@ function weekBudgetHtml(p){
   const evHtml=upcoming.map(e=>{ const dl=Math.round((new Date(e.date+'T12:00:00')-new Date(todayKey()+'T12:00:00'))/864e5);
     const sug=dl>=1?('Bank ~'+Math.ceil(e.extra/dl)+' kcal a day until then and it is already paid for.'):'Today - enjoy it. The week has room.';
     return `<div class="row"><span><strong>${esc(e.name)}</strong><br><span class="dim">${e.date}, +${e.extra} kcal expected. ${sug}</span></span><button class="del" data-evdel="${e.id}">Remove</button></div>`; }).join('');
-  const ws=[...state.weights].sort((a,b)=>a.date<b.date?-1:1);
+  const ws=[...kgWeights()].sort((a,b)=>a.date<b.date?-1:1);
   const wTrend=ws.length>=2?Math.round((ws[ws.length-1].kg-ws[Math.max(0,ws.length-8)].kg)*10)/10:null;
   return `<div class="facts"><div class="fact"><span>Week budget</span><strong>${wkTarget.toLocaleString()} kcal</strong></div><div class="fact"><span>Consumed</span><strong>${consumed.toLocaleString()} kcal</strong></div><div class="fact"><span>Remaining</span><strong>${remaining.toLocaleString()} kcal</strong></div><div class="fact"><span>Per day left</span><strong>${Math.round(remaining/daysLeft).toLocaleString()} kcal</strong></div></div>
   ${svg}
@@ -370,7 +385,7 @@ function weekReviewHtml(p){
   let consumed=0, prot=0, fib=0, daysLogged=0;
   for(const k of keys){ const dd=state.days[k]; if(dd&&dd.foods&&dd.foods.length){ const t=totals(dd); consumed+=t.kcal; prot+=t.protein; fib+=t.fibre||0; daysLogged++; } }
   const sessions=state.workouts.filter(w=>keys.indexOf(w.date)>=0).length;
-  const ws=[...state.weights].sort((a,b)=>a.date<b.date?-1:1);
+  const ws=[...kgWeights()].sort((a,b)=>a.date<b.date?-1:1);
   const wTrend=ws.length>=2?Math.round((ws[ws.length-1].kg-ws[Math.max(0,ws.length-8)].kg)*10)/10:null;
   const wa2=[...state.waists].sort((a,b)=>a.date<b.date?-1:1);
   const waTrend=wa2.length>=2?Math.round((wa2[wa2.length-1].cm-wa2[Math.max(0,wa2.length-5)].cm)*10)/10:null;
@@ -404,18 +419,18 @@ function restNudgeHtml(){const ek=eveningKey();if(!ek)return '';if(state.restNud
 TAB_RENDER.today = function(){
   const k=viewDate, d=dayOf(k), p=state.profile, t=totals(d);
   const quote=QUOTES[Math.floor(Date.now()/86400000)%QUOTES.length];
-  const sorted=[...state.weights].sort((a,b)=>a.date<b.date?-1:1);
+  const sorted=[...kgWeights()].sort((a,b)=>a.date<b.date?-1:1);
   const lastW=sorted.slice(-7);
   const avg7=lastW.length?Math.round(lastW.reduce((s,x)=>s+x.kg,0)/lastW.length*10)/10:null;
   const mirrorKeys=lastDays(7), mirrorDays=mirrorKeys.map(kk=>state.days[kk]||emptyDay()), mirrorTotals=mirrorDays.map(totals);
   const mean=v=>v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;
   const loggedFood=mirrorTotals.filter(x=>x.kcal>0), sleepVals=mirrorDays.map(x=>Number(x.sleep)).filter(x=>x>0), stepVals=mirrorDays.map(x=>Number(x.steps)||0);
-  const weekWeights=state.weights.filter(x=>mirrorKeys.includes(x.date)), latestWaist=[...state.waists].sort((a,b)=>a.date<b.date?1:-1)[0];
+  const weekScale=(state.weights||[]).filter(x=>mirrorKeys.includes(x.date)), weekWeights=weekScale.filter(x=>Number(x.kg)>0), latestWaist=[...state.waists].sort((a,b)=>a.date<b.date?1:-1)[0];
   const weekWorkouts=state.workouts.filter(x=>mirrorKeys.includes(x.date)), walkMinutes=mirrorDays.reduce((n,x)=>n+(Number(x.walkMin)||0),0);
   const weekMeds=state.meditations.filter(x=>mirrorKeys.includes(todayKey(new Date(x.at||x.date))));
   const weekBps=state.bloodPressures.filter(x=>Date.now()-new Date(x.at).getTime()<=7*864e5), mirrorBp=weekBps.length?{sys:Math.round(weekBps.reduce((n,x)=>n+x.sys,0)/weekBps.length),dia:Math.round(weekBps.reduce((n,x)=>n+x.dia,0)/weekBps.length)}:null;
   const dayMeditation=state.meditations.filter(x=>x.date===k).reduce((n,x)=>n+(Number(x.minutes)||0),0);
-  const weekBodyFat=weekWeights.map(x=>Number(x.bodyFat)).filter(x=>x>0), bodyFatAvg=weekBodyFat.length?mean(weekBodyFat):null;
+  const weekBodyFat=weekScale.map(x=>Number(x.bodyFat)).filter(x=>x>0), bodyFatAvg=weekBodyFat.length?mean(weekBodyFat):null;
   const foodAvg=loggedFood.length?{kcal:Math.round(mean(loggedFood.map(x=>x.kcal))),protein:Math.round(mean(loggedFood.map(x=>x.protein)))}:null;
   let pdays=0; for(const x of mirrorTotals){ if(x.protein>=p.proteinTarget) pdays++; }
   const metrics=[
@@ -456,7 +471,7 @@ TAB_RENDER.today = function(){
   sec.querySelector('[data-act=water]').onclick=()=>{d.water++;save();TAB_RENDER.today();};sec.querySelector('[data-act=steps1k]').onclick=()=>{d.steps+=1000;save();TAB_RENDER.today();};
   if(sec.querySelector('#chai-open'))sec.querySelector('#chai-open').onclick=()=>openCeremony('Morning chai','Hold the warm cup. For these few minutes, nothing is outside this moment.','Drink slowly and reverently. Cup, hands, warmth and awareness are one movement.',()=>{d.morningChai=true;save();TAB_RENDER.today();toast('Morning chai received.');},'Receive the cup');
   if(sec.querySelector('#herbal-add'))sec.querySelector('#herbal-add').onclick=()=>{d.herbalTeas=(Number(d.herbalTeas)||0)+1;save();TAB_RENDER.today();};
-  sec.querySelectorAll('[data-mealadd]').forEach(b=>b.onclick=()=>{slot=b.dataset.mealadd;foodStage='pause';switchTab('food');});
+  sec.querySelectorAll('[data-mealadd]').forEach(b=>b.onclick=()=>{slot=b.dataset.mealadd;(onePlateIdx=onePlateIdx==null?Math.floor(Math.random()*3):(onePlateIdx+1)%3,foodStage='pause');switchTab('food');});
   sec.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>{if(b.dataset.jump==='body'){document.querySelectorAll('section.tab').forEach(x=>x.classList.toggle('on',x.id==='tab-body'));document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='more'));TAB_RENDER.body();}else switchTab(b.dataset.jump)});
 };
 /* ---------- Food ---------- */
@@ -510,7 +525,7 @@ TAB_RENDER.food = function(){
   for(const kk of lastDays(7)){ for(const f of dayOf(kk).foods){ if(f.snack){ counts[f.trigger]=(counts[f.trigger]||0)+1; snackTotal++; } } }
   let pauseHtml='';
   if(foodStage==='idle') pauseHtml=`<p class="note">Before anything is logged, take one slow breath and notice what is asking for food. The pause is the practice; the logging is just admin.</p><button class="btn primary" id="f-start">Log food mindfully</button>`;
-  else if(foodStage==='pause') pauseHtml=`<p class="breath">Breathe in slowly. Breathe out slowly.</p><p class="journal-prompt">The first three bites: taste fully, put the fork down, and let eating be the whole moment.</p><p class="note">What is asking for food right now?</p>
+  else if(foodStage==='pause') pauseHtml=`<p class="breath">Breathe in slowly. Breathe out slowly.</p><p class="note one-plate">${esc(onePlateLine())}</p><p class="journal-prompt">The first three bites: taste fully, put the fork down, and let eating be the whole moment.</p><p class="note">What is asking for food right now?</p>
     <div class="chips">${['Body hunger','Habit','Emotion','Boredom'].map(c=>`<button class="chip${pauseChoice===c?' on':''}" data-pc="${c}">${c}</button>`).join('')}</div>
     <button class="btn primary" id="f-continue" ${pauseChoice?'':'disabled'}>Noticed. Continue to log</button>
     <p class="note">Whatever the answer, there is no judgement here. You noticed, and that is enough.</p>`;
@@ -609,7 +624,7 @@ TAB_RENDER.food = function(){
   qa('[data-repeatmeal]').forEach(b=>b.onclick=e=>{e.stopPropagation();repeatMeal(b.dataset.repeatmeal)});
   qa('[data-meal]').forEach(h=>{ let sx=0; h.addEventListener('touchstart',e=>sx=e.changedTouches[0].clientX,{passive:true}); h.addEventListener('touchend',e=>{ if(e.changedTouches[0].clientX-sx<65)return; repeatMeal(h.dataset.meal); },{passive:true}); });
   qa('[data-foodrow]').forEach(row=>{let sx=0;row.addEventListener('touchstart',e=>sx=e.changedTouches[0].clientX,{passive:true});row.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,id=row.dataset.foodrow,f=d.foods.find(x=>x.id===id);if(!f||Math.abs(dx)<75)return;if(dx>0){foodAwareness(()=>{const nk=addDaysKey(k,1);dayOf(nk).foods.push({...f,id:uid(),ts:dateFromKey(nk).setHours(12,0,0,0),source:'Copied by you'});save();toast('Copied to tomorrow.');});}else{openSheet('<h2>Remove this food?</h2><p class="note">'+esc(f.name)+'</p><div class="qr"><button class="btn danger" id="sw-del">Remove</button><button class="btn" data-close>Keep it</button></div>',box=>box.querySelector('#sw-del').onclick=()=>{const ix=d.foods.findIndex(x=>x.id===id),gone=d.foods.splice(ix,1)[0];save();closeSheet();TAB_RENDER.food();const u=document.createElement('div');u.className='undo';u.innerHTML='<span>Food removed.</span><button class="btn mini">Undo</button>';document.body.appendChild(u);u.querySelector('button').onclick=()=>{d.foods.splice(ix,0,gone);save();u.remove();TAB_RENDER.food()};setTimeout(()=>u.remove(),6000);});}},{passive:true});});
-  if(q('#f-start')) q('#f-start').onclick=()=>{ foodStage='pause'; TAB_RENDER.food(); };
+  if(q('#f-start')) q('#f-start').onclick=()=>{ (onePlateIdx=onePlateIdx==null?Math.floor(Math.random()*3):(onePlateIdx+1)%3,foodStage='pause'); TAB_RENDER.food(); };
   qa('[data-pc]').forEach(b=>b.onclick=()=>{ pauseChoice=b.dataset.pc; TAB_RENDER.food(); });
   if(q('#f-continue')) q('#f-continue').onclick=()=>{ d.pauses++; save(); foodStage='log'; TAB_RENDER.food(); };
   qa('[data-foodact]').forEach(b=>b.onclick=()=>{ const f=d.foods.find(x=>x.id===b.dataset.foodact); if(!f)return; openSheet(`<h2>${esc(f.name)}</h2><p class="quiet">Move, edit or remove this entry.</p><label class="label">Meal</label><select class="input" id="sh-slot"><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snacks</option></select><button class="btn primary-action" id="sh-move">Move to selected meal</button><button class="btn primary-action" id="sh-tom">Move to tomorrow</button><button class="btn" id="sh-edit">Edit details</button><button class="btn" id="sh-favourite">${state.foodFavourites.some(x=>x.name===f.name&&x.kcal===f.kcal)?'Remove favourite':'Add to favourites'}</button><button class="btn danger" id="sh-remove">Remove</button>`, box=>{const sel=box.querySelector('#sh-slot');sel.value=f.slot||(f.snack?'snack':'');box.querySelector('#sh-move').onclick=()=>{f.slot=sel.value;f.snack=sel.value==='snack';if(!f.snack)f.trigger='';save();closeSheet();TAB_RENDER.food();toast('Moved.');};box.querySelector('#sh-tom').onclick=()=>{const ix=d.foods.findIndex(x=>x.id===f.id),nk=addDaysKey(k,1);dayOf(nk).foods.push(d.foods.splice(ix,1)[0]);save();closeSheet();TAB_RENDER.food();toast('Moved to tomorrow.');};box.querySelector('#sh-edit').onclick=()=>{editId=f.id;closeSheet();TAB_RENDER.food();};box.querySelector('#sh-favourite').onclick=()=>{const ix=state.foodFavourites.findIndex(x=>x.name===f.name&&x.kcal===f.kcal);if(ix>=0){state.foodFavourites.splice(ix,1);toast('Removed from favourites.')}else{const keep={...f,id:uid(),source:f.source||'Saved favourite'};state.foodFavourites.push(keep);toast('Added to favourites.')}save();closeSheet();TAB_RENDER.food();};box.querySelector('#sh-remove').onclick=()=>{d.foods=d.foods.filter(x=>x.id!==f.id);save();closeSheet();TAB_RENDER.food();};}); });
@@ -868,9 +883,9 @@ TAB_RENDER.train = function(){
 /* ---------- Body ---------- */
 TAB_RENDER.body = function(){
   const p=state.profile;
-  const sorted=[...state.weights].sort((a,b)=>a.date<b.date?-1:1);
+  const sorted=[...kgWeights()].sort((a,b)=>a.date<b.date?-1:1);
   const waists=[...state.waists].sort((a,b)=>a.date<b.date?1:-1);
-  const recentBodyFat=sorted.filter(x=>Number(x.bodyFat)>0).slice(-7),bodyFatWeek=recentBodyFat.length?Math.round(recentBodyFat.reduce((n,x)=>n+Number(x.bodyFat),0)/recentBodyFat.length*10)/10:null;
+  const recentBodyFat=[...(state.weights||[])].sort((a,b)=>a.date<b.date?-1:1).filter(x=>Number(x.bodyFat)>0).slice(-7),bodyFatWeek=recentBodyFat.length?Math.round(recentBodyFat.reduce((n,x)=>n+Number(x.bodyFat),0)/recentBodyFat.length*10)/10:null;
   const lw=waists[0]; const delta=(lw&&p.startWaist!=null)?Math.round((lw.cm-p.startWaist)*10)/10:null;
   const bp=[...state.bloodPressures].sort((a,b)=>new Date(b.at)-new Date(a.at));
   const bpMean=arr=>arr.length?{sys:Math.round(arr.reduce((n,x)=>n+x.sys,0)/arr.length),dia:Math.round(arr.reduce((n,x)=>n+x.dia,0)/arr.length),pulse:Math.round(arr.reduce((n,x)=>n+x.pulse,0)/arr.length)}:null;
@@ -906,13 +921,13 @@ TAB_RENDER.body = function(){
     const pts=sorted.map((w,i)=>px(i).toFixed(1)+','+py(w.kg).toFixed(1)).join(' ');
     const ty=p.goalWeight==null?null:py(p.goalWeight);
     chartHtml=`<div class="chartbox"><svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">
-      ${ty==null?'':`<line x1="${PAD}" y1="${ty}" x2="${W-PAD}" y2="${ty}" stroke="#73a89a" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${W-PAD}" y="${ty-5}" font-size="11" fill="#585254" text-anchor="end">Goal ${p.goalWeight} kg</text>`}
-      <polyline points="${pts}" fill="none" stroke="#251f21" stroke-width="2"/>
-      ${sorted.map((w,i)=>`<circle cx="${px(i)}" cy="${py(w.kg)}" r="3" fill="#251f21"/>`).join('')}
-      <text x="${px(0)}" y="${H-0}" font-size="11" fill="#969394" text-anchor="start">${fmtDate(sorted[0].date)}</text>
-      <text x="${px(sorted.length-1)}" y="${H-0}" font-size="11" fill="#969394" text-anchor="end">${fmtDate(sorted[sorted.length-1].date)}</text>
-      <text x="${px(0)}" y="${py(sorted[0].kg)-8}" font-size="11" fill="#585254" text-anchor="start">${sorted[0].kg}</text>
-      <text x="${px(sorted.length-1)}" y="${py(sorted[sorted.length-1].kg)-8}" font-size="11" fill="#585254" text-anchor="end">${sorted[sorted.length-1].kg} kg</text>
+      ${ty==null?'':`<line x1="${PAD}" y1="${ty}" x2="${W-PAD}" y2="${ty}" stroke="#73a89a" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${W-PAD}" y="${ty-5}" font-size="11" style="fill:var(--ink2)" text-anchor="end">Goal ${p.goalWeight} kg</text>`}
+      <polyline points="${pts}" fill="none" style="stroke:var(--ink)" stroke-width="2"/>
+      ${sorted.map((w,i)=>`<circle cx="${px(i)}" cy="${py(w.kg)}" r="3" style="fill:var(--ink)"/>`).join('')}
+      <text x="${px(0)}" y="${H-0}" font-size="11" style="fill:var(--ink3)" text-anchor="start">${fmtDate(sorted[0].date)}</text>
+      <text x="${px(sorted.length-1)}" y="${H-0}" font-size="11" style="fill:var(--ink3)" text-anchor="end">${fmtDate(sorted[sorted.length-1].date)}</text>
+      <text x="${px(0)}" y="${py(sorted[0].kg)-8}" font-size="11" style="fill:var(--ink2)" text-anchor="start">${sorted[0].kg}</text>
+      <text x="${px(sorted.length-1)}" y="${py(sorted[sorted.length-1].kg)-8}" font-size="11" style="fill:var(--ink2)" text-anchor="end">${sorted[sorted.length-1].kg} kg</text>
     </svg></div>`;
   } else chartHtml=`<p class="note">The chart appears after your second weigh-in.</p>`;
   document.getElementById('tab-body').innerHTML=`
@@ -929,7 +944,7 @@ TAB_RENDER.body = function(){
   <section class="bp-report" id="bp-report"><h1>Prakash blood pressure report</h1><p id="bp-report-range"></p><div class="facts" id="bp-report-avg"></div><table class="bp-table"><thead><tr><th>Date</th><th>Time</th><th>Morning / evening</th><th>Blood pressure (mmHg)</th><th>Pulse</th><th>Symptoms / context</th></tr></thead><tbody id="bp-report-body">${bpRows}</tbody></table><p>Medication changes are the doctor's call.</p><p>Measurement format informed by the British Heart Foundation blood pressure chart and diary.</p></section>
   <h2>Weigh in</h2>
   <p class="note">First thing in the morning, after the toilet, before food. Log it and let it go: the weekly average is what matters.</p>
-  <div class="setrow"><input class="input" type="date" id="b-wdate" value="${todayKey()}"><input class="input mini" inputmode="decimal" placeholder="kg" id="b-wkg"><input class="input mini" inputmode="decimal" placeholder="body fat % (optional)" id="b-bf"><button class="btn primary" id="b-wadd">Add</button></div><div class="facts"><div class="fact"><span>Body fat · last 7 readings</span><strong>${bodyFatWeek==null?'-':bodyFatWeek+'% average'}</strong></div></div>
+  ${scaleHtml()}
   ${chartHtml}
   <h2>Waist</h2>
   <p class="note">At navel level, relaxed, first thing in the morning. This is the number that shows the stomach changing, even when muscle keeps the scale still.</p>
@@ -953,7 +968,7 @@ TAB_RENDER.body = function(){
   q('#bp-add').onclick=()=>{const sys=parseInt(q('#bp-sys').value,10),dia=parseInt(q('#bp-dia').value,10),pulse=parseInt(q('#bp-pulse').value,10),at=q('#bp-at').value;if(!at||!(sys>=50&&sys<=300)||!(dia>=30&&dia<=200)||!(pulse>=25&&pulse<=250)){toast('Enter the date, systolic, diastolic and pulse.');return;}state.bloodPressures.push({id:uid(),at:new Date(at).toISOString(),period:bpPeriod,sys,dia,pulse,note:q('#bp-note').value.trim()});save();TAB_RENDER.body();toast('Reading saved.');};
   qa('[data-bp-del]').forEach(b=>b.onclick=()=>{state.bloodPressures=state.bloodPressures.filter(x=>x.id!==b.dataset.bpDel);save();TAB_RENDER.body();});
   q('#bp-print').onclick=()=>{const from=q('#bp-from').value,to=q('#bp-to').value,start=new Date(from+'T00:00:00'),end=new Date(to+'T23:59:59'),rows=bp.filter(x=>{const d=new Date(x.at);return d>=start&&d<=end}).sort((a,b)=>new Date(a.at)-new Date(b.at)),av=bpMean(rows);q('#bp-report-range').textContent=(from&&to)?new Date(from+'T12:00:00').toLocaleDateString('en-GB')+' to '+new Date(to+'T12:00:00').toLocaleDateString('en-GB'):'';q('#bp-report-avg').innerHTML='<div class="fact"><span>Readings</span><strong>'+rows.length+'</strong></div><div class="fact"><span>Average</span><strong>'+(av?av.sys+'/'+av.dia+' mmHg · pulse '+av.pulse:'-')+'</strong></div>';q('#bp-report-body').innerHTML=rows.map(x=>'<tr><td>'+new Date(x.at).toLocaleDateString('en-GB')+'</td><td>'+new Date(x.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</td><td>'+esc(x.period)+'</td><td>'+x.sys+'/'+x.dia+'</td><td>'+x.pulse+'</td><td>'+esc(x.note||'')+'</td></tr>').join('');window.print();};
-  q('#b-wadd').onclick=()=>{ const date=q('#b-wdate').value,kg=parseFloat(q('#b-wkg').value),bf=parseFloat(q('#b-bf').value); if(!date||isNaN(kg)||kg<=0)return;if(!isNaN(bf)&&(bf<2||bf>75)){toast('Add body fat as a percentage, or leave it blank.');return;} state.weights=state.weights.filter(w=>w.date!==date); state.weights.push({date,kg,...(!isNaN(bf)?{bodyFat:bf}:{})}); save(); TAB_RENDER.body(); toast('Weigh-in saved.'); };
+  q('#b-wadd').onclick=()=>{ const date=q('#b-wdate').value; if(!date)return; const vals={}; for(const [k,label,unit,lo,hi] of SCALE_FIELDS){ const raw=q('#b-s-'+k).value.trim(); if(!raw)continue; const v=parseFloat(raw.replace(',','.')); if(isNaN(v)||v<lo||v>hi){ toast(label+': enter a number from '+lo+' to '+hi+(unit==='%'?'%':unit?' '+unit:'')+', or leave it blank.'); q('#b-s-'+k).focus(); return; } vals[k]=Math.round(v*10)/10; } if(!Object.keys(vals).length){ toast('Fill in at least one reading.'); return; } const old=(state.weights||[]).find(w=>w.date===date)||{date}; state.weights=(state.weights||[]).filter(w=>w.date!==date); state.weights.push({...old,...vals,date}); save(); TAB_RENDER.body(); toast('Scale reading saved.'); };
   q('#b-waadd').onclick=()=>{ const date=q('#b-wadate').value, cm=parseFloat(q('#b-wain').value); if(!date||isNaN(cm)||cm<=0)return; state.waists=state.waists.filter(w=>w.date!==date); state.waists.push({date,cm}); save(); TAB_RENDER.body(); toast('Waist saved.'); };
   q('#b-photo').onchange=e=>{
     const file=e.target.files&&e.target.files[0]; if(!file)return;
@@ -1221,7 +1236,7 @@ TAB_RENDER.data = function(){
   function parseHealthCSV(text){const lines=String(text).replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(lines.length<2)throw Error('empty');const parseRow=line=>{const out=[];let x='',quote=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(quote&&line[i+1]==='"'){x+='"';i++;}else quote=!quote;}else if(c===','&&!quote){out.push(x);x='';}else x+=c;}out.push(x);return out;};const head=parseRow(lines[0]).map(x=>x.trim().toLowerCase().replace(/[\s-]+/g,'_')),ix=n=>head.indexOf(n),di=ix('date');if(di<0)throw Error('date');const rows=[],anomalies=[],dates={};lines.slice(1).forEach((line,ri)=>{const r=parseRow(line),raw=(r[di]||'').trim(),dt=new Date(raw),date=/^\d{4}-\d{2}-\d{2}/.test(raw)?raw.slice(0,10):(!isNaN(dt)?dt.toISOString().slice(0,10):'');if(!date){anomalies.push('Row '+(ri+2)+': date is missing or unreadable');return;}dates[date]=(dates[date]||0)+1;const num=name=>{const i=ix(name),v=i<0?NaN:parseFloat(r[i]);return isNaN(v)?null:v;};let kg=num('weight_kg'),lb=num('weight_lb');if(kg==null&&lb!=null)kg=Math.round(lb*.45359237*10)/10;let waist=num('waist_cm'),wi=num('waist_in');if(waist==null&&wi!=null)waist=Math.round(wi*2.54*10)/10;const steps=num('steps'),sleep=num('sleep_h');if(kg!=null&&(kg<20||kg>350)){anomalies.push('Row '+(ri+2)+': weight '+kg+' kg is outside the import range');kg=null;}if(waist!=null&&(waist<30||waist>250)){anomalies.push('Row '+(ri+2)+': waist '+waist+' cm is outside the import range');waist=null;}if(steps!=null&&(steps<0||steps>150000)){anomalies.push('Row '+(ri+2)+': steps '+steps+' is outside the import range');}if(sleep!=null&&(sleep<0||sleep>24)){anomalies.push('Row '+(ri+2)+': sleep '+sleep+' h is outside the import range');}rows.push({date,kg,waist,steps:steps!=null&&steps>=0&&steps<=150000?steps:null,sleep:sleep!=null&&sleep>=0&&sleep<=24?sleep:null});});const validDates=rows.map(x=>x.date).sort();return {rows,anomalies,duplicates:Object.values(dates).filter(n=>n>1).reduce((a,n)=>a+n-1,0),dateMin:validDates[0]||'',dateMax:validDates.at(-1)||''};}
   q('#d-health-import').onchange=e=>{const file=e.target.files&&e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{healthImportPreview=parseHealthCSV(reader.result);TAB_RENDER.data();}catch(err){toast('Could not preview that health CSV. Include a date column and supported headings.');}};reader.readAsText(file);e.target.value='';};
   if(q('#d-health-cancel'))q('#d-health-cancel').onclick=()=>{healthImportPreview=null;TAB_RENDER.data();};
-  if(q('#d-health-apply'))q('#d-health-apply').onclick=()=>{let n=0;for(const r of healthImportPreview.rows){if(r.kg!=null){state.weights=state.weights.filter(x=>x.date!==r.date);state.weights.push({date:r.date,kg:r.kg,source:'Health CSV import'});n++;}if(r.waist!=null){state.waists=state.waists.filter(x=>x.date!==r.date);state.waists.push({date:r.date,cm:r.waist,source:'Health CSV import'});n++;}if(r.steps!=null||r.sleep!=null){const dd=dayOf(r.date);if(r.steps!=null){dd.steps=Math.round(r.steps);dd.stepsSource='Health CSV import';}if(r.sleep!=null){dd.sleep=r.sleep;dd.sleepSource='Health CSV import';}n++;}}if(!n){toast('No supported valid values to import.');return;}save();healthImportPreview=null;TAB_RENDER.data();toast('Health data imported: '+n+' values.');};
+  if(q('#d-health-apply'))q('#d-health-apply').onclick=()=>{let n=0;for(const r of healthImportPreview.rows){if(r.kg!=null){const prevW=state.weights.find(x=>x.date===r.date)||{};state.weights=state.weights.filter(x=>x.date!==r.date);state.weights.push({...prevW,date:r.date,kg:r.kg,source:'Health CSV import'});n++;}if(r.waist!=null){state.waists=state.waists.filter(x=>x.date!==r.date);state.waists.push({date:r.date,cm:r.waist,source:'Health CSV import'});n++;}if(r.steps!=null||r.sleep!=null){const dd=dayOf(r.date);if(r.steps!=null){dd.steps=Math.round(r.steps);dd.stepsSource='Health CSV import';}if(r.sleep!=null){dd.sleep=r.sleep;dd.sleepSource='Health CSV import';}n++;}}if(!n){toast('No supported valid values to import.');return;}save();healthImportPreview=null;TAB_RENDER.data();toast('Health data imported: '+n+' values.');};
   q('#d-import').onchange=e=>{const file=e.target.files&&e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const candidate=JSON.parse(String(reader.result));if(!candidate||candidate.v!==1||!candidate.profile)throw Error('format');const keys=Object.keys(candidate.days||{}).sort(),rows=keys.reduce((n,k)=>n+(candidate.days[k].foods||[]).length,0),duplicates=keys.filter(k=>state.days[k]).length,anomalies=[];if(!Array.isArray(candidate.weights))anomalies.push('Weight history is absent');if(!candidate.witness||!Array.isArray(candidate.witness.entries))anomalies.push('Witness Journal is absent');backupImportPreview={candidate,dateMin:keys[0]||'',dateMax:keys.at(-1)||'',rows,duplicates,anomalies};TAB_RENDER.data();}catch(err){toast('That file is not a valid Prakash backup. Nothing was changed.');}};reader.readAsText(file);e.target.value='';};
   if(q('#d-import-cancel'))q('#d-import-cancel').onclick=()=>{backupImportPreview=null;TAB_RENDER.data();};
   if(q('#d-import-apply'))q('#d-import-apply').onclick=async()=>{const candidate=backupImportPreview&&backupImportPreview.candidate;if(!candidate)return;if(candidate.witness&&Array.isArray(candidate.witness.entries))for(const e of candidate.witness.entries){if(e.audio&&e.audio.base64){await wput(e.id,{blob:b64blob(e.audio.base64,e.audio.mimeType),seconds:e.audio.seconds||null,mime:e.audio.mimeType||'audio/webm'});}delete e.audio;}state=candidate;if(!state.witness)state.witness={entries:[],readings:[],migration:null};if(!Array.isArray(state.foodFavourites))state.foodFavourites=[];backupImportPreview=null;save();TAB_RENDER.data();toast('Backup restored.');};
