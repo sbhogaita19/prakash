@@ -8,11 +8,19 @@
 // blank screen; the network response still refreshes the cache when it lands.
 // Cache cleanup only deletes old Prakash/Sadhana caches and never touches
 // localStorage or IndexedDB, so user data survives every update.
-const CACHE='prakash-v64-remember';
+const CACHE='prakash-v65-signal';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./prakash-om-favicon.png','./prakash-om-192.png','./prakash-om-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&/^(prakash|sadhana)-/.test(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('message',e=>{if(e.data==='skipWaiting')self.skipWaiting();});
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{
+    const c=cs.find(x=>x.url.indexOf('/prakash/')>=0);
+    if(c){ c.focus(); c.postMessage({type:'show-stop'}); return; }
+    return clients.openWindow('/prakash/?stop=1');
+  }));
+});
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
   const url=new URL(e.request.url);
