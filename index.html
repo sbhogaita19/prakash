@@ -1133,7 +1133,7 @@ function renderMindPractice(){
   const k=todayKey(), d=dayOf(k);
   const week=lastDays(7); let wmin=0, wses=0;
   for(const m of state.meditations){ if(week.indexOf(m.date)>=0){ wmin+=m.minutes; wses++; } }
-  const recent=[...state.meditations].slice(-5).reverse();
+  const recent=state.meditations.map((m,ix)=>({...m,_ix:ix})).slice(-5).reverse();
   const running=!!medTimer;
   const speakingToday=state.speakingNotices.filter(x=>todayKey(new Date(x.ts))===k),recentSpeaking=state.speakingNotices.slice(-5).reverse();
   document.getElementById('tab-mind').innerHTML=`
@@ -1144,7 +1144,7 @@ function renderMindPractice(){
     <div class="fact"><span>This week</span><strong>${wses} sits, ${wmin} min</strong></div>
     <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
   </div>
-  ${recent.length?`<div class="list">${recent.map(m=>`<div class="row"><span>${fmtDate(m.date)}</span><strong>${m.minutes} min</strong></div>`).join('')}</div>`:''}
+  ${recent.length?`<div class="list">${recent.map(m=>`<div class="row swipe-row" data-medrow="${m._ix}"><span>${fmtDate(m.date)}</span><strong>${m.minutes} min</strong></div>`).join('')}</div><p class="tiny">Swipe a sit left to remove it.</p>`:''}
   <div class="card"><h2>Bell of mindfulness</h2><p class="note">Tap when speaking is noticed. The bell acknowledges the moment; nothing is scored.</p><button class="btn primary" id="m-speaking">Ring · noticed speaking</button>${recentSpeaking.length?`<p class="tiny">Recent: ${recentSpeaking.map(x=>new Date(x.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})).join(' · ')}</p>`:''}</div>
   <h2>Truths</h2>
   <p class="note">Only the plain facts you recorded. Nothing inferred.</p>
@@ -1160,6 +1160,7 @@ function renderMindPractice(){
   if(q('#m-start'))q('#m-start').onclick=()=>{state.meditationTimer.startedAt=new Date().toISOString();save();TAB_RENDER.mind();openGsSpotify();};
   if(q('#m-spotify'))q('#m-spotify').onclick=()=>openGsSpotify();
   if(q('#m-stop'))q('#m-stop').onclick=()=>{const mins=Math.max(1,Math.round((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/60000));state.meditations.push({id:uid(),date:todayKey(),minutes:mins});state.meditationTimer.startedAt=null;save();TAB_RENDER.mind();toast(mins>=60?'The hour is complete.':mins+' minutes logged.');};
+  qa('[data-medrow]').forEach(row=>{let sx=0;row.addEventListener('touchstart',e=>sx=e.changedTouches[0].clientX,{passive:true});row.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(dx>-75)return;const ix=Number(row.dataset.medrow);const gone=state.meditations[ix];if(!gone)return;state.meditations.splice(ix,1);save();TAB_RENDER.mind();document.querySelectorAll('.undo').forEach(x=>x.remove());const u=document.createElement('div');u.className='undo';u.innerHTML='<span>Sit removed ('+gone.minutes+' min).</span><button class="btn mini">Undo</button>';document.body.appendChild(u);u.querySelector('button').onclick=()=>{state.meditations.splice(Math.min(ix,state.meditations.length),0,gone);save();u.remove();TAB_RENDER.mind();};setTimeout(()=>u.remove(),7000);},{passive:true});});
   qa('[data-grat]').forEach(inp=>inp.onchange=()=>{ d.gratitude[parseInt(inp.dataset.grat,10)]=inp.value; save(); });
 };
 
