@@ -1136,7 +1136,7 @@ function renderMindPractice(){
   document.getElementById('tab-mind').innerHTML=`
   <h2>Meditation</h2>
   <p class="note">Sit comfortably, spine easy. Watch the breath come and go. When the mind wanders, noticing the wandering is the practice, not a failure.</p>
-  <div class="timer" id="m-timer">00:00</div><div class="qr">${state.meditationTimer.startedAt?'<button class="btn primary" id="m-stop">Stop and log</button>':'<button class="btn primary" id="m-start">Begin Gauri Shankar</button>'}</div><p class="note">The fixed hour is held by the timer; stopping early logs the minutes that happened.</p>
+  <div class="timer" id="m-timer">00:00</div><div class="qr">${state.meditationTimer.startedAt?'<button class="btn primary" id="m-stop">Stop and log</button>':'<button class="btn primary big" id="m-start" style="width:100%">Begin Gauri Shankar</button>'}</div>${state.meditationTimer.startedAt?'<p class="journal-prompt gs-line">The hour needs nothing from you. Sit, breathe, and let what is be seen.</p><button class="btn" id="m-spotify">Open the music again</button>':'<p class="note">One tap starts the timer and opens the Gauri Shankar music in Spotify. Press play there if it does not start by itself.</p>'}<p class="note">The fixed hour is held by the timer; stopping early logs the minutes that happened. For a bell at the end, use your phone's own timer or Spotify's sleep timer.</p>
   <div class="facts">
     <div class="fact"><span>This week</span><strong>${wses} sits, ${wmin} min</strong></div>
     <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
@@ -1154,7 +1154,8 @@ function renderMindPractice(){
   const q=s=>sec.querySelector(s); const qa=s=>sec.querySelectorAll(s);
   let mt=null;const showMeditation=()=>{const el=q('#m-timer');if(!el)return;const sec=state.meditationTimer.startedAt?Math.max(0,Math.floor((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/1000)):0;el.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')};showMeditation();if(state.meditationTimer.startedAt)mt=setInterval(showMeditation,1000);
   if(q('#m-speaking'))q('#m-speaking').onclick=()=>{state.speakingNotices.push({ts:new Date().toISOString()});save();softMindBell();q('#m-speaking').textContent='Noticed · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});setTimeout(()=>TAB_RENDER.mind(),700);};
-  if(q('#m-start'))q('#m-start').onclick=()=>openCeremony('Meditation','The hour needs nothing from you. Sit, breathe, and let what is be seen.','',()=>{state.meditationTimer.startedAt=new Date().toISOString();save();TAB_RENDER.mind();},'Begin');
+  if(q('#m-start'))q('#m-start').onclick=()=>{state.meditationTimer.startedAt=new Date().toISOString();save();TAB_RENDER.mind();openGsSpotify();};
+  if(q('#m-spotify'))q('#m-spotify').onclick=()=>openGsSpotify();
   if(q('#m-stop'))q('#m-stop').onclick=()=>{const mins=Math.max(1,Math.round((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/60000));state.meditations.push({id:uid(),date:todayKey(),minutes:mins});state.meditationTimer.startedAt=null;save();TAB_RENDER.mind();toast(mins>=60?'The hour is complete.':mins+' minutes logged.');};
   qa('[data-grat]').forEach(inp=>inp.onchange=()=>{ d.gratitude[parseInt(inp.dataset.grat,10)]=inp.value; save(); });
 };
@@ -1179,6 +1180,10 @@ function b64blob(b64,mime){const a=atob(b64),u=new Uint8Array(a.length);for(let 
 function blob64(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(blob)})}
 const talksOpen=new Set();
 function lampSvg(f,big){f=Math.max(0,Math.min(1,f||0));const r=big?19:15,sz=big?46:38,c=sz/2,L=2*Math.PI*r;return `<svg class="tp-lamp" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#3a4541" stroke-width="3.5"/>${f?`<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#9fe6c4" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${(L*f).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>`:''}<path d="M${c-8} ${c+3} Q${c} ${c+10} ${c+8} ${c+3} Z" fill="#c9a86a" opacity="${0.35+0.65*f}"/><path d="M${c} ${c-9} Q${c+4} ${c-3} ${c} ${c+1} Q${c-4} ${c-3} ${c} ${c-9} Z" fill="#ffc861" opacity="${f?0.25+0.75*f:0.12}"/></svg>`}
+const GS_DEFAULT='https://open.spotify.com/album/6V3RwoUa3HVKssuLQe0zBK';
+function gsLink(){return (state.profile&&state.profile.gsSpotify)||GS_DEFAULT}
+function spotifyHref(url){const m=/(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(album|playlist|track|artist)[\/:]([A-Za-z0-9]+)/.exec(url||'');if(!m)return url;const web='https://open.spotify.com/'+m[1]+'/'+m[2];if(/Android/i.test(navigator.userAgent))return 'intent://'+m[1]+'/'+m[2]+'#Intent;scheme=spotify;package=com.spotify.music;S.browser_fallback_url='+encodeURIComponent(web)+';end';return web}
+function openGsSpotify(){const a=document.createElement('a');a.href=spotifyHref(gsLink());a.rel='noopener';document.body.appendChild(a);a.click();a.remove();}
 function journalNav(){const opts=[['practice','Pause'],['home','Journal'],['reading','Reading'],...(modules().spiritual?[['talks','Talks & Prayers']]:[])];return `<div class="seg">${opts.map(x=>`<button data-mv="${x[0]}" class="${mindView===x[0]?'on':''}">${x[1]}</button>`).join('')}</div>`}
 function renderJournal(){const sec=document.getElementById('tab-mind'),w=state.witness;let body='';
  if(mindView==='practice'){renderMindPractice();sec.insertAdjacentHTML('afterbegin',journalNav());sec.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{mindView=b.dataset.mv;TAB_RENDER.mind()});return;}
@@ -1238,6 +1243,9 @@ TAB_RENDER.data = function(){
     <div class="fact"><span>Training rules</span><strong>${p.bpSafe?'BP-safe rules shown':'Standard'}</strong></div>
   </div>
   <div class="qr"><button class="btn" id="d-setup">Edit setup</button></div>
+  <h2>Gauri Shankar music</h2>
+  <p class="note">Begin Gauri Shankar opens this in Spotify. Paste a different album or playlist link here to change it.</p>
+  <div class="field"><label class="label" for="d-gs">Gauri Shankar playlist</label><input class="input" id="d-gs" inputmode="url" autocomplete="off" value="${esc(gsLink())}"></div><div class="qr"><button class="btn primary" id="d-gs-save">Save link</button><button class="btn" id="d-gs-test">Open in Spotify</button></div>
   <h2>AI dish estimates</h2>
   <p class="note">Optional, and free. Paste your own Google AI Studio (Gemini) API key and the Dish photo tab can estimate calories and protein automatically. Create a key at <a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a> (Get API key). The key is stored only on this phone and is sent nowhere except directly to Google when you tap Estimate. On Google's free tier, what you send may be used to improve its products - dish photos only go when you tap Estimate.</p>
   <div class="field"><label class="label">Gemini API key</label><input class="input" id="d-gemini" type="password" autocomplete="off" value="${esc(p.geminiKey||'')}" placeholder="AIza..."></div>
@@ -1285,6 +1293,8 @@ TAB_RENDER.data = function(){
     if(!isNaN(k)&&k>0)p.kcalTarget=k; if(!isNaN(pr)&&pr>0)p.proteinTarget=pr; if(!isNaN(w)&&w>0)p.waterTarget=w; if(!isNaN(st)&&st>0)p.stepsTarget=st;
     save(); toast('Targets saved.');
   };
+  q('#d-gs-save').onclick=()=>{ const v=q('#d-gs').value.trim(); if(v&&!/(open\.spotify\.com\/|spotify:)/.test(v)){ toast('Paste a Spotify link, or leave it empty for the default.'); return; } if(v&&v!==GS_DEFAULT) p.gsSpotify=v; else delete p.gsSpotify; save(); TAB_RENDER.data(); toast('Gauri Shankar link saved.'); };
+  q('#d-gs-test').onclick=()=>openGsSpotify();
   q('#d-gemini-save').onclick=()=>{ const v=q('#d-gemini').value.trim(); p.geminiKey=v; save(); TAB_RENDER.data(); toast(v?'Key saved on this phone.':'Key field cleared - tap Save again if you meant to remove it.'); };
   if(q('#d-gemini-clear')) q('#d-gemini-clear').onclick=()=>{ delete p.geminiKey; save(); TAB_RENDER.data(); toast('Key removed from this phone.'); };
   if(q('#d-backfill')) q('#d-backfill').onclick=async()=>{
