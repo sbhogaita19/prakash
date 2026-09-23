@@ -240,10 +240,6 @@ const PROGRAM_GUIDE = [
 '<strong>Progression:</strong> start with a load you could lift for 2 more clean reps. Add reps inside the range. When every work set reaches the top of the range with the same form for two sessions, add the smallest load available and return to the lower end. Holding steady for several weeks is normal.',
 '<strong>Eight-week block:</strong> train A, B and C with at least one recovery day after hard lifting when possible. Weeks 1-3 build; week 4 hold loads; weeks 5-7 build again; week 8 is a recovery week with about half the work sets and RPE 6-7. Then review your log, waist and recovery before changing exercises.'
 ];
-const YOGA = [
-{id:'morning',title:'Morning flow, 15 min',video:{title:'Wake Up | Gentle 10 Minute Morning Yoga | Yoga With Adriene',url:'https://www.youtube.com/watch?v=g6DdOHaAmSQ'},poses:['Cat-cow, 8 slow breaths','Downward dog, 5 breaths','Low lunge each side, 5 breaths','Half split each side, 5 breaths','Standing forward fold, 5 breaths','Warrior two each side, 5 breaths','Seated twist each side, 5 breaths','Easy seat, quiet breathing, 2 minutes']},
-{id:'evening',title:'Evening wind-down, 10 min',video:{title:'Wind Down Yoga | 12-Minute Bedtime Yoga | Yoga With Adriene',url:'https://www.youtube.com/watch?v=BiWDsfZ3zbo'},poses:["Child's pose, 8 breaths",'Supine twist each side, 5 breaths','Pigeon each side, 6 breaths','Legs up the wall, 3 minutes','Body scan lying down, 2 minutes']},
-{id:'mobility',title:'Full-body mobility, 10 min',video:{title:'10 Minute Total Body Mobility For Flexibility And Relaxation',url:'https://www.youtube.com/watch?v=zGIe_keQM_8'},poses:['Neck circles, 5 slow each way','Shoulder rolls, 10 back then 10 forward','Cat-cow, 8 slow breaths',"World's greatest stretch, 3 breaths each side",'Deep squat hold, 30 seconds, twice','Hip circles, 8 each way','Standing hamstring fold, 5 slow breaths']}];
 const QUOTES = [
 {t:'Let each ordinary act have your whole attention.',b:'after Zen'},
 {t:'Notice what moves, and rest as the noticing.',b:'after Osho'},
@@ -909,14 +905,9 @@ TAB_RENDER.train = function(){
     ${openDay===pd.id?`<div class="list">${pd.exercises.map(ex=>{ const sg=progSuggestion(ex.name,ex.sets); return `<div class="exercise-preview"><div class="exercise-thumb">◒</div><span><strong>${esc(ex.name)}</strong><br><span class="dim">${esc(ex.sets)}${ex.note?' · '+esc(ex.note):''}</span></span><span class="tiny">${esc(lastPerf(ex.name))}${sg?'<br>'+esc(sg):''}</span></div>`; }).join('')}</div>
     <button class="btn primary" data-log="${pd.id}">Log this session</button>`:''}</div>`).join('')}
   ${draftHtml}
-  <h2>Yoga and mobility</h2>
-  <p class="note">Open a guided video and follow along, or move through the poses yourself, lighting each one as you go. Breathe through the nose, no long holds of the breath.</p>
-  ${YOGA.map(flow=>{ const done=state.yogaDone[k]||[]; return `<div class="card"><strong>${esc(flow.title)}</strong>
-    ${flow.video?`<div class="qr"><a class="btn" href="${esc(flow.video.url)}" target="_blank" rel="noopener">&#9654; Guided video on YouTube</a></div><div class="tiny">${esc(flow.video.title)}. Opens YouTube, needs internet.</div>`:''}
-    <details class="yoga-poses"${flow.poses.some((_,pi)=>done.indexOf(flow.id+':'+pi)>=0)?' open':''}><summary>The poses · ${flow.poses.length}</summary>${flow.poses.map((pose,pi)=>{ const pid=flow.id+':'+pi; const on=done.indexOf(pid)>=0; return `<div class="tp-prow${on?' done':''}"><button class="tp-tick" data-pose="${pid}" aria-pressed="${on}" aria-label="${on?'Lit today. Tap to undo':'Light '+esc(pose)}">${on?'<i></i>':''}</button><span class="yoga-pose">${esc(pose)}</span></div>`; }).join('')}</details></div>`; }).join('')}
   <h2>Walks</h2><div class="card"><div class="walk-timer" id="walk-time">00:00</div><div class="qr">${state.walkTimer.startedAt?'<button class="btn primary" id="walk-stop">Stop and log</button>':'<button class="btn primary" id="walk-start">Start walk</button>'}</div><p class="note">Accurate while the phone sleeps.</p></div><div class="field"><label class="label">Walking minutes today</label><input class="input" inputmode="numeric" id="t-walk" value="${d.walkMin||''}" placeholder="30"></div><p class="note">A plain movement record.</p>
   <h2>Recent sessions</h2>
-  ${recent.length===0?'<p class="note">No sessions logged yet. Your history and progression will build here.</p>':`<div class="list">${recent.map(w=>`<div class="row rowc"><span><strong>${esc(w.title)}</strong> <span class="dim">${fmtDate(w.date)}</span></span><span class="dim">${w.exercises.length} exercise${w.exercises.length===1?'':'s'}, ${w.exercises.reduce((a,e)=>a+e.sets.length,0)} sets</span></div>`).join('')}</div>`}`;
+  ${recent.length===0?'<p class="note">No sessions logged yet. Your history and progression will build here.</p>':`<div class="list">${recent.map(w=>`<div class="row rowc"><span><strong>${esc(w.title)}</strong> <span class="dim">${fmtDate(w.date)}</span></span><span class="dim">${w.exercises.length} exercise${w.exercises.length===1?'':'s'}, ${w.exercises.reduce((a,e)=>a+e.sets.length,0)} sets${w.durationMin?' · '+w.durationMin+' min':''}</span></div>`).join('')}</div>`}`;
   const sec=document.getElementById('tab-train');
   const q=s=>sec.querySelector(s); const qa=s=>sec.querySelectorAll(s);
   const wp=q('#workout-player'); if(wp){let sx=0;wp.addEventListener('touchstart',e=>sx=e.changedTouches[0].clientX,{passive:true});wp.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>70){playerEx=Math.max(0,Math.min(draft.exercises.length-1,playerEx+(dx<0?1:-1)));TAB_RENDER.train();}},{passive:true});}
@@ -924,7 +915,7 @@ TAB_RENDER.train = function(){
   qa('[data-log]').forEach(b=>b.onclick=()=>openCeremony('Training','A quiet bow to the body as an instrument of life. Let breath and movement stay together.','',()=>{
     const pd=PROGRAM.find(x=>x.id===b.dataset.log);
     let prev=null; for(let i=state.workouts.length-1;i>=0;i--){ if(state.workouts[i].dayId===pd.id){ prev=state.workouts[i]; break; } }
-    draft={ dayId:pd.id, title:pd.title+', '+pd.sub, exercises:pd.exercises.map(ex=>{
+    draft={ dayId:pd.id, title:pd.title+', '+pd.sub, startedAt:new Date().toISOString(), exercises:pd.exercises.map(ex=>{
       const pex=prev?prev.exercises.find(x=>x.name===ex.name):null;
       return {name:ex.name,note:pex&&pex.note||'',sets:pex&&pex.sets.length?pex.sets.map(sx=>({kg:String(sx.kg),reps:String(sx.reps),rpe:sx.rpe==null?'':String(sx.rpe)})):Array.from({length:setCount(ex.sets)},()=>({kg:'',reps:'',rpe:''}))};
     })};
@@ -953,15 +944,16 @@ TAB_RENDER.train = function(){
   if(q('#rt-reset')) q('#rt-reset').onclick=()=>{ clearInterval(restTimer); restTimer=null; restLeft=restSec; TAB_RENDER.train(); };
   if(q('#t-save')) q('#t-save').onclick=()=>{
     const exercises=draft.exercises.map(ex=>({name:ex.name,note:ex.note||'',sets:ex.sets.map(sx=>({kg:parseFloat(sx.kg)||0,reps:parseInt(sx.reps,10)||0,rpe:parseFloat(sx.rpe)||null})).filter(sx=>sx.reps>0)})).filter(ex=>ex.sets.length>0);
-    if(exercises.length){ state.workouts.push({id:uid(),date:k,dayId:draft.dayId,title:draft.title,exercises}); save(); toast('Session saved.'); }
+    const durMin=draft.startedAt?Math.max(1,Math.round((Date.now()-new Date(draft.startedAt).getTime())/60000)):null;
+    if(exercises.length){ state.workouts.push({id:uid(),date:k,dayId:draft.dayId,title:draft.title,durationMin:durMin,exercises}); save(); toast('Session saved.'); }
     clearWorkoutDraft(); TAB_RENDER.train();
+    if(exercises.length) showStretchSheet();
   };
   if(q('#t-cancel')) q('#t-cancel').onclick=()=>{
     const hasData=draft.exercises.some(ex=>ex.sets.some(s=>s.done||String(s.kg||'').trim()||String(s.reps||'').trim()));
     if(!hasData){ clearWorkoutDraft(); TAB_RENDER.train(); return; }
     openSheet('<h2>Close this workout?</h2><p class="note">The sets logged so far will be discarded.</p><div class="qr"><button class="btn danger" id="wc-discard">Discard workout</button><button class="btn" data-close>Keep logging</button></div>',box=>{box.querySelector('#wc-discard').onclick=()=>{clearWorkoutDraft();closeSheet();TAB_RENDER.train();};});
   };
-  qa('[data-pose]').forEach(cb=>cb.onclick=()=>{ const arr=state.yogaDone[k]?[...state.yogaDone[k]]:[]; const ix=arr.indexOf(cb.dataset.pose); if(ix>=0)arr.splice(ix,1); else arr.push(cb.dataset.pose); state.yogaDone[k]=arr; save(); TAB_RENDER.train(); });
   let walkTicker=null;const showWalk=()=>{const el=q('#walk-time');if(!el)return;const sec=state.walkTimer.startedAt?Math.max(0,Math.floor((Date.now()-new Date(state.walkTimer.startedAt).getTime())/1000)):0;el.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')};showWalk();if(state.walkTimer.startedAt)walkTicker=setInterval(showWalk,1000);
   if(q('#walk-start'))q('#walk-start').onclick=()=>openCeremony('Walking','Each step arrives here. Let the feet meet the earth in full attention.','',()=>{state.walkTimer.startedAt=new Date().toISOString();save();TAB_RENDER.train();},'Start walk');
   if(q('#walk-stop'))q('#walk-stop').onclick=()=>{const mins=Math.max(1,Math.round((Date.now()-new Date(state.walkTimer.startedAt).getTime())/60000));d.walkMin=(Number(d.walkMin)||0)+mins;state.walkTimer.startedAt=null;save();TAB_RENDER.train();toast(mins+' walking minutes logged.');};
@@ -1175,7 +1167,12 @@ function checkStop(){
  const due=rememberSchedule().filter(t=>t.getTime()<=now&&stopShown.indexOf(t.getTime())<0);
  if(!due.length) return;
  stopShown.push(due[due.length-1].getTime());
- showStop();
+ const ix=Math.floor(Math.random()*STOP_FORMS.length), f=STOP_FORMS[ix];
+ if(document.hidden && 'Notification' in window && Notification.permission==='granted' && 'serviceWorker' in navigator){
+  navigator.serviceWorker.ready.then(reg=>reg.showNotification(f.word,{body:f.line,tag:'prakash-stop',silent:true,vibrate:[],data:{stop:true}})).catch(()=>{});
+ } else {
+  showStop(ix);
+ }
 }
 function showStop(ix){
  const f=STOP_FORMS[ix!=null?ix:Math.floor(Math.random()*STOP_FORMS.length)];
@@ -1200,7 +1197,15 @@ function showAnger(step){
   o.querySelector('#ag-done').onclick=()=>o.remove();
  }
 }
+const STRETCHES=['Doorway chest stretch · 3 slow breaths each side','Kneeling hip-flexor stretch · 3 breaths each side','Standing hamstring fold · 5 slow breaths','Figure-four glute stretch · 3 breaths each side','Cat-cow · 6 slow breaths'];
+function showStretchSheet(){
+ openSheet('<h2>Five minutes of stretching</h2><p class="note">No timer. Move slowly, breathe through the nose.</p>'+STRETCHES.map((s,i)=>'<div class="tp-prow"><button class="tp-tick" data-stretch="'+i+'" aria-pressed="false" aria-label="Light '+esc(s)+'"></button><span class="yoga-pose">'+esc(s)+'</span></div>').join('')+'<p class="tiny" style="margin-top:10px">Part of the workout. Nothing is counted.</p>',box=>{
+  box.querySelectorAll('[data-stretch]').forEach(b=>b.onclick=()=>{ const on=b.getAttribute('aria-pressed')==='true'; b.setAttribute('aria-pressed',String(!on)); b.innerHTML=on?'':'<i></i>'; const row=b.closest('.tp-prow'); if(row)row.classList.toggle('done',!on); });
+ });
+}
 window.addEventListener('load',()=>setTimeout(checkStop,5000));
+if('serviceWorker' in navigator && navigator.serviceWorker) navigator.serviceWorker.addEventListener('message',e=>{ if(e.data&&e.data.type==='show-stop'&&!stopBusy()) showStop(); });
+window.addEventListener('load',()=>{ if(/[?&]stop=1/.test(location.search)){ try{history.replaceState(null,'',location.pathname);}catch(e){} setTimeout(()=>{ if(!stopBusy()) showStop(); },1600); } });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkStop(); });
 setInterval(checkStop,30000);
 function renderMindPractice(){
@@ -1208,6 +1213,7 @@ function renderMindPractice(){
   const week=lastDays(7); let wmin=0, wses=0;
   for(const m of state.meditations){ if(week.indexOf(m.date)>=0){ wmin+=m.minutes; wses++; } }
   const recent=state.meditations.map((m,ix)=>({...m,_ix:ix})).slice(-5).reverse();
+  const wwk=(state.workouts||[]).filter(x=>week.indexOf(x.date)>=0).length, wall=(state.workouts||[]).length;
   const running=!!medTimer;
   const speakingToday=state.speakingNotices.filter(x=>todayKey(new Date(x.ts))===k),recentSpeaking=state.speakingNotices.slice(-5).reverse();
   document.getElementById('tab-mind').innerHTML=`
@@ -1216,12 +1222,12 @@ function renderMindPractice(){
   <div class="timer" id="m-timer">00:00</div><div class="qr">${state.meditationTimer.startedAt?'<button class="btn primary" id="m-stop">Stop and log</button>':'<button class="btn primary big" id="m-start" style="width:100%">Begin Gauri Shankar</button>'}</div>${state.meditationTimer.startedAt?'<p class="journal-prompt gs-line">The hour needs nothing from you. Sit, breathe, and let what is be seen.</p><button class="btn" id="m-spotify">Open the music again</button>':'<p class="note">Opens Spotify and starts the timer.</p>'}
   <details class="card fold"><summary>Gauri Shankar instructions</summary><div class="gs-stages"><p class="note">Four stages of 15 minutes each. The first two stages prepare for the spontaneous Latihan of the third.</p><p><strong>First stage &middot; 15 minutes</strong><br>Sit with closed eyes. Inhale deeply through the nose, filling the lungs. Hold the breath for as long as possible, then exhale gently through the mouth and keep the lungs empty for as long as possible. Continue this breathing cycle throughout the first stage.</p><p><strong>Second stage &middot; 15 minutes</strong><br>Return to normal breathing and with a gentle gaze look at a candle flame or a flashing blue light. Keep your body still.</p><p><strong>Third stage &middot; 15 minutes</strong><br>With closed eyes, stand up and let your body be loose and receptive. The subtle energies will be felt to move the body outside your normal control. Allow this Latihan to happen. Don&rsquo;t you do the moving: let moving happen, gently and gracefully.</p><p><strong>Fourth stage &middot; 15 minutes</strong><br>Lie down with closed eyes, silent and still.</p><p class="note">The first three stages are accompanied by a steady rhythmic beat, preferably combined with a soothing background music.</p></div><p class="gs-credit">Instructions from <a href="https://oshoworld.com/poona-gourishankar-meditation" target="_blank" rel="noopener">Osho World</a>.</p></details>
   <h2>Remember</h2>
-  <div class="card"><h2>The Stop</h2><p class="note">A few unpredictable signals a day - sometimes none, never on the hour - inside a window you choose. When one appears, stop for a moment as you are.</p><div class="remember-win"><button class="btn mini" id="rm-toggle">${state.remember.on!==false?'Signals on':'Signals off'}</button><span class="tiny">window</span><input type="time" class="input" id="rm-from" value="${esc(state.remember.from||'08:00')}"><span class="tiny">to</span><input type="time" class="input" id="rm-to" value="${esc(state.remember.to||'22:00')}"></div><p class="tiny">The phone cannot wake the app for a signal: one appears while the app is open, or the next time you open it.</p><p class="tiny">A reminder can itself become mechanical - when this one does, change it or turn it off.</p><button class="btn" id="rm-preview">See one now</button></div>
+  <div class="card"><h2>The Stop</h2><p class="note">A few unpredictable signals a day - sometimes none, never on the hour - inside a window you choose. When one appears, stop for a moment as you are.</p><div class="remember-win"><button class="btn mini" id="rm-toggle">${state.remember.on!==false?'Signals on':'Signals off'}</button><span class="tiny">window</span><input type="time" class="input" id="rm-from" value="${esc(state.remember.from||'08:00')}"><span class="tiny">to</span><input type="time" class="input" id="rm-to" value="${esc(state.remember.to||'22:00')}"></div><p class="tiny">The phone cannot wake the app for a signal: one appears while the app is open, or the next time you open it.</p><p class="tiny">A reminder can itself become mechanical - when this one does, change it or turn it off.</p><button class="btn" id="rm-preview">See one now</button>${(()=>{ if(!('Notification' in window)) return ''; const p=Notification.permission; if(p==='granted') return '<p class="tiny" style="margin-top:8px">The bell reaches you as a quiet notification - no sound, no buzz - while the app is open or in the background. Fully closed, a signal waits for your next open. Focus and driving modes silence it as usual - the phone decides.</p>'; if(p==='denied') return '<p class="tiny" style="margin-top:8px">Notifications are off in the browser settings, so signals stay inside the app.</p>'; return '<div class="qr" style="margin-top:8px"><button class="btn" id="rm-notify">Let the bell reach you</button></div><p class="tiny">Quiet notifications only: no sound, no buzz. One waits in the shade until you glance at it; tapping it opens the Stop. Fully closed, a signal waits for your next open. Focus and driving modes still apply.</p>'; })()}</div>
   <div class="card"><h2>When anger comes</h2><p class="note">A three-step pause for the moment itself. Nothing is scored or praised.</p><button class="btn primary" id="rm-anger" style="width:100%">Open</button><details class="fold" style="margin-top:10px"><summary class="tiny">Wait before replying</summary><p class="note">Osho retells Gurdjieff's advice as waiting twenty-four hours before replying in anger - a story Osho passed on, not Gurdjieff's own record.</p><div class="field"><label class="label">Your own wait-before-replying note (optional)</label><input class="input" id="rm-waitnote" value="${esc(state.remember.waitNote||'')}" placeholder="Sleep on it before sending."></div></details></div>
   <details class="card fold"><summary>Self-remembering, briefly &middot; after Gurdjieff</summary><p>Most of the day, attention pours entirely outward into whatever is in front of us. Self-remembering divides it: one arrow stays with what is seen, one arrow returns to the one seeing. Both at once, even for a moment.</p><p>It comes in moments, not as a state. It cannot be held. Noticing that it was lost is itself a moment of remembering.</p><p>The obstacle is identifying: we become whatever holds us - the message, the insult, the plan. What we become, we cannot see.</p><p>So the practice is self-observation without judgment: watching what is here the way a mirror shows a face. No fixing, no explaining, no praise or blame.</p><p>Negative emotions rest on a kind of inner permission - a quiet insistence that it is right to feel this. Seeing the permission does more than fighting the feeling.</p><p>We are irritated by machines because we are machines: reactions run by themselves, on habit. Seeing a reaction begin is the beginning of not being it.</p><p class="note">This app can be a signal, never a teacher. The work is yours.</p></details>
   <div class="facts">
-    <div class="fact"><span>This week</span><strong>${wses} sits, ${wmin} min</strong></div>
-    <div class="fact"><span>All time</span><strong>${state.meditations.length} sits</strong></div>
+    <div class="fact"><span>This week</span><strong>${wses} sits, ${wmin} min · ${wwk} workout${wwk===1?'':'s'}</strong></div>
+    <div class="fact"><span>All time</span><strong>${state.meditations.length} sits · ${wall} workout${wall===1?'':'s'}</strong></div>
   </div>
   ${recent.length?`<div class="list">${recent.map(m=>`<div class="row swipe-row" data-medrow="${m._ix}"><span>${fmtDate(m.date)}</span><strong>${m.minutes} min</strong></div>`).join('')}</div><p class="tiny">Swipe a sit left to remove it.</p>`:''}
   <div class="card"><h2>Bell of mindfulness</h2><p class="note">Tap when speaking is noticed. The bell acknowledges the moment; nothing is scored.</p><button class="btn primary" id="m-speaking">Ring · noticed speaking</button>${recentSpeaking.length?`<p class="tiny">Recent: ${recentSpeaking.map(x=>new Date(x.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})).join(' · ')}</p>`:''}</div>
@@ -1242,6 +1248,7 @@ function renderMindPractice(){
   if(q('#rm-from'))q('#rm-from').onchange=e=>{state.remember.from=e.target.value||'08:00';state.remember.schedule=null;save();};
   if(q('#rm-to'))q('#rm-to').onchange=e=>{state.remember.to=e.target.value||'22:00';state.remember.schedule=null;save();};
   if(q('#rm-preview'))q('#rm-preview').onclick=()=>showStop();
+  if(q('#rm-notify'))q('#rm-notify').onclick=()=>{ if(!('Notification' in window))return; Notification.requestPermission().then(()=>TAB_RENDER.mind()); };
   if(q('#rm-anger'))q('#rm-anger').onclick=()=>showAnger();
   if(q('#rm-waitnote'))q('#rm-waitnote').oninput=e=>{state.remember.waitNote=e.target.value;save();};
   if(q('#m-stop'))q('#m-stop').onclick=()=>{const mins=Math.max(1,Math.round((Date.now()-new Date(state.meditationTimer.startedAt).getTime())/60000));state.meditations.push({id:uid(),date:todayKey(),minutes:mins});state.meditationTimer.startedAt=null;save();TAB_RENDER.mind();toast(mins>=60?'The hour is complete.':mins+' minutes logged.');};
@@ -1367,6 +1374,12 @@ TAB_RENDER.data = function(){
   </div>
   ${backupImportPreview?`<div class="import-result"><strong>Restore preview - nothing written yet</strong><br>${backupImportPreview.rows} food rows · ${backupImportPreview.dateMin||'no dated days'} to ${backupImportPreview.dateMax||'no dated days'}<br>${backupImportPreview.duplicates} dates already exist on this phone · ${backupImportPreview.anomalies.length} anomal${backupImportPreview.anomalies.length===1?'y':'ies'}${backupImportPreview.anomalies.length?`<ul class="plain">${backupImportPreview.anomalies.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>`:''}<p class="note">Restore replaces the current local Prakash data with this backup. Export the current data first if you need both.</p><div class="qr"><button class="btn primary" id="d-import-apply">Restore this backup</button><button class="btn" id="d-import-cancel">Cancel</button></div></div>`:''}
   <div class="card fresh-card"><h2>Start fresh</h2><p class="note">Begin again without losing the past. Prakash first downloads one complete backup, including journal voice notes. Only your logs are then cleared; the app and your saved settings stay.</p><button class="btn danger" id="d-fresh">Download backup and start fresh</button><div id="d-fresh-status"></div></div>
+  <details class="card fold"><summary>What's new &middot; v65</summary><ul class="plain">
+    <li>The Stop can now reach you as a quiet notification: no sound, no buzz - it waits in the shade, and tapping it opens the Stop. Ask from the Remember card ("Let the bell reach you"). Your phone's focus and driving modes still apply. Honest limit: a signal can reach you while the app is open or in the background - fully closed, it waits for your next open.</li>
+    <li>Workouts are timed from start to finish. The clock survives the app closing, and the finished session shows its minutes.</li>
+    <li>Workout counts sit beside the sits under Mind &gt; Practice: this week and all time, as plain facts.</li>
+    <li>The Yoga and mobility section has left Train. In its place, finishing a workout offers a quiet five-minute stretch list - read it or light the rows, no timer, nothing counted.</li>
+  </ul></details>
   <details class="card fold"><summary>What's new &middot; v64</summary><ul class="plain">
     <li>The Stop, under Mind &gt; Practice: a few unpredictable self-remembering signals a day - sometimes none, never on the hour - inside a window you choose. Rotating forms: Stop, I am, Where is your attention. No timer, no chime, and no record kept.</li>
     <li>Honest mechanism: a web app cannot be woken for a push here, so a signal appears while the app is open or the next time you open it.</li>
