@@ -134,6 +134,7 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}nav.tabs button{min-width:64px}nav.
 .set-done.on{background:#73a89a!important;color:#10201a!important;border-color:#73a89a!important;font-weight:700}
 .import-result{background:#1f2a26!important;color:#f0f2ef!important;border:1px solid #73a89a!important;border-radius:14px;padding:14px}.import-result *{color:inherit}.import-result .note{color:#c9d1cd!important}
 .rest-nudge{display:flex;flex-direction:column;gap:12px;margin:0 0 14px;padding:16px;border-radius:16px;border:1px solid #3d4a45;background:#171d1b}.rest-nudge strong{display:block;font-family:Georgia,serif;font-weight:400;font-size:21px;color:#eef1ee}.rest-nudge span{display:block;font-size:14px;color:#b9c2be;margin-top:4px}.rest-actions{display:flex;gap:10px;flex-wrap:wrap}.rest-actions .btn{min-height:48px;font-size:16px}.rest-nudge.resting strong{font-size:18px}
+.reflect-h{font-size:17px;margin:4px 0 2px}.reflect-table td:first-child{color:var(--ink2)}
 </style>
 </head>
 <body>
@@ -256,6 +257,45 @@ const SCALE_FIELDS=[['kg','Weight','kg',20,400],['bodyFat','Body fat','%',2,75],
 const ONE_PLATE=['One plate. Serve once, eat once.','When your plate is empty, the meal is complete.','Your plate is your meal. Leftovers can wait for tomorrow.'];
 let onePlateIdx=null;
 function onePlateLine(){ if(onePlateIdx==null) onePlateIdx=Math.floor(Math.random()*ONE_PLATE.length); return ONE_PLATE[onePlateIdx]; }
+function reflectionHtml(){
+  const now=new Date(), keyAt=o=>todayKey(new Date(now.getFullYear(),now.getMonth(),now.getDate()-o));
+  const weeks=[[0,7],[7,14]].map(([a,b])=>{const ks=[];for(let o=b-1;o>=a;o--)ks.push(keyAt(o));return ks;});
+  const avg=v=>v.length?Math.round(v.reduce((x,y)=>x+y,0)/v.length*10)/10:null;
+  const hm=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?(h+' h'+(r?' '+r+' min':'')):r+' min';};
+  const stat=ks=>{const days=ks.map(kk=>state.days[kk]).filter(Boolean);
+    const meds=(state.meditations||[]).filter(x=>ks.includes(x.date||todayKey(new Date(x.at))));
+    const wo=(state.workouts||[]).filter(x=>ks.includes(x.date));
+    const sleep=days.map(x=>Number(x.sleep)).filter(x=>x>0);
+    const foodDays=days.filter(x=>(x.foods||[]).length);
+    const counts={};days.forEach(x=>(x.foods||[]).forEach(f=>{const n=String(f.name||'').trim();if(n){const key=n.toLowerCase();counts[key]=counts[key]||{n,c:0};counts[key].c++;}}));
+    const top=Object.values(counts).sort((a,b)=>b.c-a.c)[0];
+    const sc=(state.weights||[]).filter(x=>ks.includes(x.date));
+    const scAvg=k=>avg(sc.map(x=>Number(x[k])).filter(x=>x>0));
+    const entries=((state.witness&&state.witness.entries)||[]).filter(x=>x.created&&ks.includes(todayKey(new Date(x.created))));
+    const waist=(state.waists||[]).filter(x=>ks.includes(x.date)).sort((a,b)=>a.date<b.date?1:-1)[0];
+    return {medN:meds.length,medMin:meds.reduce((n,x)=>n+(Number(x.minutes)||0),0),wo:wo.length,walk:days.reduce((n,x)=>n+(Number(x.walkMin)||0),0),steps:days.length?Math.round(days.reduce((n,x)=>n+(Number(x.steps)||0),0)/7):0,sleepN:sleep.length,sleepAvg:avg(sleep),foodDays:foodDays.length,top,chai:days.filter(x=>x.morningChai).length,pauses:days.reduce((n,x)=>n+(Number(x.pauses)||0),0),journal:entries.length,kg:scAvg('kg'),bodyFat:scAvg('bodyFat'),muscleKg:scAvg('muscleKg'),visceral:scAvg('visceral'),waterPct:scAvg('waterPct'),waist:waist?waist.cm:null};};
+  const [a,b]=weeks.map(stat);
+  const rows=[
+    ['Meditation',x=>x.medN?x.medN+' session'+(x.medN===1?'':'s')+' · '+hm(x.medMin):''],
+    ['Strength training',x=>x.wo?x.wo+' session'+(x.wo===1?'':'s'):''],
+    ['Walking',x=>x.walk?hm(x.walk):''],
+    ['Steps',x=>x.steps?x.steps.toLocaleString()+' a day on average':''],
+    ['Sleep',x=>x.sleepN?x.sleepAvg+' h average · '+x.sleepN+' night'+(x.sleepN===1?'':'s'):''],
+    ['Food logged',x=>x.foodDays?x.foodDays+' day'+(x.foodDays===1?'':'s'):''],
+    ['Most logged food',x=>x.top?esc(x.top.n)+' ('+x.top.c+')':''],
+    ['Morning chai',x=>x.chai?x.chai+' day'+(x.chai===1?'':'s'):''],
+    ['Eating pauses',x=>x.pauses?String(x.pauses):''],
+    ['Journal entries',x=>x.journal?String(x.journal):''],
+    ['Weight',x=>x.kg?x.kg+' kg average':''],
+    ['Body fat',x=>x.bodyFat?x.bodyFat+'% average':''],
+    ['Muscle mass',x=>x.muscleKg?x.muscleKg+' kg average':''],
+    ['Visceral fat',x=>x.visceral?x.visceral+' average':''],
+    ['Body water',x=>x.waterPct?x.waterPct+'% average':''],
+    ['Waist',x=>x.waist?x.waist+' cm latest':'']
+  ].map(([label,f])=>[label,f(a),f(b)]).filter(r=>r[1]||r[2]);
+  if(!rows.length) return '<p class="note">Nothing logged in the last two weeks yet.</p>';
+  return `<h3 class="reflect-h">This week, from your own logs</h3><p class="note">The last 7 days beside the 7 days before. Counts only.</p><div style="overflow-x:auto"><table class="bp-table reflect-table"><thead><tr><th></th><th>This week</th><th>Week before</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]||'-'}</td><td>${r[2]||'-'}</td></tr>`).join('')}</tbody></table></div>`;
+}
 function kgWeights(){ return (state.weights||[]).filter(w=>Number(w.kg)>0); }
 function scaleHtml(){
   const all=[...(state.weights||[])].sort((a,b)=>a.date<b.date?-1:1);
@@ -448,7 +488,7 @@ TAB_RENDER.today = function(){
   <div class="day-progress"><h2>Dashboard</h2><div class="progress-rings" id="progress-rings" aria-label="Daily facts">${metrics.map((m,i)=>`<button class="progress-ring ${m.key}${i===0?' on':''}" data-progress="${m.key}" aria-label="Show ${m.label.toLowerCase()}" style="--fill:${Math.max(0,Math.min(100,m.value/m.target*100))}"></button>`).join('')}<div class="progress-centre"><strong id="progress-value">${t.kcal}</strong><span id="progress-unit">kcal</span></div></div><div class="progress-lines">${metrics.map((m,i)=>`<button class="progress-line${i===0?' on':''}" data-progress="${m.key}" style="--lc:${['#7fd2ae','#70bd9c','#61a98b','#529578','#47846b','#3d735e','#32614f'][i]}"><strong>${m.label}</strong><span>${m.detail}</span></button>`).join('')}</div><div class="v38-actions"><button class="btn" data-act="water">+ water</button><button class="btn" data-act="steps1k">+ 1,000 steps</button></div><p class="progress-note">Daily facts, shown without scoring.</p></div>
   ${weekStrip()}
   <div class="card"><strong>Morning chai</strong><p class="note">One cup. A ceremony, not a counter. Decaf keeps the ritual without carrying caffeine into the day.</p>${d.morningChai?'<p class="quiet">The cup was received today.</p>':'<button class="btn primary" id="chai-open">Begin the cup</button>'}<div class="qr" style="margin-top:10px"><button class="btn" id="herbal-add">+ hibiscus / herbal</button><span class="quiet">${d.herbalTeas||0} logged today</span></div></div>
-  <details class="card fold"><summary>Weekly review</summary><p class="note">Your targets beside the facts logged in the last 7 days.</p><div class="facts"><div class="fact"><span>Food</span><strong>${foodAvg?foodAvg.kcal+' kcal against '+p.kcalTarget+' · '+foodAvg.protein+' g protein against '+p.proteinTarget: 'No food logged'}</strong></div><div class="fact"><span>Body</span><strong>${weekWeights.length?weekWeights.length+' weigh-ins · '+mean(weekWeights.map(x=>x.kg))+' kg average':'No weigh-ins'}${bodyFatAvg?' · '+bodyFatAvg+'% body fat average':''}${latestWaist?' · '+latestWaist.cm+' cm waist':''}</strong></div><div class="fact"><span>Training</span><strong>${weekWorkouts.length} strength sessions</strong></div><div class="fact"><span>Movement</span><strong>${walkMinutes} walking min · ${Math.round(mean(stepVals)||0).toLocaleString()} average steps</strong></div><div class="fact"><span>Sleep</span><strong>${sleepVals.length?mean(sleepVals)+' h average across '+sleepVals.length+' nights':'No sleep logged'}</strong></div><div class="fact"><span>Blood pressure</span><strong>${mirrorBp?mirrorBp.sys+'/'+mirrorBp.dia+' average across '+weekBps.length+' readings':'No readings logged'}</strong></div><div class="fact"><span>Meditation</span><strong>${weekMeds.reduce((n,x)=>n+(Number(x.minutes)||0),0)} min across ${weekMeds.length} sits</strong></div></div></details>
+  <details class="card fold"><summary>Weekly review</summary>${reflectionHtml()}<p class="note">Your targets beside the facts logged in the last 7 days.</p><div class="facts"><div class="fact"><span>Food</span><strong>${foodAvg?foodAvg.kcal+' kcal against '+p.kcalTarget+' · '+foodAvg.protein+' g protein against '+p.proteinTarget: 'No food logged'}</strong></div><div class="fact"><span>Body</span><strong>${weekWeights.length?weekWeights.length+' weigh-ins · '+mean(weekWeights.map(x=>x.kg))+' kg average':'No weigh-ins'}${bodyFatAvg?' · '+bodyFatAvg+'% body fat average':''}${latestWaist?' · '+latestWaist.cm+' cm waist':''}</strong></div><div class="fact"><span>Training</span><strong>${weekWorkouts.length} strength sessions</strong></div><div class="fact"><span>Movement</span><strong>${walkMinutes} walking min · ${Math.round(mean(stepVals)||0).toLocaleString()} average steps</strong></div><div class="fact"><span>Sleep</span><strong>${sleepVals.length?mean(sleepVals)+' h average across '+sleepVals.length+' nights':'No sleep logged'}</strong></div><div class="fact"><span>Blood pressure</span><strong>${mirrorBp?mirrorBp.sys+'/'+mirrorBp.dia+' average across '+weekBps.length+' readings':'No readings logged'}</strong></div><div class="fact"><span>Meditation</span><strong>${weekMeds.reduce((n,x)=>n+(Number(x.minutes)||0),0)} min across ${weekMeds.length} sits</strong></div></div></details>
   ${modules().food?`<div class="today-food"><div class="today-food-head"><h2>Today's food</h2><span class="tiny">${d.foods.length} item${d.foods.length===1?'':'s'} · ${t.kcal} kcal</span></div>${mealRows}</div>`:''}
   <details class="card fold"><summary>Whole mirror · last 7 days</summary><p class="note">Body, food, movement and stillness are experiences being noticed. They are not who you are.</p><div class="facts">
     <div class="fact"><span>Food logged</span><strong>${loggedFood.length?loggedFood.length+' days · avg '+Math.round(mean(loggedFood.map(x=>x.kcal)))+' kcal · '+Math.round(mean(loggedFood.map(x=>x.protein)))+' g protein':'-'}</strong></div>
