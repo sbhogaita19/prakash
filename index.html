@@ -234,7 +234,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.2.1';
+const VERSION = '1.2.3';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -329,6 +329,8 @@ function migrate(s) {
   if (!Array.isArray(s.witness.readings)) s.witness.readings = [];
   if (!s.talks) s.talks = { heard: {}, themes: {}, notes: {} };
   ['heard', 'themes', 'notes'].forEach(k => { if (!s.talks[k]) s.talks[k] = {}; });
+  // Gemini auth keys start with 'AQ.'; earlier versions saved them without the dot, so ask for the key again
+  if (s.profile && typeof s.profile.geminiKey === 'string' && /^AQ/.test(s.profile.geminiKey) && !/^AQ\./.test(s.profile.geminiKey)) { delete s.profile.geminiKey; delete s.profile.geminiModel; }
   if (old) {
     // v72 and earlier: bring across what still has meaning
     const a = s.awareness || {};
@@ -671,7 +673,7 @@ async function gemini(parts, opts) {
     catch (e) { const x = Error('offline'); x.detail = String(e && e.message || e); throw x; }
     const msg = (j && j.error && j.error.message) || '';
     if (!r.ok) {
-      const e = Error(msg || ('HTTP ' + r.status)); e.status = r.status; e.detail = msg; e.model = model;
+      const e = Error(msg || ('HTTP ' + r.status)); e.status = r.status; e.detail = msg; e.model = model; e.gstatus = (j && j.error && j.error.status) || ''; e.reason = ((j && j.error && j.error.details) || []).map(d => d && d.reason).filter(Boolean).join(' ');
       // this model isn't available to this key (renamed, not on the free plan, or its quota is used up): try the next one
       if (r.status === 404 || r.status === 429 || /not found|not supported|no longer available|deprecated|quota|not available|free tier/i.test(msg)) { lastErr = e; continue; }
       throw e;
@@ -683,13 +685,16 @@ async function gemini(parts, opts) {
   }
   throw lastErr || Error('model');
 }
-function cleanKey(k) { return String(k || '').replace(/[^A-Za-z0-9_-]/g, ''); }
+function cleanKey(k) { return String(k || '').replace(/[^A-Za-z0-9._-]/g, ''); }
 function geminiErr(e) {
   const m = (e && e.message) || '';
   if (m === 'nokey') return 'Connect Gemini first, in You › Connect Gemini.';
   if (m === 'offline') return 'Couldn’t reach Google. Check the internet connection. If you use a content blocker or Brave Shields, allow generativelanguage.googleapis.com.';
   if (m === 'model') return 'Google has renamed its models. Enter the numbers yourself for now; the app needs a small update.';
   if (m === 'empty') return 'Gemini sent back nothing. Try again, or enter the numbers yourself.';
+  const why = m + ' ' + ((e && e.gstatus) || '') + ' ' + ((e && e.reason) || '');
+  if (/^AIza/.test(cleanKey(S.profile.geminiKey)) && e && e.status >= 400 && e.status < 500 && /retired|no longer (supported|accepted|valid)|legacy|standard (api )?key/i.test(why)) return 'Google has retired this older kind of key. Create a new one at aistudio.google.com/apikey.';
+  if (e && (e.status === 401 || /UNAUTHENTICATED|ACCESS_TOKEN_TYPE_UNSUPPORTED/.test(why))) return 'Google didn’t accept this key. Create a new key at aistudio.google.com/apikey and paste the whole thing, including the ‘AQ.’ at the start.';
   if (e && (e.status === 400 || e.status === 403) && /api key|api_key|key not valid|expired/i.test(m)) return 'Google didn’t accept the key. Copy it again from aistudio.google.com and paste it here.';
   if (e && e.status === 403 && /referer|referrer/i.test(m)) return 'The key is restricted to certain websites. In Google AI Studio, remove the website restriction, or create a new key.';
   if (e && e.status === 403 && /has not been used|disabled|enable/i.test(m)) return 'This key belongs to a Google Cloud project without the Gemini API switched on. The easiest fix: create a new key at aistudio.google.com/apikey.';
@@ -852,26 +857,38 @@ function commitFood(c, qty, unit) {
   undoBar(c.name + ' added.', () => { d.foods = d.foods.filter(x => x.id !== e.id); a.added = a.added.filter((x, i) => i !== a.added.lastIndexOf(c.name)); save(); addRender(); render(); }, 5000);
 }
 /* searches made online are kept, so they still work with no signal */
-const OFF_KEY = 'prakash-off-cache';
+const OFF_KEY = 'prakash-off-cache-en'; try { localStorage.removeItem('prakash-off-cache'); } catch (e) {}
 function offCacheGet() { try { return JSON.parse(localStorage.getItem(OFF_KEY) || '{}') || {}; } catch (e) { return {}; } }
 function offCachePut(q, list) { if (!list || !list.length) return; const c = offCacheGet(); c[q.toLowerCase().trim()] = { at: Date.now(), c: list.slice(0, 15) }; const ks = Object.keys(c).sort((a, b) => c[b].at - c[a].at); ks.slice(60).forEach(k => delete c[k]); try { localStorage.setItem(OFF_KEY, JSON.stringify(c)); } catch (e) {} }
 function offCacheFind(q) { q = q.toLowerCase().trim(); const c = offCacheGet(); if (c[q]) return c[q].c; const words = q.split(/\s+/).filter(Boolean), seen = new Set(), out = []; Object.values(c).forEach(e => e.c.forEach(x => { const n = (x.name + ' ' + (x.brand || '')).toLowerCase(); if (words.every(w => n.includes(w)) && !seen.has(n)) { seen.add(n); out.push(x); } })); return out.slice(0, 15); }
 on('add-online', async () => {
   const a = ADD, query = a.q.trim(); if (!query) return;
   a.onlineMsg = 'Searching Open Food Facts…'; refreshAddResults();
-  const urls = ['https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(query) + '&search_simple=1&action=process&json=1&page_size=15&fields=product_name,brands,nutriments,serving_size',
-    'https://world.openfoodfacts.org/api/v2/search?search_terms=' + encodeURIComponent(query) + '&page_size=15&fields=product_name,brands,nutriments,serving_size'];
+  const urls = offSearchUrls(query, 15);
   let j = null, busy = false;
   if (navigator.onLine === false) { const kept = offCacheFind(query); a.online = kept; a.onlineMsg = kept.length ? 'No connection, so these are from searches you’ve made before.' : 'No connection. Your own foods and Basics still work.'; refreshAddResults(); return; }
-  for (const u of urls) { try { const r = await fetch(u, { headers: { Accept: 'application/json' } }); if (r.ok) { j = await r.json(); break; } busy = true; } catch (e) {} }
+  for (const u of urls) { try { const r = await fetch(u, { headers: { Accept: 'application/json' } }); if (r.ok) { j = await r.json(); if ((j.products || []).length) break; continue; } busy = true; } catch (e) {} }
   if (ADD !== a) return;
   if (!j) { const kept = offCacheFind(query); if (kept.length) { a.online = kept; a.onlineMsg = 'No connection, so these are from searches you’ve made before.'; refreshAddResults(); return; } a.onlineMsg = busy ? 'Open Food Facts is busy. Try again in a moment.' : 'Couldn’t reach Open Food Facts. Check the internet connection.'; refreshAddResults(); return; }
-  a.online = (j.products || []).map(offCand).filter(Boolean); offCachePut(query, a.online);
+  a.online = offResults(j, 15); offCachePut(query, a.online);
   a.onlineMsg = a.online.length ? 'Values from packet labels (Open Food Facts).' : 'Nothing with nutrition values matched.'; refreshAddResults();
 });
+/* Open Food Facts is French-run and worldwide: its default name is the product's own language.
+   Search products sold in the UK, ask for English names, and put English-named products first. */
+const OFF_FIELDS = 'product_name,product_name_en,generic_name_en,lang,brands,nutriments,serving_size,countries_tags';
+function offSearchUrls(query, n) {
+  const q = encodeURIComponent(query), base = '&search_simple=1&action=process&json=1&lc=en&sort_by=unique_scans_n&page_size=' + (n * 2) + '&fields=' + OFF_FIELDS;
+  return ['https://uk.openfoodfacts.org/cgi/search.pl?search_terms=' + q + base,
+    'https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + q + base + '&tagtype_0=countries&tag_contains_0=contains&tag_0=united-kingdom'];
+}
+function offIsEnglish(prod) { return !!(String(prod.product_name_en || '').trim() || prod.lang === 'en'); }
+function offResults(j, n) {
+  const ps = (j.products || []).slice().sort((a, b) => offIsEnglish(b) - offIsEnglish(a));
+  const seen = new Set(); return ps.map(offCand).filter(c => { if (!c) return false; const k = (c.name + '|' + c.brand).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, n);
+}
 function parseServing(s) { const m = String(s || '').match(/(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i); return m ? parseFloat(m[1]) : 0; }
 function offCand(prod) {
-  const n = prod.nutriments || {}, k = Number(n['energy-kcal_100g']); let name = String(prod.product_name || '').trim(); const brand = String(prod.brands || '').split(',')[0].trim();
+  const n = prod.nutriments || {}, k = Number(n['energy-kcal_100g']); let name = String(prod.product_name_en || prod.product_name || prod.generic_name_en || '').trim(); const brand = String(prod.brands || '').split(',')[0].trim();
   if (!name || !isFinite(k) || k <= 0) return null;
   const c = { name, brand, per: '100g', k, p: +n['proteins_100g'] || 0, f: +n['fat_100g'] || 0, c: +n['carbohydrates_100g'] || 0, b: +n['fiber_100g'] || 0, src: 'Open Food Facts' };
   const sg = parseServing(prod.serving_size); if (sg) { c.serveGrams = sg; c.serveLabel = 'serving (' + prod.serving_size + ')'; }
@@ -894,7 +911,7 @@ async function lookupBarcode(code) {
   const a = ADD; code = String(code || '').replace(/\D/g, ''); if (!code) { toast('Type the barcode number first.'); return; }
   a.scanMsg = 'Looking up ' + code + '…'; stopScan(); addRender();
   try {
-    const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + code + '.json?fields=product_name,brands,nutriments,serving_size'); const j = await r.json();
+    const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + code + '.json?lc=en&fields=' + OFF_FIELDS); const j = await r.json();
     const c = j && j.status === 1 && j.product ? offCand(j.product) : null;
     if (c) offCachePut('#' + code, [c]);
     if (ADD !== a) return;
@@ -1105,7 +1122,7 @@ on('rec-add', b => { const rec = ADD.rec, c = (b.dataset.src === 'o' ? rec.onlin
 on('rec-custom', () => { const nm = $('#rc-n').value.trim(), k = num($('#rc-k').value), p = num($('#rc-p').value) || 0, g = num($('#rc-g').value) || 100; if (!nm || !k) { toast('Add the name and calories per 100 g.'); return; } ADD.rec.ings.push({ name: nm, k, p, f: 0, c: 0, b: 0, grams: g }); addRender(); });
 on('rec-online', async () => {
   const rec = ADD.rec, query = rec.q.trim(); if (!query) return; rec.msg = 'Searching Open Food Facts…'; addRender();
-  try { const r = await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(query) + '&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_size'); const j = await r.json(); rec.online = (j.products || []).map(offCand).filter(Boolean); offCachePut(query, rec.online); rec.msg = rec.online.length ? '' : 'Nothing with nutrition values matched. Enter it yourself below.'; }
+  try { let j = null; for (const u of offSearchUrls(query, 10)) { try { const r = await fetch(u, { headers: { Accept: 'application/json' } }); if (r.ok) { j = await r.json(); if ((j.products || []).length) break; } } catch (x) {} } if (!j) throw Error('offline'); rec.online = offResults(j, 10); offCachePut(query, rec.online); rec.msg = rec.online.length ? '' : 'Nothing with nutrition values matched. Enter it yourself below.'; }
   catch (e) { const kept = offCacheFind(query); if (kept.length) { rec.online = kept; rec.msg = 'No connection, so these are from searches you’ve made before.'; } else rec.msg = 'Couldn’t reach Open Food Facts. Enter it yourself below.'; }
   if (ADD && ADD.rec === rec) addRender();
 });
@@ -1731,15 +1748,15 @@ on('mod', b => { const m = S.profile.modules; m[b.dataset.m] = !m[b.dataset.m]; 
 function geminiHtml() {
   const p = S.profile;
   return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Connect Gemini</h1><p>Gemini fills in dishes from a photo and turns a talk into key themes. It’s free.</p>
-  <ol class="small" style="padding-left:22px;margin:0;display:flex;flex-direction:column;gap:8px"><li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> and sign in with your Google account.</li><li>Tap <strong>Create API key</strong>. No card needed.</li><li>Copy the key. It starts with “AIza”.</li></ol>
-  <div><label class="lab" for="g-key">Paste your key here</label><input class="input" id="g-key" type="password" autocomplete="off" value="${esc(p.geminiKey || '')}" placeholder="AIza…"></div>
+  <ol class="small" style="padding-left:22px;margin:0;display:flex;flex-direction:column;gap:8px"><li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> and sign in with your Google account.</li><li>Tap <strong>Create API key</strong>. No card needed.</li><li>Copy the key. It starts with “AQ.”</li></ol>
+  <div><label class="lab" for="g-key">Paste your key here</label><input class="input" id="g-key" type="password" autocomplete="off" value="${esc(p.geminiKey || '')}" placeholder="AQ…"></div>
   <button class="btn primary big" data-a="g-save">Save and test</button><div id="g-status"></div>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Your key stays on this phone. It is never put in a backup.</li><li>Free, with a daily limit you're unlikely to reach.</li><li>On the free plan, Google may use what you send, including dish photos, to improve its products. Nothing is sent until you tap.</li></ul>
   ${p.geminiKey ? '<button class="btn danger" data-a="g-remove">Remove key</button>' : ''}</div>`;
 }
 on('g-save', async () => {
   const raw = $('#g-key').value, v = cleanKey(raw), st = $('#g-status'); if (!v) { toast('Paste the key first.'); return; }
-  if (!/^AIza/.test(v)) st.innerHTML = '<p class="small">That doesn’t look like a Gemini key (they start with “AIza”). Testing anyway…</p>'; else st.innerHTML = '<p class="small">Testing…</p>';
+  if (!/^(AQ\.|AIza)/.test(v)) st.innerHTML = '<p class="small">That doesn’t look like a Gemini key. Gemini keys start with ‘AQ.’ (older ones ‘AIza’). Testing anyway…</p>'; else st.innerHTML = '<p class="small">Testing…</p>';
   S.profile.geminiKey = v; delete S.profile.geminiModel; save(); $('#g-key').value = v;
   try { await gemini([{ text: 'Reply with the single word: ready' }]); st.innerHTML = `<div class="okbox">Connected. Gemini answered (${esc(S.profile.geminiModel || '')}).</div>`; }
   catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${esc(geminiErr(e))}</p>${e && e.status && e.detail ? `<p class="tiny" style="margin-top:6px">Google said: ${esc(String(e.detail).slice(0, 300))}${e.model ? ' (' + esc(e.model) + ')' : ''}</p>` : ''}</div>`; }
