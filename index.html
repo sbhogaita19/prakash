@@ -222,7 +222,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.0.7';
+const VERSION = '1.0.8';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -319,6 +319,7 @@ function day(k) { if (!S.days[k]) S.days[k] = emptyDay(); const d = S.days[k]; i
 function peekDay(k) { return S.days[k] || null; }
 function T() { const t = todayKey(); if (!S.todayOnly || S.todayOnly.date !== t) S.todayOnly = { date: t, lamp: false, prayers: {}, bell: [] }; return S.todayOnly; }
 function mods() { return S.profile.modules; }
+function quiet() { return !!S.profile.quiet; }
 function totals(d) { let k = 0, p = 0, f = 0, c = 0, b = 0; for (const x of (d && d.foods) || []) { k += +x.kcal || 0; p += +x.protein || 0; f += +x.fat || 0; c += +x.carbs || 0; b += +x.fibre || 0; } return { kcal: n0(k), protein: n1(p), fat: n1(f), carbs: n1(c), fibre: n1(b) }; }
 function realFoods(d) { return ((d && d.foods) || []).filter(f => !f.autoChai); }
 function mealFoods(d, sl) { return d.foods.filter(f => (f.slot || 'snack') === sl); }
@@ -492,22 +493,22 @@ function threeRings(k) {
   const d = day(k), p = S.profile, t = totals(d);
   const med = S.meditations.filter(x => x.date === k).reduce((n, x) => n + (+x.minutes || 0), 0);
   return [
-    { key: 'eat', label: 'Eat', col: 'var(--ring-eat)', trk: 'var(--ring-eat-t)', v: t.kcal, tg: p.kcalTarget, sub: 'of ' + big(p.kcalTarget) + ' cal' },
-    { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: d.steps || 0, tg: p.stepsTarget, sub: 'of ' + big(p.stepsTarget) + ' steps' },
-    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med, tg: 60, sub: 'of 60 min' }
+    { key: 'eat', label: 'Eat', col: 'var(--ring-eat)', trk: 'var(--ring-eat-t)', v: t.kcal, tg: p.kcalTarget, sub: quiet() ? 'calories' : 'of ' + big(p.kcalTarget) + ' cal' },
+    { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: d.steps || 0, tg: p.stepsTarget, sub: quiet() ? 'steps' : 'of ' + big(p.stepsTarget) + ' steps' },
+    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med, tg: 60, sub: quiet() ? 'minutes' : 'of 60 min' }
   ];
 }
 function ringsHtml(k) {
   const rs = threeRings(k), d = day(k), t = totals(d), p = S.profile;
   const R = [88, 68, 48];
-  const arcs = rs.map((r, i) => { const C = 2 * Math.PI * R[i], f = Math.max(0, Math.min(1, r.tg ? r.v / r.tg : 0)), L = f * C; return `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="16"/>${L > 0.5 ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.col}" stroke-width="16" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"/>` : ''}`; }).join('');
+  const arcs = rs.map((r, i) => { const C = 2 * Math.PI * R[i], f = quiet() ? (r.v > 0 ? 1 : 0) : Math.max(0, Math.min(1, r.tg ? r.v / r.tg : 0)), L = f * C; return `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="16"/>${L > 0.5 ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.col}" stroke-width="16" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"${quiet() ? ' opacity="0.55"' : ''}/>` : ''}`; }).join('');
   const label = rs.map(r => `${r.label} ${big(r.v)} ${r.sub}`).join(', ');
   return `<section class="rings3" aria-label="Today: ${esc(label)}">
   <div class="rings3-top"><svg class="rings3-svg" viewBox="0 0 200 200" aria-hidden="true">${arcs}</svg>
   <div class="rings3-keys">${rs.map(r => `<div><span class="rk" style="color:${r.col}">${r.label}</span><div class="rv">${r.v ? big(r.v) : '–'}</div><span class="rs">${r.sub}</span>${r.key === 'move' ? '<button class="link rstep" data-a="steps" aria-label="Add 1,000 steps">+ 1,000</button>' : ''}</div>`).join('')}</div></div>
   <div class="rings3-facts">
-    <button data-a="go-food"><strong>${t.protein ? n0(t.protein) + ' g' : '–'}</strong><span>protein of ${p.proteinTarget}</span></button>
-    <button data-a="water" aria-label="Water: ${d.water} of ${p.waterTarget} glasses. Tap to add a glass"><strong>${d.water} of ${p.waterTarget}</strong><span>water · tap +1</span></button>
+    <button data-a="go-food"><strong>${t.protein ? n0(t.protein) + ' g' : '–'}</strong><span>protein${quiet() ? '' : ' of ' + p.proteinTarget}</span></button>
+    <button data-a="water" aria-label="Water: ${d.water} of ${p.waterTarget} glasses. Tap to add a glass"><strong>${quiet() ? d.water + (d.water === 1 ? ' glass' : ' glasses') : d.water + ' of ' + p.waterTarget}</strong><span>${quiet() ? 'water' : 'water'} · tap +1</span></button>
     <button data-a="go-sleep"><strong>${+d.sleep ? d.sleep + ' h' : '–'}</strong><span>sleep</span></button>
   </div></section>`;
 }
@@ -528,7 +529,7 @@ function nowCard() {
   const trainedToday = S.workouts.some(w => w.date === k);
   const photoDue = S.photoReminder.on && mods().body && (() => { const last = S.photos.map(x => x.date).sort().pop(); return !last || (dateOf(k) - dateOf(last)) / 864e5 >= 14; })() && !(S.photoReminder.snooze && S.photoReminder.snooze > k);
   const pr = id => PRAYERS.find(x => x.id === id);
-  const prayerCard = (id, extra) => ({ eyebrow: 'Now · ' + fmtTime(Date.now()), title: pr(id).title, body: pr(id).text.split('\n').filter(x => x.trim() && x.trim() !== 'ॐ')[0], prayer: id, btns: extra || [] });
+  const prayerCard = (id, extra) => ({ eyebrow: 'Now · ' + fmtTime(Date.now()), title: pr(id).title, body: pr(id).text.split('\n').filter(x => x.trim() && !x.trim().startsWith('ॐ'))[0], prayer: id, btns: extra || [] });
   if (m >= bed - 90 || m < 180) {
     if (mods().spiritual && !lit('evening')) return prayerCard('evening', [['Start sleep timer', 'sleep-start', '']]);
     return { eyebrow: 'Evening', title: 'Time to rest', body: 'One tap starts the sleep timer.', btns: [['Start sleep timer', 'sleep-start', 'primary']] };
@@ -587,7 +588,7 @@ R.today = function () {
   <button class="diya" data-a="lamp" aria-pressed="${T().lamp}" aria-label="${T().lamp ? 'The lamp is lit for today. Tap to let it go out' : 'Light the lamp for today'}">${diyaSvg(46)}</button></div>
   ${ringsHtml(k)}
   ${nowHtml()}
-  ${mods().food ? `<section class="card flat" aria-label="Today's food"><div class="between" style="padding:12px 0 4px"><h2 style="font-size:22px">Today's food</h2><span class="tiny">${left >= 0 ? big(left) + ' calories left' : big(-left) + ' over'}</span></div>
+  ${mods().food ? `<section class="card flat" aria-label="Today's food"><div class="between" style="padding:12px 0 4px"><h2 style="font-size:22px">Today's food</h2><span class="tiny">${quiet() ? big(t.kcal) + ' calories' : left >= 0 ? big(left) + ' calories left' : big(-left) + ' over'}</span></div>
     ${MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); return `<div class="li"><div class="t"><strong style="font-size:17px">${nm}</strong><span>${fs.length ? esc(fs.map(f => f.name).slice(0, 3).join(', ')) + (fs.length > 3 ? '…' : '') + ' · ' + big(kc) + ' cal' : 'Nothing yet'}</span></div><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>`; }).join('')}</section>` : ''}
   <blockquote class="quote" style="margin:6px 4px 0">“${esc(q.t)}”<span>${esc(q.b)}</span></blockquote>
   </div>`;
@@ -677,7 +678,7 @@ function foodDayHtml() {
   return `<div class="stack">
   <h1>Food</h1>
   ${weekStrip(k)}
-  <section class="card"><div class="between"><div><span class="tiny">${k === t ? 'Today' : fmtDay(k)}</span><div class="big-num">${big(tot.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div></div><div style="text-align:right"><strong>${left >= 0 ? big(left) + ' left' : big(-left) + ' over'}</strong><div class="tiny">${n0(tot.protein)} of ${p.proteinTarget} g protein</div></div></div></section>
+  <section class="card"><div class="between"><div><span class="tiny">${k === t ? 'Today' : fmtDay(k)}</span><div class="big-num">${big(tot.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div></div><div style="text-align:right">${quiet() ? '' : `<strong>${left >= 0 ? big(left) + ' left' : big(-left) + ' over'}</strong>`}<div class="tiny">${n0(tot.protein)}${quiet() ? '' : ' of ' + p.proteinTarget} g protein</div></div></div></section>
   ${status}
   ${silent ? '' : MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); const y = peekDay(addDays(k, -1)); const hadY = y && mealFoods(y, sl).length && !fs.length;
     return `<section class="meal" aria-label="${nm}"><div class="meal-head"><strong>${nm}${fs.length ? ` <span class="tiny" style="font-weight:400">${big(kc)} cal</span>` : ''}</strong><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>
@@ -941,9 +942,9 @@ function weekBars(wb) {
   let s = '';
   wb.days.forEach((x, i) => {
     const cx = 10 + i * 48, v = x.status === 'none' || x.status === 'silent' ? x.dt : x.eaten, h = Math.max(v > 0 ? 3 : 1, Math.round(v / max * 110)), y = 122 - h, ty = 122 - Math.round(x.dt / max * 110);
-    if (x.status === 'none' || x.status === 'silent') s += `<rect x="${cx}" y="${y}" width="${bw}" height="${h}" rx="4" fill="none" style="stroke:var(--ink3)" stroke-width="1.5" stroke-dasharray="${x.status === 'silent' ? '1 3' : '4 3'}"/>`;
+    if (quiet() && (x.status === 'none' || x.status === 'silent')) {} else if (x.status === 'none' || x.status === 'silent') s += `<rect x="${cx}" y="${y}" width="${bw}" height="${h}" rx="4" fill="none" style="stroke:var(--ink3)" stroke-width="1.5" stroke-dasharray="${x.status === 'silent' ? '1 3' : '4 3'}"/>`;
     else if (x.status !== 'future') s += `<rect x="${cx}" y="${y}" width="${bw}" height="${h}" rx="4" style="fill:${x.status === 'today' ? 'var(--green)' : '#7fd2ae'}" opacity="${x.status === 'partly' ? 0.5 : 0.9}"/>`;
-    s += `<line x1="${cx - 4}" x2="${cx + bw + 4}" y1="${ty}" y2="${ty}" style="stroke:var(--ink3)" stroke-dasharray="3 2"/>`;
+    if (!quiet()) s += `<line x1="${cx - 4}" x2="${cx + bw + 4}" y1="${ty}" y2="${ty}" style="stroke:var(--ink3)" stroke-dasharray="3 2"/>`;
     s += `<text x="${cx + bw / 2}" y="140" text-anchor="middle">${dateOf(x.dk).toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2)}</text>`;
   });
   return `<svg class="bar-svg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Calories each day this week against your target">${s}</svg>`;
@@ -965,23 +966,23 @@ function foodWeekHtml() {
   const list = arr => arr.length === 1 ? arr[0] : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
   return `<div class="stack">${backBar('Food', 'food-back')}
   <div class="between"><button class="link" data-a="week-shift" data-n="-7" aria-label="Previous week">‹</button><h1 style="font-size:26px">${cur ? 'This week' : fmtDate(wb.keys[0]) + ' – ' + fmtDate(wb.keys[6])}</h1><button class="link" data-a="week-shift" data-n="7" aria-label="Next week" ${cur ? 'disabled style="visibility:hidden"' : ''}>›</button></div>
-  <section class="card"><div class="facts">
+  ${quiet() ? `<section class="card"><div class="facts"><div class="fact"><span>Calories logged</span><strong>${big(wb.days.filter(x => ['logged', 'partly', 'today'].includes(x.status)).reduce((a, x) => a + x.eaten, 0))}</strong></div><div class="fact"><span>Days logged</span><strong>${wb.days.filter(x => ['logged', 'partly', 'today'].includes(x.status) && x.eaten > 0).length}</strong></div></div></section>` : `<section class="card"><div class="facts">
     <div class="fact"><span>Calories for the week</span><strong>${big(wb.target)}</strong></div>
     <div class="fact"><span>${cur ? 'So far' : 'Counted'}</span><strong>${big(wb.counted)}</strong></div>
     ${cur ? `<div class="fact"><span>Left for the week</span><strong>${big(wb.left)}</strong></div><div class="fact"><span>Each day, for the ${wb.daysLeft} day${wb.daysLeft === 1 ? '' : 's'} left</span><strong>about ${big(Math.max(0, wb.perDay))}</strong></div>` : `<div class="fact"><span>${wb.left >= 0 ? 'Under' : 'Over'} by</span><strong>${big(Math.abs(wb.left))}</strong></div>`}
-  </div></section>
+  </div></section>`}
   ${weekBars(wb)}
-  ${missing.length ? `<p class="small">${list(missing)} ${missing.length === 1 ? "isn't" : "aren't"} logged, so ${missing.length === 1 ? "it's" : "they're"} counted at your usual ${big(p.kcalTarget)}. Tap a day in Food to fill it in.</p>` : ''}
-  ${partly.length ? `<p class="tiny">${list(partly)} may be missing a meal. Close the day in Food when it's all there.</p>` : ''}
-  ${wb.days.some(x => x.status === 'none' && x.dk < st) ? `<p class="tiny">Days before you started with Prakash are counted at your usual ${big(p.kcalTarget)}.</p>` : ''}
-  <p class="tiny">Solid bars: what you logged. Outlined: counted at your target. The dashes are each day's target.</p>
+  ${missing.length && !quiet() ? `<p class="small">${list(missing)} ${missing.length === 1 ? "isn't" : "aren't"} logged, so ${missing.length === 1 ? "it's" : "they're"} counted at your usual ${big(p.kcalTarget)}. Tap a day in Food to fill it in.</p>` : ''}
+  ${partly.length && !quiet() ? `<p class="tiny">${list(partly)} may be missing a meal. Close the day in Food when it's all there.</p>` : ''}
+  ${!quiet() && wb.days.some(x => x.status === 'none' && x.dk < st) ? `<p class="tiny">Days before you started with Prakash are counted at your usual ${big(p.kcalTarget)}.</p>` : ''}
+  ${quiet() ? '' : '<p class="tiny">Solid bars: what you logged. Outlined: counted at your target. The dashes are each day\'s target.</p>'}
   <section class="card"><div class="facts">
     <div class="fact"><span>Protein, logged days</span><strong>${prot != null ? prot + ' g a day' : '-'}</strong></div>
     <div class="fact"><span>Fibre, logged days</span><strong>${fib != null ? fib + ' g a day' : '-'}</strong></div>
     <div class="fact"><span>Weight, weekly average</span><strong>${wThis != null ? wThis + ' kg' + (wLast != null ? ' (week before ' + wLast + ')' : '') : '-'}</strong></div>
   </div></section>
   <h2>Coming up</h2>
-  ${up.length ? `<ul class="list">${up.map(e => { const dl = Math.round((dateOf(e.date) - dateOf(t)) / 864e5); return `<li class="li"><div class="t"><strong>${esc(e.name)}</strong><span>${fmtDay(e.date)} · about ${big(e.extra)} extra${dl >= 1 ? '. Eat about ' + big(Math.ceil(e.extra / dl)) + ' fewer a day until then and it’s covered.' : '. Enjoy it.'}</span></div><button class="link" data-a="ev-del" data-id="${e.id}" aria-label="Remove ${esc(e.name)}">Remove</button></li>`; }).join('')}</ul>` : '<p class="tiny">A party or a meal out coming up? Add it, and the week makes room for it.</p>'}
+  ${up.length ? `<ul class="list">${up.map(e => { const dl = Math.round((dateOf(e.date) - dateOf(t)) / 864e5); return `<li class="li"><div class="t"><strong>${esc(e.name)}</strong><span>${fmtDay(e.date)} · about ${big(e.extra)} extra${quiet() ? '.' : dl >= 1 ? '. Eat about ' + big(Math.ceil(e.extra / dl)) + ' fewer a day until then and it’s covered.' : '. Enjoy it.'}</span></div><button class="link" data-a="ev-del" data-id="${e.id}" aria-label="Remove ${esc(e.name)}">Remove</button></li>`; }).join('')}</ul>` : '<p class="tiny">A party or a meal out coming up? Add it, and the week makes room for it.</p>'}
   <div class="card stack"><div><label class="lab" for="ev-n">What</label><input class="input" id="ev-n" placeholder="e.g. Diwali party"></div><div class="grid2"><div><label class="lab" for="ev-d">Date</label><input class="input" type="date" id="ev-d" min="${t}"></div><div><label class="lab" for="ev-x">Extra calories</label><input class="input" id="ev-x" inputmode="numeric" placeholder="800"></div></div><button class="btn" data-a="ev-add">Add to Coming up</button></div>
   </div>`;
 }
@@ -1054,7 +1055,7 @@ function aimText(ex) {
   const last = lastExercise(ex.name); if (!last) return '';
   const r = specRange(ex.spec), top = last.sets.reduce((a, s) => (+s.kg > +a.kg ? s : a), last.sets[0]);
   const lastTxt = 'Last time: ' + (+top.kg ? top.kg + ' kg × ' : '') + last.sets.map(s => s.reps).join(', ');
-  if (!r || !(+top.kg)) return lastTxt;
+  if (quiet() || !r || !(+top.kg)) return lastTxt;
   const allTop = last.sets.every(s => +s.reps >= r[1]);
   if (allTop && last.feel !== 'Hard') { const inc = /squat|deadlift|hip thrust|split squat/i.test(ex.name) ? 2.5 : /dumbbell|raise|curl|pressdown/i.test(ex.name) ? 1 : 1.25; return lastTxt + '|Today, try ' + n1(+top.kg + inc) + ' kg × ' + r[0] + '. Build the reps from there.'; }
   if (last.feel === 'Hard') return lastTxt + '|Today, same weight. Aim for the same reps, smoother.';
@@ -1394,22 +1395,36 @@ async function photoSrc(ph) { if (ph.dataUrl) return ph.dataUrl; if (photoUrls[p
 
 on('you', b => go('you', b.dataset.v));
 on('you-home', () => go('you', 'home'));
+function backupAge() { const l = S.lastBackup; if (!l) return null; return Math.floor((Date.now() - new Date(l)) / 864e5); }
 function youHome() {
-  const p = S.profile, lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop();
+  const p = S.profile, lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop(), age = backupAge();
+  const hasData = Object.keys(S.days).length > 3 || S.weights.length > 1;
+  const nudge = hasData && (age == null || age >= 30) ? `<div class="card between" style="gap:10px"><span class="small">${age == null ? 'No backup yet.' : 'Last backup ' + (age < 60 ? Math.round(age / 7) + ' weeks' : Math.round(age / 30) + ' months') + ' ago.'} Everything lives only on this phone.</span><button class="btn" data-a="backup-plain" style="white-space:nowrap">Back up</button></div>` : '';
   const rows = [
-    mods().body && ['body', 'Body', (lw ? 'Waist ' + waistShow(lw.cm) : 'Weight, waist, photos, sleep')],
-    mods().body && ['bp', 'Blood pressure', 'Readings and a report for your doctor'],
-    ['targets', 'Targets and goal', big(p.kcalTarget) + ' calories · ' + p.proteinTarget + ' g protein'],
-    ['rhythm', 'Your day', 'Wake ' + p.wake + ' · food ' + p.foodFrom + '–' + p.foodTo + ' · bed ' + p.bed],
-    ['gemini', 'Connect Gemini', p.geminiKey ? 'Connected' : 'Free. Fills in dishes from a photo'],
-    ['sections', 'What to show', 'Hide what you don’t use. Nothing is deleted.'],
-    ['music', 'Meditation music', 'The Spotify link for Gauri Shankar'],
-    ['backup', 'Backup and restore', 'Everything lives on this phone'],
+    mods().body && ['body', 'Body', (lw ? 'Waist ' + waistShow(lw.cm) + ' · weight, photos, sleep, blood pressure' : 'Weight, waist, photos, sleep, blood pressure')],
+    ['goals', 'Goals and your day', big(p.kcalTarget) + ' calories · wake ' + p.wake + ' · bed ' + p.bed],
+    ['backup', 'Backup and restore', age == null ? 'Everything lives on this phone' : 'Last backup ' + (age === 0 ? 'today' : age === 1 ? 'yesterday' : age + ' days ago')],
+    ['settings', 'Settings', 'What to show, Gemini, meditation music, the tour'],
     ['about', 'About Prakash', 'What’s new, and a note on privacy']
   ].filter(Boolean);
-  return `<div class="stack"><h1>You</h1><div>${rows.map(r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`).join('')}</div><button class="btn" data-a="setup-again">Go through setup again</button></div>`;
+  return `<div class="stack"><h1>You</h1>
+  <button class="choice" data-a="quiet" aria-pressed="${quiet()}"><span><strong>Quiet mode</strong><small>${quiet() ? 'On: only what happened. No targets, nothing left or over.' : 'Hide targets and show only what happened'}</small></span><span class="tiny">${quiet() ? 'On' : 'Off'}</span></button>
+  ${nudge}
+  <div>${rows.map(r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`).join('')}</div></div>`;
 }
-
+on('quiet', () => { S.profile.quiet = !S.profile.quiet; save(); render(); toast(S.profile.quiet ? 'Quiet mode on. Only what happened.' : 'Quiet mode off.'); });
+function settingsHtml() {
+  const p = S.profile;
+  return `<div class="stack">${backBar('You', 'you-home')}<h1>Settings</h1><div>
+  <button class="navrow" data-a="you" data-v="sections"><span>What to show<small>Hide what you don’t use. Nothing is deleted.</small></span></button>
+  <button class="navrow" data-a="you" data-v="gemini"><span>Connect Gemini<small>${p.geminiKey ? 'Connected' : 'Free. Fills in dishes from a photo'}</small></span></button>
+  <button class="navrow" data-a="you" data-v="music"><span>Meditation music<small>The Spotify link for Gauri Shankar</small></span></button>
+  <button class="navrow" data-a="tour"><span>Show the tour<small>Thirty seconds on how Prakash works</small></span></button>
+  <button class="navrow" data-a="setup-again"><span>Go through setup again<small>Your answers are kept and filled in</small></span></button></div></div>`;
+}
+function goalsHtml() { return targetsHtml().replace(/^<div class="stack">[\s\S]*?<\/h1>/, `<div class="stack">${backBar('You', 'you-home')}<h1>Goals and your day</h1>`).replace(/<\/div>$/, '') + rhythmHtml().replace(/^<div class="stack">[\s\S]*?<\/p>/, '<h2 style="margin-top:8px">Your day</h2><p class="muted small">These times decide what Today shows, and when.</p>'); }
+const YOU_PARENT = { body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
+on('you-up', () => go('you', YOU_PARENT[view.you] || 'home'));
 /* ---------- body ---------- */
 function lineChart(pts, unit, goal) {
   if (pts.length < 2) return '<p class="tiny">The chart appears after the second reading.</p>';
@@ -1425,20 +1440,21 @@ function bodyHtml() {
   const avg = ks => { const w = ws.filter(x => ks.includes(x.date)); return w.length ? n1(w.reduce((a, x) => a + +x.kg, 0) / w.length) : null; };
   const a7 = avg(lastDays(7)), a14 = avg(lastDays(14).slice(0, 7));
   const lw = wa[wa.length - 1], inU = p.waistUnit !== 'cm', goal = p.waistGoalCm;
-  const toGo = lw && goal ? n1((lw.cm - goal) / (inU ? CM_IN : 1)) : null;
+  const toGo = quiet() ? null : lw && goal ? n1((lw.cm - goal) / (inU ? CM_IN : 1)) : null;
   const photos = [...S.photos].sort((a, b) => a.date < b.date ? 1 : -1);
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Body</h1>
   <section class="card stack"><h2>Waist</h2><p class="muted small">At the belly button, relaxed, first thing in the morning. It shows the stomach changing even when the scale stands still.</p>
-  <div class="facts"><div class="fact"><span>Latest</span><strong>${lw ? waistShow(lw.cm) + ' · ' + fmtDate(lw.date) : '-'}</strong></div>${goal ? `<div class="fact"><span>Goal</span><strong>${waistShow(goal)}${toGo != null ? (toGo > 0 ? ' · ' + toGo + (inU ? ' in' : ' cm') + ' to go' : ' · reached') : ''}</strong></div>` : ''}${p.heightCm && lw ? `<div class="fact"><span>Waist to height</span><strong>${(lw.cm / p.heightCm).toFixed(2)} (under 0.5 is healthy)</strong></div>` : ''}</div>
+  <div class="facts"><div class="fact"><span>Latest</span><strong>${lw ? waistShow(lw.cm) + ' · ' + fmtDate(lw.date) : '-'}</strong></div>${goal && !quiet() ? `<div class="fact"><span>Goal</span><strong>${waistShow(goal)}${toGo != null ? (toGo > 0 ? ' · ' + toGo + (inU ? ' in' : ' cm') + ' to go' : ' · reached') : ''}</strong></div>` : ''}${p.heightCm && lw ? `<div class="fact"><span>Waist to height</span><strong>${(lw.cm / p.heightCm).toFixed(2)} (under 0.5 is healthy)</strong></div>` : ''}</div>
   <div class="grid2"><div><label class="lab" for="wa-v">Waist (${inU ? 'inches' : 'cm'})</label><input class="input" id="wa-v" inputmode="decimal"></div><div><label class="lab" for="wa-d">Date</label><input class="input" type="date" id="wa-d" value="${t}" max="${t}"></div></div><button class="btn primary" data-a="waist-add">Save waist</button>
-  ${lineChart(wa.slice(-20).map(w => ({ date: w.date, v: n1(inU ? w.cm / CM_IN : w.cm) })), inU ? 'in' : 'cm', goal ? n1(inU ? goal / CM_IN : goal) : null)}</section>
+  ${lineChart(wa.slice(-20).map(w => ({ date: w.date, v: n1(inU ? w.cm / CM_IN : w.cm) })), inU ? 'in' : 'cm', goal && !quiet() ? n1(inU ? goal / CM_IN : goal) : null)}</section>
   <section class="card stack"><h2>Weight</h2><p class="muted small">First thing in the morning, after the toilet, before food. The weekly average is what matters.</p>
-  <div class="facts"><div class="fact"><span>This week's average</span><strong>${a7 != null ? a7 + ' kg' : '-'}</strong></div><div class="fact"><span>Week before</span><strong>${a14 != null ? a14 + ' kg' : '-'}</strong></div>${p.goalWeight ? `<div class="fact"><span>Goal</span><strong>${p.goalWeight} kg</strong></div>` : ''}</div>
+  <div class="facts"><div class="fact"><span>This week's average</span><strong>${a7 != null ? a7 + ' kg' : '-'}</strong></div><div class="fact"><span>Week before</span><strong>${a14 != null ? a14 + ' kg' : '-'}</strong></div>${p.goalWeight && !quiet() ? `<div class="fact"><span>Goal</span><strong>${p.goalWeight} kg</strong></div>` : ''}</div>
   <div class="grid2"><div><label class="lab" for="sc-kg">Weight (kg)</label><input class="input" id="sc-kg" inputmode="decimal"></div><div><label class="lab" for="sc-d">Date</label><input class="input" type="date" id="sc-d" value="${t}" max="${t}"></div></div>
   <details class="fold"><summary class="small">More scale readings</summary><div class="grid2">${SCALE.slice(1).map(s => `<div><label class="lab" for="sc-${s[0]}">${s[1]}${s[2] ? ' (' + s[2] + ')' : ''}</label><input class="input" id="sc-${s[0]}" inputmode="decimal"></div>`).join('')}</div><p class="tiny" style="margin-top:8px">Bathroom scales can be several points out on body fat. Use the waist and photos as the truer guide.</p></details>
   <button class="btn primary" data-a="scale-add">Save weight</button>
-  ${lineChart(ws.slice(-30).map(w => ({ date: w.date, v: +w.kg })), 'kg', p.goalWeight || null)}</section>
+  ${lineChart(ws.slice(-30).map(w => ({ date: w.date, v: +w.kg })), 'kg', !quiet() && p.goalWeight || null)}</section>
   <section class="card stack" id="sleep-card"><h2>Sleep</h2><p class="muted small">Forgot the timer? Enter last night here.</p><div class="grid2"><div><label class="lab" for="sl-bed">Went to bed</label><input class="input" type="time" id="sl-bed" value="${esc(td.bedTime || '')}"></div><div><label class="lab" for="sl-woke">Woke</label><input class="input" type="time" id="sl-woke" value="${esc(td.wokeTime || '')}"></div></div><div><label class="lab" for="sl-h">Hours</label><input class="input" id="sl-h" inputmode="decimal" value="${td.sleep == null ? '' : td.sleep}"></div></section>
+  ${mods().body ? '<button class="navrow" data-a="you" data-v="bp"><span>Blood pressure<small>Readings and a report for your doctor</small></span></button>' : ''}
   <section class="card stack"><h2>Progress photos</h2><p class="muted small">Every two weeks. Front and side, same light, same spot. Photos stay on this phone and go into your backup.</p>
   <div class="btns"><label class="btn primary filebtn">Take photo<input type="file" accept="image/*" capture="environment" data-photo></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" data-photo></label></div>
   <div class="photogrid">${photos.map(ph => `<figure style="margin:0"><img data-psrc="${ph.id}" alt="Progress photo, ${fmtDate(ph.date)}"><figcaption class="between tiny"><span>${fmtDate(ph.date)}</span><button class="link" data-a="photo-del" data-id="${ph.id}" aria-label="Delete photo from ${fmtDate(ph.date)}">Delete</button></figcaption></figure>`).join('') || '<p class="tiny">No photos yet.</p>'}</div>
@@ -1490,7 +1506,7 @@ function bpHtml() {
   const bp = [...S.bloodPressures].sort((a, b) => new Date(b.at) - new Date(a.at)), now = Date.now();
   const w = bpMean(bp.filter(x => now - new Date(x.at) <= 7 * 864e5)), m = bpMean(bp.filter(x => now - new Date(x.at) <= 30 * 864e5));
   const ln = new Date(), stamp = new Date(ln.getTime() - ln.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  return `<div class="stack">${backBar('You', 'you-home')}<h1>Blood pressure</h1>
+  return `<div class="stack">${backBar('Body', 'you-up')}<h1>Blood pressure</h1>
   <p class="muted small">For a 7-day diary: morning (6 am–noon) and evening (6 pm–midnight), two readings a couple of minutes apart. Sit calmly, back supported, feet flat, arm resting on a table. <a href="https://www.bhf.org.uk/-/media/files/information-and-support/publications/living-with-a-heart-condition/bhf_bp_diary_1224.pdf" target="_blank" rel="noopener">BHF guidance</a></p>
   <section class="card stack"><div><label class="lab" for="bp-at">When</label><input class="input" type="datetime-local" id="bp-at" value="${stamp}"></div>
   <div class="chips">${['Morning', 'Evening'].map(x => `<button class="chip" data-a="bp-period" data-p="${x}" aria-pressed="${bpPeriod === x}">${x}</button>`).join('')}</div>
@@ -1538,12 +1554,12 @@ function rhythmHtml() {
 on('silent-day', b => { S.profile.silentWeekday = +b.dataset.d; save(); render(); });
 function sectionsHtml() {
   const m = mods();
-  return `<div class="stack">${backBar('You', 'you-home')}<h1>What to show</h1><p class="muted small">Hide what you don't use. Nothing is deleted.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit and Write'], ['spiritual', 'Prayers and talks', 'Pray, Listen']].map(x => `<button class="choice" data-a="mod" data-m="${x[0]}" aria-pressed="${!!m[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${m[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div></div>`;
+  return `<div class="stack">${backBar('Settings', 'you-up')}<h1>What to show</h1><p class="muted small">Hide what you don't use. Nothing is deleted.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit and Write'], ['spiritual', 'Prayers and talks', 'Pray, Listen']].map(x => `<button class="choice" data-a="mod" data-m="${x[0]}" aria-pressed="${!!m[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${m[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div></div>`;
 }
 on('mod', b => { const m = S.profile.modules; m[b.dataset.m] = !m[b.dataset.m]; save(); render(); });
 function geminiHtml() {
   const p = S.profile;
-  return `<div class="stack">${backBar('You', 'you-home')}<h1>Connect Gemini</h1><p>Gemini fills in dishes from a photo and turns a talk into key themes. It’s free.</p>
+  return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Connect Gemini</h1><p>Gemini fills in dishes from a photo and turns a talk into key themes. It’s free.</p>
   <ol class="small" style="padding-left:22px;margin:0;display:flex;flex-direction:column;gap:8px"><li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> and sign in with your Google account.</li><li>Tap <strong>Create API key</strong>. No card needed.</li><li>Copy the key. It starts with “AIza”.</li></ol>
   <div><label class="lab" for="g-key">Paste your key here</label><input class="input" id="g-key" type="password" autocomplete="off" value="${esc(p.geminiKey || '')}" placeholder="AIza…"></div>
   <button class="btn primary big" data-a="g-save">Save and test</button><div id="g-status"></div>
@@ -1558,7 +1574,7 @@ on('g-save', async () => {
   catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${esc(geminiErr(e))}</p>${e && e.status && e.detail ? `<p class="tiny" style="margin-top:6px">Google said: ${esc(String(e.detail).slice(0, 300))}${e.model ? ' (' + esc(e.model) + ')' : ''}</p>` : ''}</div>`; }
 });
 on('g-remove', () => { delete S.profile.geminiKey; delete S.profile.geminiModel; save(); render(); toast('Key removed from this phone.'); });
-function musicHtml() { return `<div class="stack">${backBar('You', 'you-home')}<h1>Meditation music</h1><p class="muted small">Begin Gauri Shankar opens this in Spotify. Paste a different album or playlist link to change it.</p><div><label class="lab" for="gs-link">Spotify link</label><input class="input" id="gs-link" inputmode="url" autocomplete="off" value="${esc(gsLink())}"></div><button class="btn" data-a="med-music">Open in Spotify</button></div>`; }
+function musicHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Meditation music</h1><p class="muted small">Begin Gauri Shankar opens this in Spotify. Paste a different album or playlist link to change it.</p><div><label class="lab" for="gs-link">Spotify link</label><input class="input" id="gs-link" inputmode="url" autocomplete="off" value="${esc(gsLink())}"></div><button class="btn" data-a="med-music">Open in Spotify</button></div>`; }
 
 /* ---------- backup ---------- */
 async function backupObject() {
@@ -1569,13 +1585,13 @@ async function backupObject() {
   out.backup = { format: 'sadhana-v1', app: 'Prakash ' + VERSION, exported: new Date().toISOString(), voiceNotes: voices, photos };
   return out;
 }
-async function downloadBackup() { const o = await backupObject(); download('prakash-backup-' + todayKey() + '.json', new Blob([JSON.stringify(o)], { type: 'application/json' })); return o; }
+async function downloadBackup() { const o = await backupObject(); S.lastBackup = new Date().toISOString(); saveNow(); download('prakash-backup-' + todayKey() + '.json', new Blob([JSON.stringify(o)], { type: 'application/json' })); return o; }
 async function cryptKey(pass, salt) { const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 310000 }, km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
 const b64u = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(s); };
 const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 on('backup-plain', async () => { try { const o = await downloadBackup(); toast('Backup downloaded' + (o.backup.photos ? ', with ' + o.backup.photos + ' photos' : '') + '.'); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
 on('backup-enc', () => { openSheet(`<div class="stack"><p class="muted small">At least 8 characters. Write it down: it can't be recovered.</p><div><label class="lab" for="pp1">Passphrase</label><input class="input" type="password" id="pp1" autocomplete="new-password"></div><div><label class="lab" for="pp2">Same again</label><input class="input" type="password" id="pp2" autocomplete="new-password"></div><button class="btn primary" data-a="backup-enc-go">Make encrypted backup</button></div>`, { title: 'Encrypted backup' }); });
-on('backup-enc-go', async () => { const a = $('#pp1').value, b = $('#pp2').value; if (a.length < 8) { toast('Use at least 8 characters.'); return; } if (a !== b) { toast('The two passphrases are different.'); return; } closeSheet(true); try { const o = await backupObject(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await cryptKey(a, salt), c = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(o)))); download('prakash-backup-' + todayKey() + '.prakash', new Blob([JSON.stringify({ format: 'prakash-encrypted', version: 1, kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: b64u(salt), iv: b64u(iv), ciphertext: b64u(c) })], { type: 'application/octet-stream' })); toast('Encrypted backup downloaded.'); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
+on('backup-enc-go', async () => { const a = $('#pp1').value, b = $('#pp2').value; if (a.length < 8) { toast('Use at least 8 characters.'); return; } if (a !== b) { toast('The two passphrases are different.'); return; } closeSheet(true); try { const o = await backupObject(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await cryptKey(a, salt), c = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(o)))); download('prakash-backup-' + todayKey() + '.prakash', new Blob([JSON.stringify({ format: 'prakash-encrypted', version: 1, kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: b64u(salt), iv: b64u(iv), ciphertext: b64u(c) })], { type: 'application/octet-stream' })); S.lastBackup = new Date().toISOString(); saveNow(); toast('Encrypted backup downloaded.'); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
 let restoreCandidate = null;
 function restoreFile(f) {
   if (!f) return; const r = new FileReader();
@@ -1614,10 +1630,10 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
   <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
-  <li>My dishes: make your own dish from its ingredients, say how many portions it makes, and it’s one tap to log after that.</li><li>Practice has four parts: Sit (meditation, the Stop, the anger pause, the bell), Pray, Listen and Write (journal and gratitude).</li><li>Open a talk, come back, and one tap lights its lamp.</li><li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
+  <li>Quiet mode, at the top of You: hides every target, so Prakash shows only what happened.</li><li>You is down to five places, with a gentle note when a backup is due.</li><li>A thirty-second tour after setup, and again any time from Settings.</li><li>My dishes: make your own dish from its ingredients, say how many portions it makes, and it’s one tap to log after that.</li><li>Practice has four parts: Sit (meditation, the Stop, the anger pause, the bell), Pray, Listen and Write (journal and gratitude).</li><li>Open a talk, come back, and one tap lights its lamp.</li><li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ home: youHome, body: bodyHtml, bp: bpHtml, targets: targetsHtml, rhythm: rhythmHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
@@ -1694,7 +1710,24 @@ on('su-next', async () => {
   if (setupStep >= steps.length - 1) { finishSetup(); return; }
   setupStep++; showSetup();
 });
-function finishSetup() { const p = S.profile; if (!p.startedOn) p.startedOn = todayKey(); p.setupDone = true; p.onboardedV = 1; delete S.needsWelcome; saveNow(); $('#setup').classList.remove('open'); setupStep = 0; go('today'); }
+function finishSetup() { const p = S.profile; if (!p.startedOn) p.startedOn = todayKey(); p.setupDone = true; p.onboardedV = 1; delete S.needsWelcome; saveNow(); $('#setup').classList.remove('open'); setupStep = 0; go('today'); if (!p.tourDone) setTimeout(() => showTour(0), 250); }
+
+/* ---------- the tour: thirty seconds, three cards ---------- */
+const TOUR = [
+  { t: 'Three rings', b: 'Eat, Move and Still: body, mind and soul. Under them, tap water to add a glass.', svg: '<svg width="120" height="120" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="88" fill="none" style="stroke:var(--ring-eat)" stroke-width="16" stroke-dasharray="380 553" transform="rotate(-90 100 100)" stroke-linecap="round"/><circle cx="100" cy="100" r="68" fill="none" style="stroke:var(--ring-move)" stroke-width="16" stroke-dasharray="250 427" transform="rotate(-90 100 100)" stroke-linecap="round"/><circle cx="100" cy="100" r="48" fill="none" style="stroke:var(--ring-still)" stroke-width="16" stroke-dasharray="150 302" transform="rotate(-90 100 100)" stroke-linecap="round"/></svg>' },
+  { t: 'Logging food', b: 'Tap + Add on a meal. Anything you’ve had before is one tap on its +. For your own cooking, make it once in My dishes.', svg: '<div class="round" style="width:72px;height:72px;border-radius:36px;font-size:40px">+</div>' },
+  { t: 'The lamp and your practice', b: 'Light the lamp each morning. Practice holds meditation, prayers, talks and your journal. Nothing here scores you.', svg: '<span class="diya" aria-pressed="true" style="padding:0">' + '__DIYA__' + '</span>' }
+];
+let tourStep = 0;
+function showTour(i) {
+  tourStep = i || 0; const c = TOUR[tourStep], last = tourStep === TOUR.length - 1;
+  openSheet(`<div class="stack" style="align-items:center;text-align:center;gap:16px;padding:10px 0 4px"><div style="min-height:120px;display:flex;align-items:center">${c.svg.replace('__DIYA__', diyaSvg(96))}</div><h2>${esc(c.t)}</h2><p class="muted" style="max-width:340px">${esc(c.b)}</p>
+  <div class="dots" style="width:90px" aria-hidden="true">${TOUR.map((_, j) => `<i class="${j <= tourStep ? 'on' : ''}"></i>`).join('')}</div>
+  <button class="btn primary big" data-a="${last ? 'tour-done' : 'tour-next'}">${last ? 'Begin' : 'Next'}</button>${last ? '' : '<button class="btn ghost" data-a="tour-done">Skip</button>'}</div>`, { noTop: true, label: 'How Prakash works', onClose: () => { S.profile.tourDone = true; save(); } });
+}
+on('tour', () => showTour(0));
+on('tour-next', () => showTour(tourStep + 1));
+on('tour-done', () => { S.profile.tourDone = true; save(); closeSheet(); });
 /* ================= BOOT ================= */
 S = load();
 window.__pkHoldReload = () => !!draft || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open');
