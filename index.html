@@ -18,6 +18,7 @@
   --ink:#f0f2ef;--ink2:#b3bdb8;--ink3:#8f9a95;--hair:#343c39;--hair2:#262e2b;
   --green:#67b695;--green-ink:#0c1813;--mint:#9fd6be;--link:#88d0b1;
   --now:#1a2a24;--now-line:#3f6a5a;--warn-bg:#2d2618;--warn-line:#7a6230;--warn-ink:#f0dfb5;
+  --ring-eat:#e7b45a;--ring-eat-t:#3a3322;--ring-move:#7fd2ae;--ring-move-t:#223a31;--ring-still:#b4a4f5;--ring-still-t:#2c2a40;
   --danger:#ffaaa0;--danger-line:#7a3a36;--gold:#ffc861;
   --serif:'Iowan Old Style','Palatino Linotype',Georgia,serif;
   --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
@@ -134,6 +135,18 @@ nav.tabs svg{width:24px;height:24px}
 .progress-line.on{background:#25322d}
 .quick{grid-column:1/-1;display:flex;gap:8px}.quick .btn{flex:1}
 @media(max-width:430px){.day-progress{grid-template-columns:1fr}.progress-lines{display:grid;grid-template-columns:1fr 1fr}}
+/* three rings */
+.rings3{background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:18px 16px;display:flex;flex-direction:column;gap:16px}
+.rings3-top{display:flex;align-items:center;gap:18px}
+.rings3-svg{width:min(52vw,200px);height:auto;flex:0 0 auto}
+.rings3-keys{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rings3-keys .rk{font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+.rings3-keys .rv{font-size:24px;font-weight:700;line-height:1.1}
+.rings3-keys .rs{font-size:13px;color:var(--ink2)}
+.rings3-keys .rstep{display:block;min-height:36px;padding:0;font-size:14px;text-align:left;white-space:nowrap}
+.rings3-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid var(--hair2);padding-top:14px}
+.rings3-facts button{min-height:62px;border-radius:14px;border:1px solid var(--hair);background:var(--raise);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:4px}
+.rings3-facts strong{font-size:16px}.rings3-facts span{font-size:12px;color:var(--ink2);text-align:center}
 /* food */
 .meal{background:var(--card);border:1px solid var(--hair);border-radius:18px;padding:6px 16px 8px}
 .meal-head{display:flex;justify-content:space-between;align-items:center;min-height:52px}
@@ -223,11 +236,11 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.0.2';
+const VERSION = '1.0.4';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']; // tried in order; first that answers wins
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview']; // tried in order; first that answers wins
 const MEALS = [['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snack', 'Snacks']];
 const MEAL_NAME = Object.fromEntries(MEALS);
 const REASONS = ['Hungry', 'Habit', 'Feeling', 'Bored', 'Company'];
@@ -483,30 +496,32 @@ const GS_STAGES = [
   ['Third stage · 15 minutes', 'With closed eyes, stand up and let your body be loose and receptive. Let the moving happen, gently and gracefully.'],
   ['Fourth stage · 15 minutes', 'Lie down with closed eyes, silent and still.']];
 /* ================= TODAY ================= */
-function ringMetrics(k) {
+/* Three rings: Eat, Move, Still — body, mind and soul. */
+function threeRings(k) {
   const d = day(k), p = S.profile, t = totals(d);
   const med = S.meditations.filter(x => x.date === k).reduce((n, x) => n + (+x.minutes || 0), 0);
-  const f = (v, tg) => Math.max(0, Math.min(100, tg ? v / tg * 100 : 0));
   return [
-    { key: 'calories', label: 'Calories', v: t.kcal, tg: p.kcalTarget, unit: 'kcal', d: t.kcal ? big(t.kcal) + ' of ' + big(p.kcalTarget) : 'not yet' },
-    { key: 'protein', label: 'Protein', v: t.protein, tg: p.proteinTarget, unit: 'g', d: t.protein ? n0(t.protein) + ' of ' + p.proteinTarget + ' g' : 'not yet' },
-    { key: 'water', label: 'Water', v: d.water, tg: p.waterTarget, unit: 'glasses', d: d.water ? d.water + ' of ' + p.waterTarget + ' glasses' : 'not yet' },
-    { key: 'steps', label: 'Steps', v: d.steps, tg: p.stepsTarget, unit: 'steps', d: d.steps ? big(d.steps) + ' of ' + big(p.stepsTarget) : 'not yet' },
-    { key: 'sleep', label: 'Sleep', v: +d.sleep || 0, tg: 8, unit: 'hours', d: +d.sleep ? d.sleep + ' of 8 hours' : 'not yet' },
-    { key: 'meditation', label: 'Meditation', v: med, tg: 60, unit: 'min', d: med ? med + ' of 60 min' : 'not yet' },
-    { key: 'walking', label: 'Walking', v: +d.walkMin || 0, tg: 60, unit: 'min', d: +d.walkMin ? d.walkMin + ' of 60 min' : 'not yet' }
-  ].map(m => ({ ...m, fill: f(m.v, m.tg) }));
+    { key: 'eat', label: 'Eat', col: 'var(--ring-eat)', trk: 'var(--ring-eat-t)', v: t.kcal, tg: p.kcalTarget, sub: 'of ' + big(p.kcalTarget) + ' cal' },
+    { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: d.steps || 0, tg: p.stepsTarget, sub: 'of ' + big(p.stepsTarget) + ' steps' },
+    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med, tg: 60, sub: 'of 60 min' }
+  ];
 }
-let ringOn = 'calories';
 function ringsHtml(k) {
-  const ms = ringMetrics(k), cur = ms.find(m => m.key === ringOn) || ms[0];
-  const lc = ['#7fd2ae', '#70bd9c', '#61a98b', '#529578', '#47846b', '#3d735e', '#32614f'];
-  return `<section class="day-progress" aria-label="Today's figures">
-  <div class="progress-rings" aria-hidden="true">${ms.map(m => `<span class="progress-ring ${m.key}${m.key === cur.key ? ' on' : ''}" style="--fill:${m.fill}"></span>`).join('')}<div class="progress-centre"><strong>${big(cur.v)}</strong><span>${cur.unit}</span></div></div>
-  <div class="progress-lines">${ms.map((m, i) => `<button class="progress-line${m.key === cur.key ? ' on' : ''}" style="--lc:${lc[i]}" data-a="ring" data-k="${m.key}" aria-pressed="${m.key === cur.key}"><strong>${m.label}</strong><span>${m.d}</span></button>`).join('')}</div>
-  <div class="quick"><button class="btn" data-a="water">+ Water</button><button class="btn" data-a="steps">+ 1,000 steps</button></div></section>`;
+  const rs = threeRings(k), d = day(k), t = totals(d), p = S.profile;
+  const R = [88, 68, 48];
+  const arcs = rs.map((r, i) => { const C = 2 * Math.PI * R[i], f = Math.max(0, Math.min(1, r.tg ? r.v / r.tg : 0)), L = f * C; return `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="16"/>${L > 0.5 ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.col}" stroke-width="16" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"/>` : ''}`; }).join('');
+  const label = rs.map(r => `${r.label} ${big(r.v)} ${r.sub}`).join(', ');
+  return `<section class="rings3" aria-label="Today: ${esc(label)}">
+  <div class="rings3-top"><svg class="rings3-svg" viewBox="0 0 200 200" aria-hidden="true">${arcs}</svg>
+  <div class="rings3-keys">${rs.map(r => `<div><span class="rk" style="color:${r.col}">${r.label}</span><div class="rv">${r.v ? big(r.v) : '–'}</div><span class="rs">${r.sub}</span>${r.key === 'move' ? '<button class="link rstep" data-a="steps" aria-label="Add 1,000 steps">+ 1,000</button>' : ''}</div>`).join('')}</div></div>
+  <div class="rings3-facts">
+    <button data-a="go-food"><strong>${t.protein ? n0(t.protein) + ' g' : '–'}</strong><span>protein of ${p.proteinTarget}</span></button>
+    <button data-a="water" aria-label="Water: ${d.water} of ${p.waterTarget} glasses. Tap to add a glass"><strong>${d.water} of ${p.waterTarget}</strong><span>water · tap +1</span></button>
+    <button data-a="go-sleep"><strong>${+d.sleep ? d.sleep + ' h' : '–'}</strong><span>sleep</span></button>
+  </div></section>`;
 }
-on('ring', b => { ringOn = b.dataset.k; render(); });
+on('go-food', () => go('food', 'day'));
+on('go-sleep', () => go('you', 'body'));
 on('water', () => { day(todayKey()).water++; save(); render(); });
 on('steps', () => { day(todayKey()).steps += 1000; save(); render(); });
 on('lamp', () => { const t = T(); t.lamp = !t.lamp; save(); render(); if (t.lamp) bell(528, 2.5); });
@@ -589,7 +604,7 @@ R.today = function () {
 /* ---------- Gemini (free tier, your own key, called straight from this phone) ---------- */
 async function gemini(parts, opts) {
   opts = opts || {};
-  const key = S.profile.geminiKey; if (!key) throw Error('nokey');
+  const key = cleanKey(S.profile.geminiKey); if (!key) throw Error('nokey');
   let lastErr = null;
   const models = S.profile.geminiModel ? [S.profile.geminiModel, ...GEMINI_MODELS.filter(m => m !== S.profile.geminiModel)] : GEMINI_MODELS;
   for (const model of models) {
@@ -598,25 +613,33 @@ async function gemini(parts, opts) {
     if (opts.tools) body.tools = opts.tools;
     let r, j;
     try { r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) }); j = await r.json().catch(() => null); }
-    catch (e) { throw Error('offline'); }
+    catch (e) { const x = Error('offline'); x.detail = String(e && e.message || e); throw x; }
     const msg = (j && j.error && j.error.message) || '';
-    if (r.status === 404 || /not found|is not supported|no longer available|deprecated/i.test(msg)) { lastErr = Error('model'); continue; }
-    if (!r.ok) { const e = Error(msg || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+    if (!r.ok) {
+      const e = Error(msg || ('HTTP ' + r.status)); e.status = r.status; e.detail = msg; e.model = model;
+      // this model isn't available to this key (renamed, not on the free plan, or its quota is used up): try the next one
+      if (r.status === 404 || r.status === 429 || /not found|not supported|no longer available|deprecated|quota|not available|free tier/i.test(msg)) { lastErr = e; continue; }
+      throw e;
+    }
     const text = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('').trim();
-    if (!text) throw Error('empty');
+    if (!text) { const e = Error('empty'); e.detail = j && j.promptFeedback ? JSON.stringify(j.promptFeedback) : ''; throw e; }
     if (S.profile.geminiModel !== model) { S.profile.geminiModel = model; save(); }
     return text;
   }
   throw lastErr || Error('model');
 }
+function cleanKey(k) { return String(k || '').replace(/[^A-Za-z0-9_-]/g, ''); }
 function geminiErr(e) {
   const m = (e && e.message) || '';
   if (m === 'nokey') return 'Connect Gemini first, in You › Connect Gemini.';
-  if (m === 'offline') return 'Gemini needs the internet. Try again when you’re online, or enter the numbers yourself.';
+  if (m === 'offline') return 'Couldn’t reach Google. Check the internet connection. If you use a content blocker or Brave Shields, allow generativelanguage.googleapis.com.';
   if (m === 'model') return 'Google has renamed its models. Enter the numbers yourself for now; the app needs a small update.';
   if (m === 'empty') return 'Gemini sent back nothing. Try again, or enter the numbers yourself.';
-  if (e && (e.status === 400 || e.status === 403) && /key/i.test(m)) return 'Google didn’t accept the key. Check it in You › Connect Gemini.';
-  if (e && e.status === 429) return 'Today’s free Gemini limit is used up. Try again later, or enter the numbers yourself.';
+  if (e && (e.status === 400 || e.status === 403) && /api key|api_key|key not valid|expired/i.test(m)) return 'Google didn’t accept the key. Copy it again from aistudio.google.com and paste it here.';
+  if (e && e.status === 403 && /referer|referrer/i.test(m)) return 'The key is restricted to certain websites. In Google AI Studio, remove the website restriction, or create a new key.';
+  if (e && e.status === 403 && /has not been used|disabled|enable/i.test(m)) return 'This key belongs to a Google Cloud project without the Gemini API switched on. The easiest fix: create a new key at aistudio.google.com/apikey.';
+  if (e && (e.status === 429 || /quota/i.test(m))) return 'The free Gemini limit is used up for now. Try again later, or enter the numbers yourself.';
+  if (m === 'model') return 'None of the Gemini models answered this key.';
   return 'Gemini couldn’t answer. Try again, or enter the numbers yourself.';
 }
 /* ================= FOOD ================= */
@@ -1467,10 +1490,11 @@ function geminiHtml() {
   ${p.geminiKey ? '<button class="btn danger" data-a="g-remove">Remove key</button>' : ''}</div>`;
 }
 on('g-save', async () => {
-  const v = $('#g-key').value.trim(), st = $('#g-status'); if (!v) { toast('Paste the key first.'); return; }
-  S.profile.geminiKey = v; save(); st.innerHTML = '<p class="small">Testing…</p>';
-  try { await gemini([{ text: 'Reply with the single word: ready' }]); st.innerHTML = '<div class="okbox">Connected. Gemini answered.</div>'; }
-  catch (e) { st.innerHTML = `<p class="small" style="color:var(--danger)">${esc(geminiErr(e))}</p>`; }
+  const raw = $('#g-key').value, v = cleanKey(raw), st = $('#g-status'); if (!v) { toast('Paste the key first.'); return; }
+  if (!/^AIza/.test(v)) st.innerHTML = '<p class="small">That doesn’t look like a Gemini key (they start with “AIza”). Testing anyway…</p>'; else st.innerHTML = '<p class="small">Testing…</p>';
+  S.profile.geminiKey = v; delete S.profile.geminiModel; save(); $('#g-key').value = v;
+  try { await gemini([{ text: 'Reply with the single word: ready' }]); st.innerHTML = `<div class="okbox">Connected. Gemini answered (${esc(S.profile.geminiModel || '')}).</div>`; }
+  catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${esc(geminiErr(e))}</p>${e && e.status && e.detail ? `<p class="tiny" style="margin-top:6px">Google said: ${esc(String(e.detail).slice(0, 300))}${e.model ? ' (' + esc(e.model) + ')' : ''}</p>` : ''}</div>`; }
 });
 on('g-remove', () => { delete S.profile.geminiKey; delete S.profile.geminiModel; save(); render(); toast('Key removed from this phone.'); });
 function musicHtml() { return `<div class="stack">${backBar('You', 'you-home')}<h1>Meditation music</h1><p class="muted small">Begin Gauri Shankar opens this in Spotify. Paste a different album or playlist link to change it.</p><div><label class="lab" for="gs-link">Spotify link</label><input class="input" id="gs-link" inputmode="url" autocomplete="off" value="${esc(gsLink())}"></div><button class="btn" data-a="med-music">Open in Spotify</button></div>`; }
@@ -1529,7 +1553,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
   <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
-  <li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
+  <li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ home: youHome, body: bodyHtml, bp: bpHtml, targets: targetsHtml, rhythm: rhythmHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
