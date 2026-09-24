@@ -222,8 +222,8 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 </nav>
 <script>
 'use strict';
-/* ================= Prakash 1.0 ================= */
-const VERSION = '1.0.1';
+/* ================= Prakash ================= */
+const VERSION = '1.0.2';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -1321,7 +1321,7 @@ function youHome() {
     ['sections', 'What to show', 'Hide what you don’t use. Nothing is deleted.'],
     ['music', 'Meditation music', 'The Spotify link for Gauri Shankar'],
     ['backup', 'Backup and restore', 'Everything lives on this phone'],
-    ['about', 'About Prakash', 'Version ' + VERSION]
+    ['about', 'About Prakash', 'What’s new, and a note on privacy']
   ].filter(Boolean);
   return `<div class="stack"><h1>You</h1><div>${rows.map(r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`).join('')}</div><button class="btn" data-a="setup-again">Go through setup again</button></div>`;
 }
@@ -1527,10 +1527,10 @@ async function freshStart() {
   await pclear(); await wclear(); try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {} draft = null; saveNow();
 }
 function aboutHtml() {
-  return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Version ${VERSION}. A quiet mirror for your day. Nothing here scores you.</p>
-  <section class="card stack"><h2>New in 1.0.1</h2><p class="small">The lamp is now the app’s symbol. Prakash means light, so the name, the lamp and the light you tap each day are one thing.</p></section><section class="card stack"><h2>New in 1.0</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
-  <li>A fresh start: five tabs (Today, Food, Train, Practice, You) and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food. Two taps for a food you often eat.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories, so it no longer thinks you have more to eat than you do. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you as key themes.</li><li>Workouts fill in from last time; tick a set and the rest starts. A new plan with core work.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
-  <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul></div>`;
+  return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
+  <li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
+  <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ home: youHome, body: bodyHtml, bp: bpHtml, targets: targetsHtml, rhythm: rhythmHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
@@ -1551,7 +1551,7 @@ function showSetup(step) {
   const kg = latestKg(), lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop();
   let body = '';
   if (k === 'welcome') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Prakash</h1><p class="tiny" style="margin-top:-8px">Light</p><p class="journal-q">A quiet mirror for your day: food, movement, rest and practice. Nothing here scores you.</p><p class="muted">A few questions, about a minute. You can change every answer later in You.</p>`;
-  if (k === 'welcome-back') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Welcome to Prakash 1.0</h1><p class="muted">A fresh start. First, download a backup of what's on this phone, just in case.</p><button class="btn" data-a="su-backup">Download a backup</button><p style="margin-top:6px">What should Prakash keep?</p><div class="stack" style="gap:8px">${[['body', 'Keep my body history, clear food logs', 'Weight, waist, blood pressure, photos, workouts and journal stay'], ['all', 'Keep everything', 'All logs stay as they are'], ['fresh', 'Start completely fresh', 'Clears everything except these settings']].map(c => `<button class="choice" data-a="su-keep" data-c="${c[0]}" aria-pressed="${welcomeChoice === c[0]}"><span><strong>${c[1]}</strong><small>${c[2]}</small></span></button>`).join('')}</div>`;
+  if (k === 'welcome-back') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Welcome back</h1><p class="muted">Prakash has been made simpler. First, download a backup of what's on this phone, just in case.</p><button class="btn" data-a="su-backup">Download a backup</button><p style="margin-top:6px">What should Prakash keep?</p><div class="stack" style="gap:8px">${[['body', 'Keep my body history, clear food logs', 'Weight, waist, blood pressure, photos, workouts and journal stay'], ['all', 'Keep everything', 'All logs stay as they are'], ['fresh', 'Start completely fresh', 'Clears everything except these settings']].map(c => `<button class="choice" data-a="su-keep" data-c="${c[0]}" aria-pressed="${welcomeChoice === c[0]}"><span><strong>${c[1]}</strong><small>${c[2]}</small></span></button>`).join('')}</div>`;
   if (k === 'sections') body = `<h2>What would you like to see?</h2><p class="muted">Hide anything you won't use. It can be shown again later.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit, write, remember'], ['spiritual', 'Prayers and talks', 'Pray, listen']].map(x => `<button class="choice" data-a="su-mod" data-m="${x[0]}" aria-pressed="${!!p.modules[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${p.modules[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div>`;
   if (k === 'about') body = `<h2>About you</h2><p class="muted">Used only to suggest targets. It stays on this phone.</p>
   <div class="chips">${[['man', 'Man'], ['woman', 'Woman'], ['', 'Rather not say']].map(x => `<button class="chip" data-a="su-sex" data-s="${x[0]}" aria-pressed="${(p.sex || '') === x[0]}">${x[1]}</button>`).join('')}</div>
