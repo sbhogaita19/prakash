@@ -8,7 +8,7 @@
 // blank screen; the network response still refreshes the cache when it lands.
 // Cache cleanup only deletes old Prakash/Sadhana caches and never touches
 // localStorage or IndexedDB, so user data survives every update.
-const CACHE='prakash-v71-still';
+const CACHE='prakash-v72-steady';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./prakash-om-favicon.png','./prakash-om-192.png','./prakash-om-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&/^(prakash|sadhana)-/.test(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
