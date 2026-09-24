@@ -222,7 +222,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.0.8';
+const VERSION = '1.0.9';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -1298,13 +1298,13 @@ function writeHtml() {
     ${JQ.map(q => `<div><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px">${esc(q[1])}</label><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea></div>`).join('')}
     <p class="journal-q" style="font-size:18px;color:var(--ink2)">Now put it all down. Nothing to carry, nowhere to reach.</p>
     <div><span class="lab">Threads</span><div class="chips">${WITNESS_TAGS.map(t => `<label class="chip" style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" data-jtag="${esc(t)}" ${(e.tags || []).includes(t) ? 'checked' : ''} style="accent-color:var(--green)"> ${esc(t)}</label>`).join('')}</div></div>
-    <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs">Private, kept on this phone.</span></div>
+    <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
   if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${new Date(e.created).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
-  <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Kept on this phone</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
+  <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
   ${gratitudeHtml()}`;
 }
 on('j-home', () => { journalMode = 'home'; journalEdit = null; render(); });
