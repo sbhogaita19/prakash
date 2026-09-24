@@ -70,7 +70,7 @@ select.input{appearance:none;-webkit-appearance:none}
 .chip{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #56615c;background:var(--card);color:#e8ece9;font-size:15px;cursor:pointer}
 .chip[aria-pressed=true]{background:#255d4b;border-color:#8cc5b3;color:#fff}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;padding:4px;background:var(--card);border-radius:14px}
-.seg button{min-height:44px;border:0;border-radius:10px;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer;padding:0 4px}
+.seg button{min-height:44px;border:0;border-radius:10px;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer;padding:0 2px;white-space:nowrap}
 .seg button[aria-current=true],.seg button[aria-selected=true]{background:var(--sel);color:#fff;font-weight:600}
 .check{display:flex;align-items:center;gap:12px;min-height:48px;cursor:pointer}
 .check input{width:22px;height:22px;accent-color:var(--green)}
@@ -121,20 +121,6 @@ nav.tabs svg{width:24px;height:24px}
 .lampbtn[aria-pressed=true]{border:1px solid #9fe6c4;background:#2d2a1c}
 .lampbtn .fl{opacity:.16}.lampbtn .bw{opacity:.45}
 .lampbtn[aria-pressed=true] .fl{opacity:1}.lampbtn[aria-pressed=true] .bw{opacity:1}
-/* rings (unchanged signature) */
-.day-progress{display:grid;grid-template-columns:182px 1fr;gap:14px;align-items:center;background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:16px 14px}
-.progress-rings{position:relative;width:182px;height:182px;margin:auto}
-.progress-ring{position:absolute;border:0;border-radius:50%;padding:0;pointer-events:none;background:conic-gradient(from -90deg,var(--rc) calc(var(--fill)*1%),var(--rt) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));transition:filter .2s,transform .2s}
-.progress-ring.calories{inset:0;--rc:#7fd2ae;--rt:#53605b}.progress-ring.protein{inset:11px;--rc:#70bd9c;--rt:#505c57}.progress-ring.water{inset:22px;--rc:#61a98b;--rt:#4d5954}.progress-ring.steps{inset:33px;--rc:#529578;--rt:#4a5651}.progress-ring.sleep{inset:44px;--rc:#47846b;--rt:#47534e}.progress-ring.meditation{inset:55px;--rc:#3d735e;--rt:#444f4b}.progress-ring.walking{inset:66px;--rc:#32614f;--rt:#414b47}
-.progress-ring.on{filter:brightness(1.22) drop-shadow(0 0 5px color-mix(in srgb,var(--rc) 45%,transparent));transform:scale(1.012)}
-.progress-centre{position:absolute;inset:77px;border-radius:50%;background:#161c1a;display:grid;place-content:center;text-align:center;z-index:2;pointer-events:none}
-.progress-centre strong{font-size:15px;line-height:1.05}.progress-centre span{font-size:9px;color:var(--ink2);margin-top:2px}
-.progress-lines{display:flex;flex-direction:column;gap:2px}
-.progress-line{border:0;border-left:3px solid var(--lc);background:transparent;color:var(--ink);text-align:left;padding:5px 8px;min-height:44px;border-radius:0 9px 9px 0;cursor:pointer}
-.progress-line strong,.progress-line span{display:block}.progress-line strong{font-size:15px}.progress-line span{font-size:13px;color:var(--ink2)}
-.progress-line.on{background:#25322d}
-.quick{grid-column:1/-1;display:flex;gap:8px}.quick .btn{flex:1}
-@media(max-width:430px){.day-progress{grid-template-columns:1fr}.progress-lines{display:grid;grid-template-columns:1fr 1fr}}
 /* three rings */
 .rings3{background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:18px 16px;display:flex;flex-direction:column;gap:16px}
 .rings3-top{display:flex;align-items:center;gap:18px}
@@ -236,7 +222,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.0.4';
+const VERSION = '1.0.7';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -314,6 +300,7 @@ function migrate(s) {
     if (a.seriesDone) for (const ch of TALKS) for (const g of ch[2]) if (a.seriesDone[g[0]]) g[1].forEach(t => { s.talks.heard[t[1]] = a.seriesDone[g[0]]; });
     delete s.awareness; delete s.speakingNotices; delete s.restNudgeDismissed;
     if (s.profile.setupDone) s.needsWelcome = true;   // v72 skipped onboarding for existing data
+    if (!s.profile.startedOn) { const ks = Object.keys(s.days || {}).sort(); s.profile.startedOn = ks[0] || null; }
     delete s.profile.mig171; delete s.profile.migWcm; delete s.profile.onboardingVersion;
     s.schema = 2;
   }
@@ -406,7 +393,7 @@ let tickers = [];
 function ticker(fn, ms) { fn(); tickers.push(setInterval(fn, ms || 1000)); }
 function clearTickers() { tickers.forEach(clearInterval); tickers = []; }
 function backBar(label, action) { return `<div class="backbar"><button class="link" data-a="${action}">‹ ${esc(label)}</button></div>`; }
-const TALKS=[["LOVE","Begin where separation softens.",[["The Path of Love",[["The Path of Love 01","https://oshoworld.com/the-path-of-love-01"],["The Path of Love 02","https://oshoworld.com/the-path-of-love-02"],["The Path of Love 03","https://oshoworld.com/the-path-of-love-03"],["The Path of Love 04","https://oshoworld.com/the-path-of-love-04"],["The Path of Love 05","https://oshoworld.com/the-path-of-love-05"],["The Path of Love 06","https://oshoworld.com/the-path-of-love-06"],["The Path of Love 07","https://oshoworld.com/the-path-of-love-07"],["The Path of Love 08","https://oshoworld.com/the-path-of-love-08"],["The Path of Love 09","https://oshoworld.com/the-path-of-love-09"],["The Path of Love 10","https://oshoworld.com/the-path-of-love-10"]]],["Love in Hindi",[["प्रेम नदी के तीरा 02 · Prem Nadi Ke Teera 02","https://oshoworld.com/prem-nadi-ke-teera-02"],["रहिमन धागा प्रेम का 02 · Rahiman Dhaga Prem Ka 02","https://oshoworld.com/rahiman-dhaga-prem-ka-02"]]],["Sufi and engaged love",[["Sufi · Sufis: People of the Path, Vol 1 01","https://oshoworld.com/sufis-people-of-the-path-vol-1-01"],["Thich Nhat Hanh · Understanding is Love’s other name","https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video"]]]]],["WITNESSING WHAT IS","Nothing to improve. See what is already here.",[["Ashtavakra, Zarathustra and direct seeing",[["Zarathustra is not a thinker but a seer Osho","https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786"],["The Three Metamorphoses Nietzsche","https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01"],["The Night Song Osho on Zarathustra #23","https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23"],["Pure witnessing, just watching Osho on Ashtavakra","https://www.osho.com/read/osho/osho-on-topics/ashtavakra"],["Ashtavakra: the purest expression of truth Mahageeta Vol 1 #1","https://osholive.com/the-mahageeta-vol-1/discourse-1"],["Ashtavakra Maha Geeta 01 Hindi · Osho World","https://oshoworld.com/maha-geeta-by-osho-01-91"]]],["The Tree of Knowledge",[["Tao The Pathless Path (Vol 2) 01","https://oshoworld.com/tao-the-pathless-path-vol-2-01/"]]],["Zen and self-enquiry",[["Bodhidharma · The Greatest Zen Master 01","https://oshoworld.com/bodhidharma-the-greatest-zen-master-01"],["Zen · Walking in Zen, Sitting in Zen 01","https://oshoworld.com/walking-in-zen-sitting-in-zen-01"],["Ramana Maharshi · Self-enquiry instructions","https://www.gururamana.org/Teachings/instructions"],["J. Krishnamurti · The observer and the observed are the same","https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/"]]]]],["AWARENESS","The light in which every experience appears.",[["Philosophia Perennis, Vol 1",[["Philosophia Perennis Vol 1 01","https://oshoworld.com/philosophia-perennis-vol-1-01"],["Philosophia Perennis Vol 1 02","https://oshoworld.com/philosophia-perennis-vol-1-02"],["Philosophia Perennis Vol 1 03","https://oshoworld.com/philosophia-perennis-vol-1-03"],["Philosophia Perennis Vol 1 04","https://oshoworld.com/philosophia-perennis-vol-1-04"],["Philosophia Perennis Vol 1 05","https://oshoworld.com/philosophia-perennis-vol-1-05"],["Philosophia Perennis Vol 1 06","https://oshoworld.com/philosophia-perennis-vol-1-06"],["Philosophia Perennis Vol 1 07","https://oshoworld.com/philosophia-perennis-vol-1-07"],["Philosophia Perennis Vol 1 08","https://oshoworld.com/philosophia-perennis-vol-1-08"],["Philosophia Perennis Vol 1 09","https://oshoworld.com/philosophia-perennis-vol-1-09"],["Philosophia Perennis Vol 1 10 YOU ARE HERE","https://oshoworld.com/philosophia-perennis-vol-1-10"]]],["Stillness and alchemy",[["Be Still and Know 01","https://oshoworld.com/be-still-and-know-01"],["Be Still and Know 10","https://oshoworld.com/be-still-and-know-10"],["The Ultimate Alchemy (Vol 2) 11","https://oshoworld.com/the-ultimate-alchemy-vol-2-11/"]]],["Alan Watts: companion listening",[["Human Consciousness 01 · Ecological Awareness","https://www.organism.earth/library/document/ecological-awareness"],["Human Consciousness 03 · Nature of Consciousness","https://drive.google.com/file/d/10xmNAfryyjWKDl3-iAWTGq10XhyBkwpP/view?usp=drivesdk"],["The Self 05 · World as Self","https://drive.google.com/file/d/1iYsKln1P8H2vesFTbnw6qEUWSpk-XCJS/view?usp=drivesdk"],["Myth & Religion 01 · Images of God","https://drive.google.com/file/d/1VoyuDNzhrvf1qRTWRzXCQXOuOVV5s_xs/view?usp=drivesdk"],["Taoism 04 · Way Beyond Seeking","https://drive.google.com/file/d/1sv8M3WNVALesYWA2-u--6Vj3H8tBNNk_/view?usp=drivesdk"],["Zen & Meditation 03 · Meditation","https://drive.google.com/file/d/1x4BiDb7sJrBYL061cFTA-nORAyTHtCoA/view?usp=drivesdk"],["Zen & Meditation 06 · Why Not Now?","https://drive.google.com/file/d/1db1WNOErNvzke30Wpx0TIbXRx13jXhuj/view?usp=drivesdk"],["The Universe 01 · Individual and the World","https://drive.google.com/file/d/1w-4skxk4X74m2MeWLtCWGl2M7nY_2XX0/view?usp=drivesdk"]]],["Five doors into awareness",[["Lao Tzu · Tao Upanishad 01 (Hindi)","https://oshoworld.com/tao-upanishad-01"],["Buddha · This Very Body the Buddha 01","https://oshoworld.com/this-very-body-the-buddha-01"]]]]]];
+const TALKS=[["LOVE","Begin where separation softens.",[["The Path of Love",[["The Path of Love 01","https://oshoworld.com/the-path-of-love-01"],["The Path of Love 02","https://oshoworld.com/the-path-of-love-02"],["The Path of Love 03","https://oshoworld.com/the-path-of-love-03"],["The Path of Love 04","https://oshoworld.com/the-path-of-love-04"],["The Path of Love 05","https://oshoworld.com/the-path-of-love-05"],["The Path of Love 06","https://oshoworld.com/the-path-of-love-06"],["The Path of Love 07","https://oshoworld.com/the-path-of-love-07"],["The Path of Love 08","https://oshoworld.com/the-path-of-love-08"],["The Path of Love 09","https://oshoworld.com/the-path-of-love-09"],["The Path of Love 10","https://oshoworld.com/the-path-of-love-10"]]],["Love in Hindi",[["प्रेम नदी के तीरा 02 · Prem Nadi Ke Teera 02","https://oshoworld.com/prem-nadi-ke-teera-02"],["रहिमन धागा प्रेम का 02 · Rahiman Dhaga Prem Ka 02","https://oshoworld.com/rahiman-dhaga-prem-ka-02"]]],["Sufi and engaged love",[["Sufi · Sufis: People of the Path, Vol 1 01","https://oshoworld.com/sufis-people-of-the-path-vol-1-01"],["Thich Nhat Hanh · Understanding is Love’s other name","https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video"]]]]],["WITNESSING WHAT IS","Nothing to improve. See what is already here.",[["Ashtavakra, Zarathustra and direct seeing",[["Zarathustra is not a thinker but a seer Osho","https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786"],["The Three Metamorphoses Nietzsche","https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01"],["The Night Song Osho on Zarathustra #23","https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23"],["Pure witnessing, just watching Osho on Ashtavakra","https://www.osho.com/read/osho/osho-on-topics/ashtavakra"],["Ashtavakra: the purest expression of truth Mahageeta Vol 1 #1","https://osholive.com/the-mahageeta-vol-1/discourse-1"],["Ashtavakra Maha Geeta 01 Hindi · Osho World","https://oshoworld.com/maha-geeta-by-osho-01-91"]]],["The Tree of Knowledge",[["Tao The Pathless Path (Vol 2) 01","https://oshoworld.com/tao-the-pathless-path-vol-2-01/"]]],["Zen and self-enquiry",[["Bodhidharma · The Greatest Zen Master 01","https://oshoworld.com/bodhidharma-the-greatest-zen-master-01"],["Zen · Walking in Zen, Sitting in Zen 01","https://oshoworld.com/walking-in-zen-sitting-in-zen-01"],["Ramana Maharshi · Self-enquiry instructions","https://www.gururamana.org/Teachings/instructions"],["J. Krishnamurti · The observer and the observed are the same","https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/"]]]]],["AWARENESS","The light in which every experience appears.",[["Philosophia Perennis, Vol 1",[["Philosophia Perennis Vol 1 01","https://oshoworld.com/philosophia-perennis-vol-1-01"],["Philosophia Perennis Vol 1 02","https://oshoworld.com/philosophia-perennis-vol-1-02"],["Philosophia Perennis Vol 1 03","https://oshoworld.com/philosophia-perennis-vol-1-03"],["Philosophia Perennis Vol 1 04","https://oshoworld.com/philosophia-perennis-vol-1-04"],["Philosophia Perennis Vol 1 05","https://oshoworld.com/philosophia-perennis-vol-1-05"],["Philosophia Perennis Vol 1 06","https://oshoworld.com/philosophia-perennis-vol-1-06"],["Philosophia Perennis Vol 1 07","https://oshoworld.com/philosophia-perennis-vol-1-07"],["Philosophia Perennis Vol 1 08","https://oshoworld.com/philosophia-perennis-vol-1-08"],["Philosophia Perennis Vol 1 09","https://oshoworld.com/philosophia-perennis-vol-1-09"],["Philosophia Perennis Vol 1 10","https://oshoworld.com/philosophia-perennis-vol-1-10"]]],["Stillness and alchemy",[["Be Still and Know 01","https://oshoworld.com/be-still-and-know-01"],["Be Still and Know 10","https://oshoworld.com/be-still-and-know-10"],["The Ultimate Alchemy (Vol 2) 11","https://oshoworld.com/the-ultimate-alchemy-vol-2-11/"]]],["Alan Watts: companion listening",[["Human Consciousness 01 · Ecological Awareness","https://www.organism.earth/library/document/ecological-awareness"],["Human Consciousness 03 · Nature of Consciousness","https://drive.google.com/file/d/10xmNAfryyjWKDl3-iAWTGq10XhyBkwpP/view?usp=drivesdk"],["The Self 05 · World as Self","https://drive.google.com/file/d/1iYsKln1P8H2vesFTbnw6qEUWSpk-XCJS/view?usp=drivesdk"],["Myth & Religion 01 · Images of God","https://drive.google.com/file/d/1VoyuDNzhrvf1qRTWRzXCQXOuOVV5s_xs/view?usp=drivesdk"],["Taoism 04 · Way Beyond Seeking","https://drive.google.com/file/d/1sv8M3WNVALesYWA2-u--6Vj3H8tBNNk_/view?usp=drivesdk"],["Zen & Meditation 03 · Meditation","https://drive.google.com/file/d/1x4BiDb7sJrBYL061cFTA-nORAyTHtCoA/view?usp=drivesdk"],["Zen & Meditation 06 · Why Not Now?","https://drive.google.com/file/d/1db1WNOErNvzke30Wpx0TIbXRx13jXhuj/view?usp=drivesdk"],["The Universe 01 · Individual and the World","https://drive.google.com/file/d/1w-4skxk4X74m2MeWLtCWGl2M7nY_2XX0/view?usp=drivesdk"]]],["Five doors into awareness",[["Lao Tzu · Tao Upanishad 01 (Hindi)","https://oshoworld.com/tao-upanishad-01"],["Buddha · This Very Body the Buddha 01","https://oshoworld.com/this-very-body-the-buddha-01"]]]]]];
 /* ---------- fixed content ---------- */
 // name, kcal/100, protein/100, fat/100, carbs/100, serving grams, serving name, fibre/100
 const BASICS = [
@@ -420,7 +407,11 @@ const BASICS = [
   ['Walnuts', 654, 15, 65.2, 14, 28, 'small handful', 6.7], ['Potato, boiled', 87, 1.9, 0.1, 20, 175, 'medium potato', 1.8], ['Sweet potato, baked', 86, 1.6, 0.2, 20, 180, 'medium', 3],
   ['Banana', 89, 1.1, 0.3, 23, 120, 'medium banana', 2.6], ['Apple', 52, 0.3, 0.2, 14, 180, 'medium apple', 2.4], ['Avocado', 160, 2, 14.7, 9, 70, 'half avocado', 6.7],
   ['Whey protein', 383, 80, 3, 7, 30, 'scoop', 0], ['Olive oil', 884, 0, 100, 0, 14, 'tbsp', 0], ['Ghee', 900, 0, 100, 0, 13, 'tbsp', 0],
-  ['Masala chai (milk + sugar)', 35, 1.7, 1.1, 4.6, 300, 'cup', 0]
+  ['Masala chai (milk + sugar)', 35, 1.7, 1.1, 4.6, 300, 'cup', 0],
+  ['Onion', 40, 1.1, 0.1, 9.3, 150, 'medium onion', 1.7], ['Tomato', 18, 0.9, 0.2, 3.9, 120, 'medium tomato', 1.2], ['Tomatoes, tinned', 20, 1, 0.2, 3.5, 400, 'tin', 1], ['Garlic', 149, 6.4, 0.5, 33, 5, 'clove', 2.1], ['Ginger', 80, 1.8, 0.8, 18, 10, 'thumb', 2],
+  ['Spinach', 23, 2.9, 0.4, 3.6, 30, 'handful', 2.2], ['Peas, frozen', 81, 5.4, 0.4, 14.5, 80, 'heaped spoon', 5.1], ['Cauliflower', 25, 1.9, 0.3, 5, 100, 'portion', 2], ['Mixed vegetables, frozen', 65, 3.3, 0.5, 13, 80, 'portion', 4], ['Potato, raw', 77, 2, 0.1, 17, 175, 'medium potato', 2.2],
+  ['Basmati rice, dry', 350, 8, 0.8, 78, 75, 'portion', 1.3], ['Chana dal, dry', 360, 20, 5, 60, 50, 'portion', 11], ['Moong dal, dry', 347, 24, 1.2, 63, 50, 'portion', 16], ['Toor dal, dry', 343, 22, 1.5, 63, 50, 'portion', 15], ['Chickpeas, dry', 364, 19, 6, 61, 50, 'portion', 17], ['Kidney beans, dry', 333, 24, 0.8, 60, 50, 'portion', 25],
+  ['Atta (wholewheat flour)', 340, 12, 1.7, 72, 30, 'roti’s worth', 11], ['Besan (gram flour)', 387, 22, 6.7, 58, 30, '3 tbsp', 11], ['Sugar', 400, 0, 0, 100, 4, 'tsp', 0], ['Butter', 717, 0.9, 81, 0.1, 10, 'tsp', 0], ['Sunflower or mustard oil', 884, 0, 100, 0, 14, 'tbsp', 0], ['Coconut milk, tinned', 197, 2, 21, 3, 100, '100 ml', 0]
 ].map(b => ({ name: b[0], per: '100g', k: b[1], p: b[2], f: b[3], c: b[4], serveGrams: b[5], serveLabel: b[6], b: b[7], src: 'Basic' }));
 
 const QUOTES = [
@@ -521,7 +512,7 @@ function ringsHtml(k) {
   </div></section>`;
 }
 on('go-food', () => go('food', 'day'));
-on('go-sleep', () => go('you', 'body'));
+on('go-sleep', () => { go('you', 'body'); setTimeout(() => { const s = $('#sleep-card'); if (s) s.scrollIntoView({ block: 'start' }); }, 60); });
 on('water', () => { day(todayKey()).water++; save(); render(); });
 on('steps', () => { day(todayKey()).steps += 1000; save(); render(); });
 on('lamp', () => { const t = T(); t.lamp = !t.lamp; save(); render(); if (t.lamp) bell(528, 2.5); });
@@ -546,13 +537,13 @@ function nowCard() {
     if (mods().spiritual && !lit('wake')) return prayerCard('wake');
     if (!d.morningChai) return { eyebrow: 'Morning', title: 'Morning chai', body: 'One cup, taken slowly.', btns: [['Have my chai', 'chai', 'primary']] };
   }
-  const lunch = mins('12:15'), dinnerAt = mins(p.foodTo) - 45;
+  const lunch = Math.round((mins(p.foodFrom) + mins(p.foodTo)) / 2 / 15) * 15, dinnerAt = mins(p.foodTo) - 45;
   if (mods().food && m >= lunch - 30 && m < lunch + 90 && !mealLogged('lunch')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Log lunch', 'add-meal-lunch', 'primary']]) : { eyebrow: 'Now', title: 'Lunch', body: 'Nothing logged yet.', btns: [['Log lunch', 'add-meal-lunch', 'primary']] };
   if (mods().food && m >= dinnerAt - 45 && m < dinnerAt + 90 && !mealLogged('dinner')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Log dinner', 'add-meal-dinner', 'primary']]) : { eyebrow: 'Now', title: 'Dinner', body: 'Nothing logged yet.', btns: [['Log dinner', 'add-meal-dinner', 'primary']] };
   if (mods().train && !trainedToday && m >= wake && m < mins('20:00')) {
     const rot = rotation(), next = nextDayId();
     const gap = lastWo ? (dateOf(k) - dateOf(lastWo.date)) / 864e5 : 9;
-    if (gap >= 1) return { eyebrow: 'Training', title: 'Next: ' + PROGRAM[next].title, body: PROGRAM[next].sub + (gap === 1 ? '. Trained yesterday, so today can be a rest day.' : '.'), btns: [['Start workout', 'wo-start-next', gap === 1 ? '' : 'primary']] };
+    if (gap >= 2) return { eyebrow: 'Training', title: 'Next: ' + PROGRAM[next].title, body: PROGRAM[next].sub + '.', btns: [['Start workout', 'wo-start-next', 'primary']] };
   }
   if (mods().spiritual && m >= mins('11:50') && m < mins('13:00') && !lit('noon')) return prayerCard('noon');
   if (photoDue) return { eyebrow: 'Every two weeks', title: 'Progress photo', body: 'Front and side, same light, same spot.', btns: [['Open photos', 'photos-open', 'primary'], ['Not now', 'photo-snooze', '']] };
@@ -728,8 +719,8 @@ function addItemsNow() {
 function addRow(it, i, src) { const c = it.c, am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c), v = calc(c, am.qty, am.unit); return `<li class="li"><button class="t" data-a="add-pick" data-src="${src}" data-i="${i}"><strong>${esc(c.name)}</strong><span>${it.tag ? esc(it.tag) + ' · ' : ''}${esc(amountLabel(c, am.qty, am.unit))} · ${shortMacro(v)}</span></button><button class="round" data-a="add-quick" data-src="${src}" data-i="${i}" aria-label="Add ${esc(c.name)}">+</button></li>`; }
 function addResultsHtml() {
   const a = ADD, q = a.q.trim(); a._items = addItemsNow();
-  const emptyMsg = { recent: 'Foods you add appear here, ready to add again with one tap.', fav: 'Tap any food you have logged, then “Add to favourites”.', dish: 'Photo a dish and tick “Save as my dish”, and it lives here.', basics: '' }[a.list];
-  return `<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('') || (q ? '<p class="tiny" style="padding:8px 0">Nothing saved by that name.</p>' : `<p class="tiny" style="padding:12px 0">${emptyMsg}</p>`)}</ul>
+  const emptyMsg = { recent: 'Foods you add appear here, ready to add again with one tap.', fav: 'Tap any food you have logged, then “Add to favourites”.', dish: 'Your own recipes live here. Make one from its ingredients, or photo a dish and tick “Save as my dish”.', basics: '' }[a.list];
+  return `${!q && a.list === 'dish' ? '<button class="btn" data-a="rec-new" style="width:100%;margin-bottom:6px">Make a new dish from its ingredients</button>' : ''}<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('') || (q ? '<p class="tiny" style="padding:8px 0">Nothing saved by that name.</p>' : `<p class="tiny" style="padding:12px 0">${emptyMsg}</p>`)}</ul>
   ${q ? `${a.online ? `<h3 style="margin:10px 0 4px">Online results</h3><ul class="list">${a.online.map((c, i) => addRow({ c, tag: c.brand || 'Open Food Facts' }, i, 'o')).join('')}</ul>` : ''}${a.onlineMsg ? `<p class="tiny" style="margin:6px 0">${esc(a.onlineMsg)}</p>` : ''}${a.online ? '' : `<button class="btn" data-a="add-online" style="width:100%;margin-top:8px">Search online for “${esc(q)}”</button>`}` : ''}`;
 }
 function addRender() {
@@ -753,6 +744,7 @@ function addRender() {
     ${c.per === '100g' && c.serveGrams ? `<div class="seg"><button data-a="add-unit" data-u="serving" aria-selected="${a.unit === 'serving'}">By ${esc(c.serveLabel || 'serving')}</button><button data-a="add-unit" data-u="g" aria-selected="${a.unit === 'g'}">By grams</button></div>` : ''}
     <div class="between"><span>${a.unit === 'g' ? 'Grams' : a.unit === 'serving' ? 'How many (' + esc(c.serveLabel || 'serving') + ')' : 'How many (' + esc(c.portionLabel || 'portion') + ')'}</span><span class="stepper"><button class="step" data-a="add-step" data-d="-${step}" aria-label="Less">−</button><input class="input val" id="add-qty" inputmode="decimal" value="${fmtQ(a.qty)}" aria-label="Amount" style="width:84px"><button class="step" data-a="add-step" data-d="${step}" aria-label="More">+</button></span></div>
     <button class="btn primary big" data-a="add-commit">Add to ${esc(nm)}</button>
+    ${c.recipe ? '<button class="btn" data-a="rec-edit">Change the recipe</button>' : ''}
     ${c.per === '100g' ? `<p class="tiny">${esc(c.src === 'Basic' ? 'Typical values' : 'From the packet label via Open Food Facts')}, per 100 g: ${n0(c.k)} cal, ${n1(c.p)} g protein.</p>` : ''}</div>`;
   } else if (a.mode === 'scan') {
     h = addTop('Scan a barcode', 'add-back') + `<div class="stack"><video id="scan-cam" autoplay playsinline muted style="width:100%;border-radius:14px;background:#000;min-height:220px"></video>
@@ -761,6 +753,8 @@ function addRender() {
     ${a.scanMsg ? `<p class="small">${esc(a.scanMsg)}</p>` : ''}</div>`;
   } else if (a.mode === 'photo') {
     h = addTop('Add to ' + nm, 'add-back') + estimateHtml();
+  } else if (a.mode === 'recipe') {
+    h = addTop(a.rec.id ? 'Change recipe' : 'New dish', 'add-back') + recipeHtml();
   }
   const b = sheetBody(h); if (!b) return;
   const qi = $('#add-q', b);
@@ -768,6 +762,7 @@ function addRender() {
   const qq = $('#add-qty', b); if (qq) qq.oninput = e => { const v = num(e.target.value); if (v != null && v > 0) { a.qty = v; const s = $('.big-num', b); const val = calc(a.cand, a.qty, a.unit); if (s) s.firstChild.nodeValue = big(val.kcal) + ' '; } };
   if (a.mode === 'scan') startScan();
   if (a.mode === 'photo') bindEstimate(b);
+  if (a.mode === 'recipe') bindRecipe(b);
 }
 function refreshAddResults() { const r = $('#add-res'); if (!r || !ADD || ADD.mode !== 'list') return addRender(); r.innerHTML = addResultsHtml(); const tabs = $('#add-tabs'); if (tabs) tabs.classList.toggle('hidden', !!ADD.q.trim()); }
 function addItem(src, i) { const a = ADD; if (src === 'o') return a.online[i]; const it = a._items[i]; return it && it.c; }
@@ -870,7 +865,7 @@ on('est-manual', () => {
   e.portion = '1 portion'; e.servings = 1; e.manualNums = true; addRender();
 });
 on('est-add', () => {
-  const e = ADD.est, name = (e.name || 'Dish').trim(); const per = estTotals({ ...e, servings: 1 });
+  const e = ADD.est, name0 = (e.name || 'Dish').trim(), name = name0.charAt(0).toUpperCase() + name0.slice(1); const per = estTotals({ ...e, servings: 1 });
   const cand = { name, per: 'portion', k: per.kcal, p: per.protein, f: per.fat, c: per.carbs, b: per.fibre, portionLabel: e.portion || '1 portion', src: e.manualNums ? 'Entered by you' : 'Gemini estimate, checked by you' };
   if (e.save) { const ex = S.dishes.findIndex(x => x.name.toLowerCase() === name.toLowerCase()); const dish = { ...cand, id: uid(), src: 'My dish', ingredients: (e.ings || []).map(i => ({ name: i.name, grams: i.grams })) }; if (ex >= 0) S.dishes[ex] = dish; else S.dishes.push(dish); }
   if (e.url) URL.revokeObjectURL(e.url);
@@ -916,7 +911,7 @@ on('item-save', () => { const d = day(ITEM.k), f = d.foods.find(x => x.id === IT
 on('item-move', b => { const d = day(ITEM.k), f = d.foods.find(x => x.id === ITEM.id); f.slot = b.dataset.slot; save(); closeSheet(); toast('Moved to ' + MEAL_NAME[f.slot].toLowerCase() + '.'); });
 on('item-tomorrow', () => { const d = day(ITEM.k), ix = d.foods.findIndex(x => x.id === ITEM.id); const f = d.foods.splice(ix, 1)[0]; day(addDays(ITEM.k, 1)).foods.push(f); save(); closeSheet(); toast('Moved to the next day.'); });
 on('item-fav', () => { const d = day(ITEM.k), f = d.foods.find(x => x.id === ITEM.id); const ix = S.foodFavourites.findIndex(x => x.name === f.name); if (ix >= 0) S.foodFavourites.splice(ix, 1); else S.foodFavourites.push({ ...f, id: uid() }); save(); itemRender(); toast(ix >= 0 ? 'Removed from favourites.' : 'Added to favourites.'); });
-on('item-dish', () => { const d = day(ITEM.k), f = d.foods.find(x => x.id === ITEM.id); const per = f.qty ? f.qty : 1; const c = { name: f.name, per: 'portion', k: n0(f.kcal / per), p: n1(f.protein / per), f: n1((f.fat || 0) / per), c: n1((f.carbs || 0) / per), b: n1((f.fibre || 0) / per), portionLabel: f.unit === 'portion' && f.base && f.base.portionLabel || '1 portion', src: 'My dish', id: uid() }; const ex = S.dishes.findIndex(x => x.name.toLowerCase() === f.name.toLowerCase()); if (ex >= 0) S.dishes[ex] = c; else S.dishes.push(c); save(); toast('Saved in My dishes.'); });
+on('item-dish', () => { const d = day(ITEM.k), f = d.foods.find(x => x.id === ITEM.id); const per = f.unit === 'portion' && f.qty ? f.qty : 1; const c = { name: f.name, per: 'portion', k: n0(f.kcal / per), p: n1(f.protein / per), f: n1((f.fat || 0) / per), c: n1((f.carbs || 0) / per), b: n1((f.fibre || 0) / per), portionLabel: f.unit === 'portion' ? (f.base && f.base.portionLabel || '1 portion') : (f.amount || '1 portion'), src: 'My dish', id: uid() }; const ex = S.dishes.findIndex(x => x.name.toLowerCase() === f.name.toLowerCase()); if (ex >= 0) S.dishes[ex] = c; else S.dishes.push(c); save(); toast('Saved in My dishes.'); });
 on('item-remove', () => { const k = ITEM.k, d = day(k), ix = d.foods.findIndex(x => x.id === ITEM.id); const gone = d.foods.splice(ix, 1)[0]; save(); closeSheet(); undoBar(gone.name + ' removed.', () => { day(k).foods.splice(ix, 0, gone); save(); render(); }); });
 
 /* ---------- the week ---------- */
@@ -958,7 +953,8 @@ on('ev-add', () => { const n = $('#ev-n').value.trim(), dt = $('#ev-d').value, x
 on('ev-del', b => { const gone = S.events.find(e => e.id === b.dataset.id); S.events = S.events.filter(e => e.id !== b.dataset.id); save(); render(); undoBar('Removed.', () => { S.events.push(gone); save(); render(); }); });
 function foodWeekHtml() {
   const wb = weekBudget(weekOf), t = todayKey(), cur = wb.keys.includes(t), p = S.profile;
-  const missing = wb.days.filter(x => x.status === 'none').map(x => dateOf(x.dk).toLocaleDateString('en-GB', { weekday: 'long' }));
+  const st = S.profile.startedOn || '0000';
+  const missing = wb.days.filter(x => x.status === 'none' && x.dk >= st).map(x => dateOf(x.dk).toLocaleDateString('en-GB', { weekday: 'long' }));
   const partly = wb.days.filter(x => x.status === 'partly').map(x => dateOf(x.dk).toLocaleDateString('en-GB', { weekday: 'long' }));
   const logged = wb.days.filter(x => ['logged', 'partly', 'today'].includes(x.status) && x.eaten > 0);
   const prot = logged.length ? n0(logged.reduce((a, x) => a + totals(peekDay(x.dk)).protein, 0) / logged.length) : null;
@@ -972,11 +968,12 @@ function foodWeekHtml() {
   <section class="card"><div class="facts">
     <div class="fact"><span>Calories for the week</span><strong>${big(wb.target)}</strong></div>
     <div class="fact"><span>${cur ? 'So far' : 'Counted'}</span><strong>${big(wb.counted)}</strong></div>
-    ${cur ? `<div class="fact"><span>Left for the week</span><strong>${big(wb.left)}</strong></div><div class="fact"><span>About ${big(Math.max(0, wb.perDay))} a day</span><strong>for ${wb.daysLeft} day${wb.daysLeft === 1 ? '' : 's'}</strong></div>` : `<div class="fact"><span>${wb.left >= 0 ? 'Under' : 'Over'} by</span><strong>${big(Math.abs(wb.left))}</strong></div>`}
+    ${cur ? `<div class="fact"><span>Left for the week</span><strong>${big(wb.left)}</strong></div><div class="fact"><span>Each day, for the ${wb.daysLeft} day${wb.daysLeft === 1 ? '' : 's'} left</span><strong>about ${big(Math.max(0, wb.perDay))}</strong></div>` : `<div class="fact"><span>${wb.left >= 0 ? 'Under' : 'Over'} by</span><strong>${big(Math.abs(wb.left))}</strong></div>`}
   </div></section>
   ${weekBars(wb)}
   ${missing.length ? `<p class="small">${list(missing)} ${missing.length === 1 ? "isn't" : "aren't"} logged, so ${missing.length === 1 ? "it's" : "they're"} counted at your usual ${big(p.kcalTarget)}. Tap a day in Food to fill it in.</p>` : ''}
   ${partly.length ? `<p class="tiny">${list(partly)} may be missing a meal. Close the day in Food when it's all there.</p>` : ''}
+  ${wb.days.some(x => x.status === 'none' && x.dk < st) ? `<p class="tiny">Days before you started with Prakash are counted at your usual ${big(p.kcalTarget)}.</p>` : ''}
   <p class="tiny">Solid bars: what you logged. Outlined: counted at your target. The dashes are each day's target.</p>
   <section class="card"><div class="facts">
     <div class="fact"><span>Protein, logged days</span><strong>${prot != null ? prot + ' g a day' : '-'}</strong></div>
@@ -989,6 +986,61 @@ function foodWeekHtml() {
   </div>`;
 }
 R.food = () => view.food === 'week' ? foodWeekHtml() : foodDayHtml();
+
+/* ---------- recipe builder: My dishes from ingredients ---------- */
+function recTotals(rec) { const t = { kcal: 0, protein: 0, fat: 0, carbs: 0, fibre: 0 }; rec.ings.forEach(i => { const x = i.grams / 100; t.kcal += i.k * x; t.protein += i.p * x; t.fat += (i.f || 0) * x; t.carbs += (i.c || 0) * x; t.fibre += (i.b || 0) * x; }); const n = Math.max(1, rec.portions); return { kcal: n0(t.kcal / n), protein: n1(t.protein / n), fat: n1(t.fat / n), carbs: n1(t.carbs / n), fibre: n1(t.fibre / n), all: n0(t.kcal) }; }
+function recIngredientPool() {
+  const seen = new Set(), out = [];
+  const push = c => { const k = c.name.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push(c); };
+  historyFoods().forEach(f => { if (f.base && f.base.per === '100g') push({ ...f.base }); });
+  BASICS.forEach(push);
+  return out;
+}
+on('rec-new', () => { ADD.rec = { name: ADD.q.trim(), portions: 4, ings: [], q: '', online: null, msg: '' }; ADD.mode = 'recipe'; addRender(); });
+on('rec-edit', () => { const c = ADD.cand, r0 = c.recipe; ADD.rec = { id: c.id, name: c.name, portions: r0.portions, ings: r0.ings.map(i => ({ ...i })), q: '', online: null, msg: '' }; ADD.mode = 'recipe'; addRender(); });
+function recipeHtml() {
+  const rec = ADD.rec, t = recTotals(rec), q = rec.q.trim().toLowerCase();
+  const local = q ? recIngredientPool().filter(c => c.name.toLowerCase().includes(q)).slice(0, 8) : [];
+  rec._local = local;
+  const ingRow = (i, ix) => { const oil = /oil|ghee|butter/i.test(i.name), st = oil ? 5 : 10; return `<div class="between" style="min-height:56px;border-bottom:1px solid var(--hair2)"><span style="flex:1;min-width:0">${esc(i.name)}<span class="tiny" style="display:block">${n0(i.k * i.grams / 100)} cal</span></span><span class="stepper"><button class="step" data-a="rec-g" data-i="${ix}" data-d="-${st}" aria-label="Less ${esc(i.name)}">−</button><span class="val" style="min-width:64px">${n0(i.grams)} g</span><button class="step" data-a="rec-g" data-i="${ix}" data-d="${st}" aria-label="More ${esc(i.name)}">+</button><button class="link" data-a="rec-del" data-i="${ix}" aria-label="Take out ${esc(i.name)}" style="padding:0 6px">✕</button></span></div>`; };
+  const resRow = (c, ix, src) => `<li class="li"><div class="t"><strong>${esc(c.name)}</strong><span>${c.brand ? esc(c.brand) + ' · ' : ''}${n0(c.k)} cal per 100 g</span></div><button class="round" data-a="rec-add" data-src="${src}" data-i="${ix}" aria-label="Add ${esc(c.name)}">+</button></li>`;
+  return `<div class="stack">
+  <div><label class="lab" for="rec-name">Dish name</label><input class="input" id="rec-name" value="${esc(rec.name)}" placeholder="e.g. Mum's chana masala"></div>
+  <div class="between"><span>Makes how many portions?</span><span class="stepper"><button class="step" data-a="rec-n" data-d="-1" aria-label="Fewer portions">−</button><span class="val">${rec.portions}</span><button class="step" data-a="rec-n" data-d="1" aria-label="More portions">+</button></span></div>
+  <h3>Ingredients, for the whole pot</h3>
+  ${rec.ings.length ? `<div>${rec.ings.map(ingRow).join('')}</div>` : '<p class="tiny">Add what goes in, with rough weights. Don’t forget the oil or ghee.</p>'}
+  <div class="searchbar"><label><input id="rec-q" type="search" enterkeyhint="search" placeholder="Add an ingredient" value="${esc(rec.q)}" aria-label="Search for an ingredient" autocomplete="off"></label></div>
+  <div id="rec-res">${q ? `<ul class="list">${local.map((c, ix) => resRow(c, ix, 'l')).join('')}</ul>${rec.online ? `<ul class="list">${rec.online.map((c, ix) => resRow(c, ix, 'o')).join('')}</ul>` : `<button class="btn" data-a="rec-online" style="width:100%">Search online for “${esc(rec.q.trim())}”</button>`}${rec.msg ? `<p class="tiny">${esc(rec.msg)}</p>` : ''}` : ''}</div>
+  <details class="fold"><summary class="small">Not listed? Enter it yourself</summary><div class="stack"><div><label class="lab" for="rc-n">Ingredient</label><input class="input" id="rc-n"></div><div class="grid2"><div><label class="lab" for="rc-k">Calories per 100 g</label><input class="input" id="rc-k" inputmode="decimal"></div><div><label class="lab" for="rc-p">Protein per 100 g</label><input class="input" id="rc-p" inputmode="decimal"></div></div><div><label class="lab" for="rc-g">Grams in the pot</label><input class="input" id="rc-g" inputmode="decimal" value="100"></div><button class="btn" data-a="rec-custom">Add ingredient</button></div></details>
+  ${rec.ings.length ? `<section class="card stack" style="gap:4px"><span class="eyebrow">Each portion</span><div class="big-num">${big(t.kcal)} calories</div><p class="small muted">${t.protein} g protein · ${t.fat} g fat · ${t.carbs} g carbs · ${t.fibre} g fibre</p><p class="tiny">The whole pot: ${big(t.all)} calories.</p></section>
+  <button class="btn primary big" data-a="rec-save" data-add="1">Save, and add a portion to ${esc(MEAL_NAME[ADD.slot].toLowerCase())}</button><button class="btn" data-a="rec-save">Just save it</button>` : ''}
+  </div>`;
+}
+function bindRecipe(b) {
+  const rec = ADD.rec;
+  const n = $('#rec-name', b); if (n) n.oninput = e => { rec.name = e.target.value; };
+  const q = $('#rec-q', b); if (q) { q.oninput = e => { rec.q = e.target.value; rec.online = null; rec.msg = ''; clearTimeout(rec._t); rec._t = setTimeout(() => { const pos = q.selectionStart; addRender(); const nq = $('#rec-q'); if (nq) { nq.focus(); try { nq.setSelectionRange(pos, pos); } catch (x) {} } }, 250); }; q.onkeydown = e => { if (e.key === 'Enter' && rec.q.trim()) { e.preventDefault(); A['rec-online'](); } }; }
+}
+on('rec-n', b => { ADD.rec.portions = Math.max(1, ADD.rec.portions + (+b.dataset.d)); addRender(); });
+on('rec-g', b => { const i = ADD.rec.ings[+b.dataset.i]; i.grams = Math.max(0, i.grams + (+b.dataset.d)); addRender(); });
+on('rec-del', b => { ADD.rec.ings.splice(+b.dataset.i, 1); addRender(); });
+on('rec-add', b => { const rec = ADD.rec, c = (b.dataset.src === 'o' ? rec.online : rec._local)[+b.dataset.i]; if (!c) return; const g = /oil|ghee|butter/i.test(c.name) ? 15 : (c.serveGrams || 100); rec.ings.push({ name: c.name, k: c.k, p: c.p, f: c.f || 0, c: c.c || 0, b: c.b || 0, grams: g }); rec.q = ''; rec.online = null; addRender(); });
+on('rec-custom', () => { const nm = $('#rc-n').value.trim(), k = num($('#rc-k').value), p = num($('#rc-p').value) || 0, g = num($('#rc-g').value) || 100; if (!nm || !k) { toast('Add the name and calories per 100 g.'); return; } ADD.rec.ings.push({ name: nm, k, p, f: 0, c: 0, b: 0, grams: g }); addRender(); });
+on('rec-online', async () => {
+  const rec = ADD.rec, query = rec.q.trim(); if (!query) return; rec.msg = 'Searching Open Food Facts…'; addRender();
+  try { const r = await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(query) + '&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_size'); const j = await r.json(); rec.online = (j.products || []).map(offCand).filter(Boolean); rec.msg = rec.online.length ? '' : 'Nothing with nutrition values matched. Enter it yourself below.'; }
+  catch (e) { rec.msg = 'Couldn’t reach Open Food Facts. Enter it yourself below.'; }
+  if (ADD && ADD.rec === rec) addRender();
+});
+on('rec-save', b => {
+  const rec = ADD.rec, name0 = (rec.name || '').trim(); if (!name0) { toast('Give the dish a name.'); const n = $('#rec-name'); if (n) n.focus(); return; }
+  if (!rec.ings.length) { toast('Add at least one ingredient.'); return; }
+  const name = name0.charAt(0).toUpperCase() + name0.slice(1), t = recTotals(rec);
+  const dish = { id: rec.id || uid(), name, per: 'portion', k: t.kcal, p: t.protein, f: t.fat, c: t.carbs, b: t.fibre, portionLabel: '1 portion (of ' + rec.portions + ')', src: 'My dish', recipe: { portions: rec.portions, ings: rec.ings.map(i => ({ name: i.name, k: i.k, p: i.p, f: i.f, c: i.c, b: i.b, grams: i.grams })) } };
+  const ex = S.dishes.findIndex(x => x.id === dish.id || x.name.toLowerCase() === name.toLowerCase()); if (ex >= 0) S.dishes[ex] = dish; else S.dishes.push(dish);
+  save(); ADD.rec = null;
+  if (b.dataset.add) { commitFood(dish, 1, 'portion'); } else { ADD.list = 'dish'; ADD.mode = 'list'; addRender(); toast(name + ' saved in My dishes.'); }
+});
 /* ================= TRAIN ================= */
 let draft = null;
 try { const x = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (x && x.draft && Array.isArray(x.draft.ex)) draft = x.draft; } catch (e) {}
@@ -1089,16 +1141,16 @@ R.train = function () {
   <details class="fold"><summary>Start a different day</summary><div class="stack">${rot.filter(id => id !== next).map(id => `<button class="navrow" data-a="wo-start" data-id="${id}"><span>${esc(PROGRAM[id].title)} · ${esc(PROGRAM[id].sub)}<small>${PROGRAM[id].ex.length} exercises</small></span></button>`).join('')}</div></details>
   <details class="fold"><summary>How the plan works</summary><ul style="padding-left:20px;margin:0" class="small">${PLAN_NOTES.map(x => `<li style="margin-bottom:8px">${esc(x)}</li>`).join('')}${S.profile.bpSafe ? '<li>With blood pressure: steady breathing, no straining, no maximum lifts.</li>' : ''}</ul></details>
   <h2>Walk</h2>
-  <section class="card stack" style="align-items:stretch"><div class="timer" id="walk-time">00:00</div>${S.walkTimer.startedAt ? '<button class="btn primary big" data-a="walk-stop">Stop and add the minutes</button>' : '<button class="btn primary big" data-a="walk-start">Start a walk</button>'}
+  <section class="card stack" style="align-items:stretch">${S.walkTimer.startedAt ? '<div class="timer" id="walk-time">00:00</div>' : ''}${S.walkTimer.startedAt ? '<button class="btn primary big" data-a="walk-stop">Stop and add the minutes</button>' : '<button class="btn primary big" data-a="walk-start">Start a walk</button>'}
   <div><label class="lab" for="walk-min">Walking minutes today</label><input class="input" id="walk-min" inputmode="numeric" value="${d.walkMin || ''}" placeholder="0"></div></section>
   <h2>Recent workouts</h2>
   ${recent.length ? `<ul class="list">${recent.map(w => `<li class="li"><div class="t"><strong>${esc(w.title)}</strong><span>${fmtDay(w.date)}${w.durationMin ? ' · ' + w.durationMin + ' min' : ''} · ${w.exercises.reduce((a, e) => a + e.sets.length, 0)} sets</span></div><button class="link" data-a="wo-del" data-id="${w.id}" aria-label="Remove this workout">Remove</button></li>`).join('')}</ul>` : '<p class="tiny">Your workouts appear here, and each one fills in the next.</p>'}
   </div>`;
 };
 /* ================= PRACTICE ================= */
-function practiceViews() { const m = mods(), v = []; if (m.mind) v.push(['sit', 'Sit']); if (m.spiritual) v.push(['pray', 'Pray'], ['listen', 'Listen']); if (m.mind) v.push(['write', 'Write'], ['remember', 'Remember']); return v; }
+function practiceViews() { const m = mods(), v = []; if (m.mind) v.push(['sit', 'Sit']); if (m.spiritual) v.push(['pray', 'Pray'], ['listen', 'Listen']); if (m.mind) v.push(['write', 'Write']); return v; }
 on('pv', b => { view.practice = b.dataset.v; listenCh = null; journalMode = 'home'; render(); window.scrollTo(0, 0); });
-function practiceNav() { const v = practiceViews(); return `<nav class="seg" aria-label="Practice">${v.map(x => `<button data-a="pv" data-v="${x[0]}" aria-current="${view.practice === x[0]}" style="font-size:${x[0] === 'remember' ? 14 : 15}px">${x[1]}</button>`).join('')}</nav>`; }
+function practiceNav() { const v = practiceViews(); return `<nav class="seg" aria-label="Practice">${v.map(x => `<button data-a="pv" data-v="${x[0]}" aria-current="${view.practice === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>`; }
 
 /* ---------- Sit ---------- */
 let focusHidden = false;
@@ -1117,7 +1169,8 @@ function sitHtml() {
   return `${running ? `<button class="card now" data-a="med-show" style="text-align:left;cursor:pointer"><span class="eyebrow">Meditating</span><div class="timer" id="med-time" style="font-size:40px;text-align:left">00:00</div><span class="tiny">Tap to return</span></button>` : `
   <section class="card stack"><h2>Gauri Shankar</h2><p class="muted small">One hour, four stages. Opens the music in Spotify and starts the timer.</p><button class="btn primary big" data-a="med-start" data-k="gs">Begin Gauri Shankar</button><button class="btn" data-a="med-start" data-k="plain">Just sit, with a timer</button></section>`}
   <details class="fold"><summary>The four stages</summary><div class="stack">${GS_STAGES.map(s => `<div><strong>${esc(s[0])}</strong><p class="small muted" style="margin-top:4px">${esc(s[1])}</p></div>`).join('')}${S.profile.bpSafe ? '<div class="warnbox"><p class="tiny">With blood pressure, keep the breath-holds in the first stage short and easy. Stillness, not strain.</p></div>' : ''}<p class="tiny">Instructions from <a href="https://oshoworld.com/poona-gourishankar-meditation" target="_blank" rel="noopener">Osho World</a>.</p></div></details>
-  ${recent.length ? `<h3>Recent</h3><ul class="list">${recent.map(m => `<li class="li"><div class="t"><strong>${m.minutes} min</strong><span>${fmtDay(m.date)}${m.kind === 'plain' ? ' · sitting' : ''}</span></div><button class="link" data-a="med-del" data-id="${m.id}" aria-label="Remove this meditation">Remove</button></li>`).join('')}</ul>` : ''}`;
+  ${recent.length ? `<h3>Recent</h3><ul class="list">${recent.map(m => `<li class="li"><div class="t"><strong>${m.minutes} min</strong><span>${fmtDay(m.date)}${m.kind === 'plain' ? ' · sitting' : ''}</span></div><button class="link" data-a="med-del" data-id="${m.id}" aria-label="Remove this meditation">Remove</button></li>`).join('')}</ul>` : ''}
+  ${rememberHtml()}`;
 }
 
 /* ---------- Pray ---------- */
@@ -1134,9 +1187,12 @@ function prayHtml() {
 let listenCh = null, stayed = null; // stayed: {url, loading, err}
 const talkByUrl = {};
 TALKS.forEach((ch, ci) => ch[2].forEach((g, gi) => g[1].forEach((t, ti) => { talkByUrl[t[1]] = { ci, gi, ti, title: t[0], series: g[0] }; })));
-function shortTitle(series, title) { const norm = x => x.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); const a = norm(series), b = norm(title); if (a && b.startsWith(a) && b.length > a.length) { const rest = title.slice(title.length - (b.length - a.length)).trim(); if (/^\d/.test(rest)) return 'Talk ' + rest; } return title; }
+function shortTitle(series, title) { const norm = x => x.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); const a = norm(series), b = norm(title); if (a && b.startsWith(a) && b.length > a.length) { const rest = title.slice(title.length - (b.length - a.length)).trim(); const m = rest.match(/^(\d+)\s*(.*)$/); if (m) { let extra = m[2].trim(); if (extra && extra === extra.toUpperCase()) extra = extra.charAt(0) + extra.slice(1).toLowerCase(); return 'Talk ' + m[1] + (extra ? ' · ' + extra : ''); } } return title; }
 function isTextPage(url) { return !/oshoworld\.com|drive\.google\.com/.test(url); }
 function seriesState(g) { const h = g[1].filter(t => S.talks.heard[t[1]]).length; return { heard: h, all: h === g[1].length, next: g[1].find(t => !S.talks.heard[t[1]]) }; }
+document.addEventListener('click', e => { const a = e.target.closest('a[data-open]'); if (!a) return; S.talks.opened = a.dataset.open; save(); }, true);
+on('opened-heard', () => { const u = S.talks.opened; delete S.talks.opened; listenCh = talkByUrl[u] ? talkByUrl[u].ci : null; markHeard(u, true); });
+on('opened-later', () => { delete S.talks.opened; save(); render(); });
 on('ch-open', b => { listenCh = +b.dataset.c; render(); window.scrollTo(0, 0); });
 on('ch-back', () => { listenCh = null; stayed = null; render(); });
 function markHeard(url, v) {
@@ -1188,16 +1244,19 @@ on('read-save', () => { const t = $('#rd-t').value.trim(), p = parseInt($('#rd-p
 function listenHtml() {
   if (listenCh != null) {
     const ch = TALKS[listenCh]; let i = 0;
-    return `${backBar('Listen', 'ch-back')}<h2>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}</h2><p class="muted small">${esc(ch[1])} Swipe a talk right when you've heard it, or tap its lamp.</p>
+    const op2 = S.talks.opened && !S.talks.heard[S.talks.opened] && talkByUrl[S.talks.opened] && talkByUrl[S.talks.opened].ci === listenCh ? talkByUrl[S.talks.opened] : null;
+    return `${backBar('Listen', 'ch-back')}${op2 ? `<section class="card now stack" style="gap:10px"><span class="eyebrow">You opened</span><strong>${esc(shortTitle(op2.series, op2.title))}</strong><div class="btns"><button class="btn primary" data-a="opened-heard">Heard it</button><button class="btn" data-a="opened-later">Not yet</button></div></section>` : ''}<h2>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}</h2><p class="muted small">${esc(ch[1])} Tap a talk to open it. Light its lamp when you've heard it.</p>
     ${ch[2].map(g => { const st = seriesState(g); return `<section class="card flat" style="padding-bottom:6px"><div class="between" style="min-height:56px"><h3>${esc(g[0])}</h3>${st.all ? `<span class="lampbtn" aria-pressed="true" style="width:36px;height:36px;border:0;background:none">${diyaSvg(28)}</span>` : ''}</div>
-      ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++; return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(shortTitle(g[0], t[0]))}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><a class="name" href="${esc(url)}" target="_blank" rel="noopener">${esc(shortTitle(g[0], t[0]))}</a>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : heard ? '' : '<span class="tiny" style="color:var(--link)">Listen ›</span>'}</div>${themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
+      ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++; return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(shortTitle(g[0], t[0]))}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><a class="name" href="${esc(url)}" target="_blank" rel="noopener" data-open="${esc(url)}">${esc(shortTitle(g[0], t[0]))}</a>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : ''}</div>${themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
   }
+  const op = S.talks.opened && !S.talks.heard[S.talks.opened] && talkByUrl[S.talks.opened] ? talkByUrl[S.talks.opened] : null;
+  const back = op ? `<section class="card now stack" style="gap:10px"><span class="eyebrow">You opened</span><strong>${esc(shortTitle(op.series, op.title))} · ${esc(op.series)}</strong><div class="btns"><button class="btn primary" data-a="opened-heard">Heard it</button><button class="btn" data-a="opened-later">Not yet</button></div></section>` : '';
   const cont = [];
   TALKS.forEach(ch => ch[2].forEach(g => { const st = seriesState(g); if (st.heard && !st.all) { const last = g[1].map(t => S.talks.heard[t[1]] || '').sort().pop(); cont.push({ g, st, last }); } }));
   cont.sort((a, b) => a.last < b.last ? 1 : -1);
   const rd = S.witness.readings[0];
-  return `<section class="stack" style="gap:10px"><span class="eyebrow">Continue</span>
-  ${cont.slice(0, 3).map(c => `<a class="card now" href="${esc(c.st.next[1])}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:12px"><span><span class="tiny" style="display:block">${esc(c.g[0])}</span><strong>${esc(shortTitle(c.g[0], c.st.next[0]))} is next</strong></span><span style="color:var(--link);font-weight:600">Listen</span></a>`).join('') || '<p class="tiny">Mark a talk as heard and the next one waits here.</p>'}
+  return `${back}<section class="stack" style="gap:10px"><span class="eyebrow">Continue</span>
+  ${cont.slice(0, 3).map(c => `<a class="card now" href="${esc(c.st.next[1])}" target="_blank" rel="noopener" data-open="${esc(c.st.next[1])}" style="text-decoration:none;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:12px"><span><span class="tiny" style="display:block">${esc(c.g[0])}</span><strong>${esc(shortTitle(c.g[0], c.st.next[0]))} is next</strong></span><span aria-hidden="true" style="color:var(--ink3);font-size:24px">›</span></a>`).join('') || '<p class="tiny">Mark a talk as heard and the next one waits here.</p>'}
   <div class="card between"><span><span class="tiny" style="display:block">Reading</span><strong>${rd ? esc(rd.title) + ' · page ' + rd.page : 'No book yet'}</strong></span><button class="link" data-a="read-edit">${rd ? 'Update' : 'Add'}</button></div></section>
   <h3 style="margin-top:6px">All talks</h3>
   <div>${TALKS.map((ch, ci) => { const all = ch[2].reduce((a, g) => a + g[1].length, 0); return `<button class="navrow" data-a="ch-open" data-c="${ci}"><span>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}<small>${esc(ch[1])}</small></span></button>`; }).join('')}</div>`;
@@ -1244,7 +1303,8 @@ function writeHtml() {
   if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${new Date(e.created).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
-  <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Kept on this phone</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>`;
+  <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Kept on this phone</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
+  ${gratitudeHtml()}`;
 }
 on('j-home', () => { journalMode = 'home'; journalEdit = null; render(); });
 
@@ -1285,24 +1345,25 @@ on('stop-preview', () => showStop());
 on('stop-notify', () => { if ('Notification' in window) Notification.requestPermission().then(() => render()); });
 on('anger', () => showAnger(0));
 on('bell-ring', () => { T().bell.push(new Date().toISOString()); save(); bell(660, 1.2); render(); });
+function gratitudeHtml() { const d = day(todayKey()); return `<section class="card stack"><h2>Gratitude</h2><p class="muted small">Three lines before bed. Small things count the most.</p>${[0, 1, 2].map(i => `<input class="input" data-grat="${i}" value="${esc(d.gratitude[i] || '')}" placeholder="${i + 1}." aria-label="Gratitude ${i + 1}">`).join('')}</section>`; }
 function rememberHtml() {
   const r = S.remember, d = day(todayKey()), np = 'Notification' in window ? Notification.permission : 'none';
-  return `<section class="card stack"><h2>The Stop</h2><p class="muted small">A few unpredictable signals a day, sometimes none, never on the hour. When one appears, stop for a moment, just as you are.</p>
+  return `<h2 style="margin-top:10px">Through the day</h2><section class="card stack"><h2>The Stop</h2><p class="muted small">A few unpredictable signals a day, sometimes none, never on the hour. When one appears, stop for a moment, just as you are.</p>
   <label class="check"><input type="checkbox" data-a="stop-toggle" ${r.on !== false ? 'checked' : ''}>Signals on</label>
-  <div class="grid2"><div><label class="lab" for="st-from">From</label><input class="input" type="time" id="st-from" value="${esc(r.from || '08:00')}"></div><div><label class="lab" for="st-to">Until</label><input class="input" type="time" id="st-to" value="${esc(r.to || '22:00')}"></div></div>
-  <p class="tiny">Signals appear while Prakash is open, or the next time you open it.${np === 'granted' ? ' With the app in the background, one arrives as a silent notification.' : ''}</p>
+  <details class="fold"><summary class="small">Hours and how it works</summary><div class="stack"><div class="grid2"><div><label class="lab" for="st-from">From</label><input class="input" type="time" id="st-from" value="${esc(r.from || '08:00')}"></div><div><label class="lab" for="st-to">Until</label><input class="input" type="time" id="st-to" value="${esc(r.to || '22:00')}"></div></div>
+  <p class="tiny">Signals appear while Prakash is open, or the next time you open it.${np === 'granted' ? ' With the app in the background, one arrives as a silent notification.' : ''}</p><p class="tiny">A reminder can itself become mechanical. When this one does, change it or turn it off.</p></div></details>
   <div class="btns"><button class="btn" data-a="stop-preview">See one now</button>${np === 'default' ? '<button class="btn" data-a="stop-notify">Allow quiet notifications</button>' : ''}</div>
-  <p class="tiny">A reminder can itself become mechanical. When this one does, change it or turn it off.</p></section>
-  <section class="card stack"><h2>When anger comes</h2><p class="muted small">A three-step pause for the moment itself.</p><button class="btn primary big" data-a="anger">Open</button>
+</section>
+  <section class="card stack"><h2>When anger comes</h2><p class="muted small">A three-step pause for the moment itself.</p><button class="btn big" data-a="anger">Open the pause</button>
   <details class="fold"><summary class="small">Wait before replying</summary><div class="stack"><p class="small muted">Osho retells Gurdjieff's advice to wait twenty-four hours before replying in anger.</p><label class="lab" for="st-wait">Your own note (optional)</label><input class="input" id="st-wait" value="${esc(r.waitNote || '')}" placeholder="Sleep on it before sending."></div></details></section>
-  <section class="card stack"><h2>Bell of mindfulness</h2><p class="muted small">Ring it when you notice yourself speaking. Today's rings go at midnight.</p><button class="btn primary big" data-a="bell-ring">Ring the bell</button>${T().bell.length ? `<p class="tiny">Today: ${T().bell.map(fmtTime).join(' · ')}</p>` : ''}</section>
-  <section class="card stack"><h2>Gratitude</h2><p class="muted small">Three lines before bed. Small things count the most.</p>${[0, 1, 2].map(i => `<input class="input" data-grat="${i}" value="${esc(d.gratitude[i] || '')}" placeholder="${i + 1}." aria-label="Gratitude ${i + 1}">`).join('')}</section>
+  <section class="card stack"><h2>Bell of mindfulness</h2><p class="muted small">Ring it when you notice yourself speaking. Today's rings go at midnight.</p><button class="btn big" data-a="bell-ring">Ring the bell</button>${T().bell.length ? `<p class="tiny">Today: ${T().bell.map(fmtTime).join(' · ')}</p>` : ''}</section>
+
   <details class="card fold"><summary>Self-remembering, briefly</summary><div class="stack small"><p>Most of the day, attention pours outward into whatever is in front of us. Self-remembering divides it: one arrow stays with what is seen, one arrow returns to the one seeing.</p><p>It comes in moments, not as a state. Noticing that it was lost is itself a moment of remembering.</p><p>The practice is self-observation without judgement: watching what is here the way a mirror shows a face.</p><p class="tiny">This app can be a signal, never a teacher. The work is yours.</p></div></details>`;
 }
 
 R.practice = function () {
   const v = practiceViews(); if (!v.find(x => x[0] === view.practice)) view.practice = (v[0] || ['sit'])[0];
-  const body = { sit: sitHtml, pray: prayHtml, listen: listenHtml, write: writeHtml, remember: rememberHtml }[view.practice]();
+  const body = { sit: sitHtml, pray: prayHtml, listen: listenHtml, write: writeHtml }[view.practice]();
   if (view.practice === 'sit' && S.meditationTimer.startedAt && !focusHidden) return body;
   return `<div class="stack"><h1>Practice</h1>${practiceNav()}${body}</div>`;
 };
@@ -1377,7 +1438,7 @@ function bodyHtml() {
   <details class="fold"><summary class="small">More scale readings</summary><div class="grid2">${SCALE.slice(1).map(s => `<div><label class="lab" for="sc-${s[0]}">${s[1]}${s[2] ? ' (' + s[2] + ')' : ''}</label><input class="input" id="sc-${s[0]}" inputmode="decimal"></div>`).join('')}</div><p class="tiny" style="margin-top:8px">Bathroom scales can be several points out on body fat. Use the waist and photos as the truer guide.</p></details>
   <button class="btn primary" data-a="scale-add">Save weight</button>
   ${lineChart(ws.slice(-30).map(w => ({ date: w.date, v: +w.kg })), 'kg', p.goalWeight || null)}</section>
-  <section class="card stack"><h2>Sleep</h2><p class="muted small">Forgot the timer? Enter last night here.</p><div class="grid2"><div><label class="lab" for="sl-bed">Went to bed</label><input class="input" type="time" id="sl-bed" value="${esc(td.bedTime || '')}"></div><div><label class="lab" for="sl-woke">Woke</label><input class="input" type="time" id="sl-woke" value="${esc(td.wokeTime || '')}"></div></div><div><label class="lab" for="sl-h">Hours</label><input class="input" id="sl-h" inputmode="decimal" value="${td.sleep == null ? '' : td.sleep}"></div></section>
+  <section class="card stack" id="sleep-card"><h2>Sleep</h2><p class="muted small">Forgot the timer? Enter last night here.</p><div class="grid2"><div><label class="lab" for="sl-bed">Went to bed</label><input class="input" type="time" id="sl-bed" value="${esc(td.bedTime || '')}"></div><div><label class="lab" for="sl-woke">Woke</label><input class="input" type="time" id="sl-woke" value="${esc(td.wokeTime || '')}"></div></div><div><label class="lab" for="sl-h">Hours</label><input class="input" id="sl-h" inputmode="decimal" value="${td.sleep == null ? '' : td.sleep}"></div></section>
   <section class="card stack"><h2>Progress photos</h2><p class="muted small">Every two weeks. Front and side, same light, same spot. Photos stay on this phone and go into your backup.</p>
   <div class="btns"><label class="btn primary filebtn">Take photo<input type="file" accept="image/*" capture="environment" data-photo></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" data-photo></label></div>
   <div class="photogrid">${photos.map(ph => `<figure style="margin:0"><img data-psrc="${ph.id}" alt="Progress photo, ${fmtDate(ph.date)}"><figcaption class="between tiny"><span>${fmtDate(ph.date)}</span><button class="link" data-a="photo-del" data-id="${ph.id}" aria-label="Delete photo from ${fmtDate(ph.date)}">Delete</button></figcaption></figure>`).join('') || '<p class="tiny">No photos yet.</p>'}</div>
@@ -1477,7 +1538,7 @@ function rhythmHtml() {
 on('silent-day', b => { S.profile.silentWeekday = +b.dataset.d; save(); render(); });
 function sectionsHtml() {
   const m = mods();
-  return `<div class="stack">${backBar('You', 'you-home')}<h1>What to show</h1><p class="muted small">Hide what you don't use. Nothing is deleted.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit, Write, Remember'], ['spiritual', 'Prayers and talks', 'Pray, Listen']].map(x => `<button class="choice" data-a="mod" data-m="${x[0]}" aria-pressed="${!!m[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${m[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div></div>`;
+  return `<div class="stack">${backBar('You', 'you-home')}<h1>What to show</h1><p class="muted small">Hide what you don't use. Nothing is deleted.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit and Write'], ['spiritual', 'Prayers and talks', 'Pray, Listen']].map(x => `<button class="choice" data-a="mod" data-m="${x[0]}" aria-pressed="${!!m[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${m[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div></div>`;
 }
 on('mod', b => { const m = S.profile.modules; m[b.dataset.m] = !m[b.dataset.m]; save(); render(); });
 function geminiHtml() {
@@ -1553,7 +1614,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
   <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
-  <li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
+  <li>My dishes: make your own dish from its ingredients, say how many portions it makes, and it’s one tap to log after that.</li><li>Practice has four parts: Sit (meditation, the Stop, the anger pause, the bell), Pray, Listen and Write (journal and gratitude).</li><li>Open a talk, come back, and one tap lights its lamp.</li><li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ home: youHome, body: bodyHtml, bp: bpHtml, targets: targetsHtml, rhythm: rhythmHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
@@ -1576,7 +1637,7 @@ function showSetup(step) {
   let body = '';
   if (k === 'welcome') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Prakash</h1><p class="tiny" style="margin-top:-8px">Light</p><p class="journal-q">A quiet mirror for your day: food, movement, rest and practice. Nothing here scores you.</p><p class="muted">A few questions, about a minute. You can change every answer later in You.</p>`;
   if (k === 'welcome-back') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Welcome back</h1><p class="muted">Prakash has been made simpler. First, download a backup of what's on this phone, just in case.</p><button class="btn" data-a="su-backup">Download a backup</button><p style="margin-top:6px">What should Prakash keep?</p><div class="stack" style="gap:8px">${[['body', 'Keep my body history, clear food logs', 'Weight, waist, blood pressure, photos, workouts and journal stay'], ['all', 'Keep everything', 'All logs stay as they are'], ['fresh', 'Start completely fresh', 'Clears everything except these settings']].map(c => `<button class="choice" data-a="su-keep" data-c="${c[0]}" aria-pressed="${welcomeChoice === c[0]}"><span><strong>${c[1]}</strong><small>${c[2]}</small></span></button>`).join('')}</div>`;
-  if (k === 'sections') body = `<h2>What would you like to see?</h2><p class="muted">Hide anything you won't use. It can be shown again later.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit, write, remember'], ['spiritual', 'Prayers and talks', 'Pray, listen']].map(x => `<button class="choice" data-a="su-mod" data-m="${x[0]}" aria-pressed="${!!p.modules[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${p.modules[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div>`;
+  if (k === 'sections') body = `<h2>What would you like to see?</h2><p class="muted">Hide anything you won't use. It can be shown again later.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit and write'], ['spiritual', 'Prayers and talks', 'Pray, listen']].map(x => `<button class="choice" data-a="su-mod" data-m="${x[0]}" aria-pressed="${!!p.modules[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${p.modules[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div>`;
   if (k === 'about') body = `<h2>About you</h2><p class="muted">Used only to suggest targets. It stays on this phone.</p>
   <div class="chips">${[['man', 'Man'], ['woman', 'Woman'], ['', 'Rather not say']].map(x => `<button class="chip" data-a="su-sex" data-s="${x[0]}" aria-pressed="${(p.sex || '') === x[0]}">${x[1]}</button>`).join('')}</div>
   <div><label class="lab" for="su-dob">Date of birth</label><input class="input" type="date" id="su-dob" value="${p.dob || ''}" max="${todayKey()}"></div>
@@ -1633,7 +1694,7 @@ on('su-next', async () => {
   if (setupStep >= steps.length - 1) { finishSetup(); return; }
   setupStep++; showSetup();
 });
-function finishSetup() { const p = S.profile; p.setupDone = true; p.onboardedV = 1; delete S.needsWelcome; saveNow(); $('#setup').classList.remove('open'); setupStep = 0; go('today'); }
+function finishSetup() { const p = S.profile; if (!p.startedOn) p.startedOn = todayKey(); p.setupDone = true; p.onboardedV = 1; delete S.needsWelcome; saveNow(); $('#setup').classList.remove('open'); setupStep = 0; go('today'); }
 /* ================= BOOT ================= */
 S = load();
 window.__pkHoldReload = () => !!draft || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open');
