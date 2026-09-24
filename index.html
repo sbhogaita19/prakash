@@ -234,7 +234,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.2.3';
+const VERSION = '1.2.6';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -659,31 +659,48 @@ R.today = function () {
   </div>`;
 };
 /* ---------- Gemini (free tier, your own key, called straight from this phone) ---------- */
+/* Busy or overloaded (429, 5xx, "high demand"): wait 2 s, 5 s, 10 s and ask the same model again.
+   Still busy, or a model this key can't use: move on to the next model in GEMINI_MODELS.
+   A daily free limit that's used up isn't retried; waiting seconds won't bring it back. */
+let GEMINI_BACKOFF = [2000, 5000, 10000], GEMINI_WAIT_BUDGET = 45000;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function geminiBusy(status, why) { return status === 429 || status >= 500 || /high demand|overloaded|unavailable|try again later|temporarily|RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|INTERNAL/i.test(why); }
+function geminiDailyLimit(why) { return /per ?day|perday|daily|limit: ?0\b/i.test(why); }
 async function gemini(parts, opts) {
   opts = opts || {};
   const key = cleanKey(S.profile.geminiKey); if (!key) throw Error('nokey');
-  let lastErr = null;
+  let lastErr = null, busyErr = null, waited = 0;
   const models = S.profile.geminiModel ? [S.profile.geminiModel, ...GEMINI_MODELS.filter(m => m !== S.profile.geminiModel)] : GEMINI_MODELS;
+  const body = { contents: [{ parts }] };
+  if (opts.schema) body.generationConfig = { responseMimeType: 'application/json', responseSchema: opts.schema };
+  if (opts.tools) body.tools = opts.tools;
+  const payload = JSON.stringify(body);
   for (const model of models) {
-    const body = { contents: [{ parts }] };
-    if (opts.schema) body.generationConfig = { responseMimeType: 'application/json', responseSchema: opts.schema };
-    if (opts.tools) body.tools = opts.tools;
-    let r, j;
-    try { r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) }); j = await r.json().catch(() => null); }
-    catch (e) { const x = Error('offline'); x.detail = String(e && e.message || e); throw x; }
-    const msg = (j && j.error && j.error.message) || '';
-    if (!r.ok) {
+    for (let attempt = 0; ; attempt++) {
+      let r, j;
+      try { r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: payload }); j = await r.json().catch(() => null); }
+      catch (e) { const x = Error('offline'); x.detail = String(e && e.message || e); throw x; }
+      const msg = (j && j.error && j.error.message) || '';
+      if (r.ok) {
+        const text = ((j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('').trim();
+        if (!text) { const e = Error('empty'); e.detail = j && j.promptFeedback ? JSON.stringify(j.promptFeedback) : ''; throw e; }
+        if (S.profile.geminiModel !== model) { S.profile.geminiModel = model; save(); }
+        return text;
+      }
       const e = Error(msg || ('HTTP ' + r.status)); e.status = r.status; e.detail = msg; e.model = model; e.gstatus = (j && j.error && j.error.status) || ''; e.reason = ((j && j.error && j.error.details) || []).map(d => d && d.reason).filter(Boolean).join(' ');
-      // this model isn't available to this key (renamed, not on the free plan, or its quota is used up): try the next one
-      if (r.status === 404 || r.status === 429 || /not found|not supported|no longer available|deprecated|quota|not available|free tier/i.test(msg)) { lastErr = e; continue; }
+      const why = msg + ' ' + e.gstatus + ' ' + e.reason;
+      if (geminiBusy(r.status, why)) {
+        e.busy = !geminiDailyLimit(why); lastErr = e; if (e.busy) busyErr = e;
+        const wait = GEMINI_BACKOFF[attempt];
+        if (e.busy && wait != null && waited + wait <= GEMINI_WAIT_BUDGET) { waited += wait; if (opts.onWait) try { opts.onWait(attempt + 1); } catch (x) {} await sleep(wait); continue; }
+        break; // still busy after the retries, or a used-up limit: try the next model
+      }
+      // this model isn't available to this key (renamed, not on the free plan): try the next one
+      if (r.status === 404 || /not found|not supported|no longer available|deprecated|not available|free tier/i.test(msg) && !/api key/i.test(msg)) { lastErr = e; break; }
       throw e;
     }
-    const text = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('').trim();
-    if (!text) { const e = Error('empty'); e.detail = j && j.promptFeedback ? JSON.stringify(j.promptFeedback) : ''; throw e; }
-    if (S.profile.geminiModel !== model) { S.profile.geminiModel = model; save(); }
-    return text;
   }
-  throw lastErr || Error('model');
+  throw busyErr || lastErr || Error('model');
 }
 function cleanKey(k) { return String(k || '').replace(/[^A-Za-z0-9._-]/g, ''); }
 function geminiErr(e) {
@@ -698,7 +715,9 @@ function geminiErr(e) {
   if (e && (e.status === 400 || e.status === 403) && /api key|api_key|key not valid|expired/i.test(m)) return 'Google didn’t accept the key. Copy it again from aistudio.google.com and paste it here.';
   if (e && e.status === 403 && /referer|referrer/i.test(m)) return 'The key is restricted to certain websites. In Google AI Studio, remove the website restriction, or create a new key.';
   if (e && e.status === 403 && /has not been used|disabled|enable/i.test(m)) return 'This key belongs to a Google Cloud project without the Gemini API switched on. The easiest fix: create a new key at aistudio.google.com/apikey.';
+  if (e && e.busy) return 'Gemini is busy right now. Try again in a minute, or enter the numbers yourself.';
   if (e && (e.status === 429 || /quota/i.test(m))) return 'The free Gemini limit is used up for now. Try again later, or enter the numbers yourself.';
+  if (e && e.status >= 500) return 'Gemini is busy right now. Try again in a minute, or enter the numbers yourself.';
   if (m === 'model') return 'None of the Gemini models answered this key.';
   return 'Gemini couldn’t answer. Try again, or enter the numbers yourself.';
 }
@@ -922,7 +941,7 @@ async function lookupBarcode(code) {
 
 /* ---------- photo / describe a dish, with Gemini ---------- */
 const EST_SCHEMA = { type: 'OBJECT', properties: { dish: { type: 'STRING' }, portion: { type: 'STRING' }, ingredients: { type: 'ARRAY', items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, grams: { type: 'NUMBER' }, kcal: { type: 'NUMBER' }, protein: { type: 'NUMBER' }, fat: { type: 'NUMBER' }, carbs: { type: 'NUMBER' }, fibre: { type: 'NUMBER' }, isAddedFat: { type: 'BOOLEAN' } }, required: ['name', 'grams', 'kcal', 'protein', 'fat', 'carbs'] } }, assumptions: { type: 'STRING' } }, required: ['dish', 'portion', 'ingredients'] };
-on('add-photo', () => { ADD.mode = 'photo'; ADD.est = ADD.est || { name: ADD.q.trim(), details: '', file: null, url: '', loading: false, err: '', ings: null, portion: '1 portion', servings: 1, save: true, manual: !S.profile.geminiKey }; addRender(); });
+on('add-photo', () => { ADD.mode = 'photo'; ADD.est = ADD.est || { name: ADD.q.trim(), details: '', file: null, url: '', loading: false, err: '', ings: null, portion: '1 portion', servings: 1, save: true, manual: false }; addRender(); });
 function estTotals(e) { const t = { kcal: 0, protein: 0, fat: 0, carbs: 0, fibre: 0 }; (e.ings || []).forEach(i => { const g = i.grams; t.kcal += i.r.k * g; t.protein += i.r.p * g; t.fat += i.r.f * g; t.carbs += i.r.c * g; t.fibre += i.r.b * g; }); for (const x in t) t[x] = t[x] * e.servings; return { kcal: n0(t.kcal), protein: n1(t.protein), fat: n1(t.fat), carbs: n1(t.carbs), fibre: n1(t.fibre) }; }
 function estimateHtml() {
   const e = ADD.est; const hasKey = !!S.profile.geminiKey;
@@ -932,10 +951,11 @@ function estimateHtml() {
   ${e.url ? `<img src="${e.url}" alt="Your dish" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px">` : ''}
   <div class="btns"><label class="btn filebtn">${e.file ? 'Retake photo' : 'Take photo'}<input type="file" accept="image/*" capture="environment" id="est-cam"></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" id="est-pick"></label></div>
   <div><label class="lab" for="est-details">What's in it? (optional, helps)</label><input class="input" id="est-details" value="${esc(e.details)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
-  ${hasKey ? `<button class="btn primary big" data-a="est-go" ${e.loading ? 'disabled' : ''}>${e.loading ? 'Gemini is looking…' : e.ings ? 'Ask Gemini again' : 'Fill in with Gemini'}</button>` : `<div class="okbox small">Connect Gemini (free) in You › Connect Gemini, and it fills this in from a photo.</div>`}
+  ${hasKey ? `<button class="btn primary big" data-a="est-go" ${e.loading ? 'disabled' : ''}>${e.loading ? (e.wait || 'Gemini is looking…') : e.ings ? 'Ask Gemini again' : 'Fill in with Gemini'}</button>` : `<div class="okbox small">Connect Gemini (free) in You › Connect Gemini, and it fills this in from a photo.</div>`}
   ${e.err ? `<p class="small" style="color:var(--danger)">${esc(e.err)}</p>` : ''}
-  ${tot ? `<section class="card stack" style="gap:6px"><span class="eyebrow">Gemini's estimate · ${esc(e.portion)}</span><div class="big-num">${big(tot.kcal)} calories</div><p class="small">${tot.protein} g protein · ${tot.fat} g fat · ${tot.carbs} g carbs · ${tot.fibre} g fibre</p></section>
-  <h3>What Gemini thinks is in it</h3>
+  ${otherAiHtml(e, hasKey, tot)}
+  ${tot ? `<section class="card stack" style="gap:6px"><span class="eyebrow">${e.other ? 'The estimate' : 'Gemini’s estimate'} · ${esc(e.portion)}</span><div class="big-num">${big(tot.kcal)} calories</div><p class="small">${tot.protein} g protein · ${tot.fat} g fat · ${tot.carbs} g carbs · ${tot.fibre} g fibre</p></section>
+  <h3>${e.other ? 'What’s in it' : 'What Gemini thinks is in it'}</h3>
   <div>${e.ings.map((i, ix) => { const oil = i.oil; const step = oil ? 5 : 10; const row = `<div class="between" style="min-height:56px"><span class="${oil ? '' : ''}" style="flex:1">${esc(i.name)}</span><span class="stepper"><button class="step" data-a="est-g" data-i="${ix}" data-d="-${step}" aria-label="Less ${esc(i.name)}">−</button><span class="val">${n0(i.grams)} g</span><button class="step" data-a="est-g" data-i="${ix}" data-d="${step}" aria-label="More ${esc(i.name)}">+</button></span></div>`; return oil ? `<div class="warnbox" style="margin:6px 0">${row}<p class="tiny">A photo can't see oil or ghee. Check this one.</p></div>` : `<div style="border-bottom:1px solid var(--hair2)">${row}</div>`; }).join('')}</div>
   <div class="between"><span>How many portions</span><span class="stepper"><button class="step" data-a="est-serv" data-d="-0.5" aria-label="Fewer">−</button><span class="val">${fmtQ(e.servings)}</span><button class="step" data-a="est-serv" data-d="0.5" aria-label="More">+</button></span></div>
   ${e.assumptions ? `<details class="fold"><summary>Gemini's assumptions</summary><p class="small muted">${esc(e.assumptions)}</p></details>` : ''}` : ''}
@@ -945,12 +965,62 @@ function estimateHtml() {
 }
 function bindEstimate(b) {
   const e = ADD.est;
-  const nm = $('#est-name', b); if (nm) nm.oninput = x => { e.name = x.target.value; };
-  const dt = $('#est-details', b); if (dt) dt.oninput = x => { e.details = x.target.value; };
+  const syncPrompt = () => { const t = $('#ai-prompt', b); if (t) t.value = otherAiPrompt(e); const q = encodeURIComponent(otherAiPrompt(e)); $$('a[data-a=ai-copy]', b).forEach(l => { l.href = l.href.split('?q=')[0] + '?q=' + q; }); };
+  const nm = $('#est-name', b); if (nm) nm.oninput = x => { e.name = x.target.value; syncPrompt(); };
+  const dt = $('#est-details', b); if (dt) dt.oninput = x => { e.details = x.target.value; syncPrompt(); };
+  const ar = $('#ai-reply', b); if (ar) ar.oninput = x => { e.reply = x.target.value; };
   const sv = $('#est-save', b); if (sv) sv.onchange = x => { e.save = x.target.checked; };
   const pick = x => { const f = x.target.files && x.target.files[0]; if (!f) return; if (!f.type.startsWith('image/')) { toast('Choose a photo.'); return; } if (e.url) URL.revokeObjectURL(e.url); e.file = f; e.url = URL.createObjectURL(f); addRender(); };
   ['#est-cam', '#est-pick'].forEach(s => { const i = $(s, b); if (i) i.onchange = pick; });
 }
+/* ---------- when Gemini isn't there or isn't working: ask Claude or ChatGPT, paste the answer back ---------- */
+function otherAiPrompt(e) {
+  const p = S.profile;
+  return `Estimate the nutrition for one portion of a meal${p.vegetarian ? ' (I’m vegetarian' + (p.eggFree ? ', no eggs' : '') + ')' : ''}.
+Dish: ${(e.name || '').trim() || 'see the photo'}.${(e.details || '').trim() ? '\nWhat’s in it: ' + e.details.trim() : ''}${e.file ? '\nI’m attaching a photo of it.' : ''}
+List the main ingredients with realistic grams for one portion. Always include cooking oil, ghee or butter as its own line, with a realistic home-cooking amount.
+Reply ONLY with lines in exactly this format. No table, no bullets, no other text:
+DISH: name | portion
+ingredient | grams g | kcal kcal | protein g protein | fat g fat | carbs g carbs | fibre g fibre`;
+}
+function otherAiHtml(e, hasKey, tot) {
+  if (tot && !e.other) return '';
+  const q = encodeURIComponent(otherAiPrompt(e)), open = !hasKey || !!e.err || !!e.reply;
+  return `<details class="fold" ${open ? 'open' : ''}><summary>Ask AI${hasKey ? ' (if Gemini isn’t working)' : ''}</summary><div class="stack">
+  <p class="small muted">Here’s the prompt. Copy it into any AI: Claude, ChatGPT, Gemini, Copilot${e.file ? '. Attach your photo there too' : ''}. Then copy its whole answer and paste it below.</p>
+  <textarea class="input" id="ai-prompt" readonly rows="7" style="font-size:14px;line-height:1.45" aria-label="The prompt">${esc(otherAiPrompt(e))}</textarea>
+  <button class="btn primary" data-a="ai-copy">Copy the prompt</button>
+  <div class="btns"><a class="btn" href="https://claude.ai/new?q=${q}" target="_blank" rel="noopener" data-a="ai-copy">Open Claude</a><a class="btn" href="https://chatgpt.com/?q=${q}" target="_blank" rel="noopener" data-a="ai-copy">Open ChatGPT</a></div>
+  <div><label class="lab" for="ai-reply">Paste the answer here</label><textarea class="input" id="ai-reply" placeholder="DISH: … then one line per ingredient">${esc(e.reply || '')}</textarea></div>
+  <button class="btn primary" data-a="ai-use">Use this answer</button></div></details>`;
+}
+on('ai-copy', async b => { const txt = otherAiPrompt(ADD.est); try { await navigator.clipboard.writeText(txt); if (b.tagName !== 'A') toast('Prompt copied. Paste it into any AI.'); } catch (x) { if (b.tagName !== 'A') { const t = $('#ai-prompt'); if (t) { t.focus(); t.select(); } toast('Select the prompt and copy it.'); } } });
+function parseOtherAi(txt) {
+  const out = { dish: '', portion: '', ings: [] }; txt = String(txt || '').replace(/\*\*/g, '');
+  try { const m = txt.match(/\{[\s\S]*\}/); if (m) { const j = JSON.parse(m[0]); if (Array.isArray(j.ingredients)) { out.dish = j.dish || ''; out.portion = j.portion || ''; j.ingredients.forEach(i => { if (i && +i.grams > 0) out.ings.push({ name: String(i.name || 'Ingredient'), grams: +i.grams, k: +i.kcal || 0, p: +i.protein || 0, f: +i.fat || 0, c: +i.carbs || 0, b: +i.fibre || +i.fiber || 0 }); }); if (out.ings.length) return out; } } } catch (x) {}
+  const numIn = (s, re) => { const m = s.match(re); return m ? parseFloat(m[1]) : null; };
+  txt.split(/\n/).forEach(line => {
+    let l = line.trim().replace(/^[-•*\d.)\s]+(?=[A-Za-z])/, ''); if (!l) return;
+    const dm = l.match(/^dish\s*:\s*(.*)$/i); if (dm) { const [d, pt] = dm[1].split('|').map(x => x.trim()); out.dish = d || ''; out.portion = pt || ''; return; }
+    if (!l.includes('|') || /^\|?\s*:?-{2,}/.test(l)) return;
+    const cells = l.replace(/^\||\|$/g, '').split('|').map(x => x.trim()); if (cells.length < 3) return;
+    const name = cells[0]; if (!name || !/[a-z]/i.test(name) || /^(ingredient|item|food)s?$/i.test(name)) return;
+    const rest = cells.slice(1).join(' | ');
+    const grams = numIn(cells[1], /([\d.]+)/), k = numIn(rest, /([\d.]+)\s*k?cal/i), p = numIn(rest, /([\d.]+)\s*g?\s*protein/i), f = numIn(rest, /([\d.]+)\s*g?\s*fat/i), c = numIn(rest, /([\d.]+)\s*g?\s*carb/i), fb = numIn(rest, /([\d.]+)\s*g?\s*fib/i);
+    const nums = cells.slice(1).map(x => parseFloat(x)).filter(x => !isNaN(x));
+    const r = { name, grams: grams || 0, k: k != null ? k : nums[1], p: p != null ? p : nums[2], f: f != null ? f : nums[3], c: c != null ? c : nums[4], b: fb != null ? fb : nums[5] };
+    if (r.grams > 0 && r.k != null && !isNaN(r.k)) out.ings.push({ ...r, p: +r.p || 0, f: +r.f || 0, c: +r.c || 0, b: +r.b || 0 });
+  });
+  return out;
+}
+on('ai-use', () => {
+  const e = ADD.est, txt = ($('#ai-reply') || {}).value || e.reply || ''; if (!txt.trim()) { toast('Paste the answer first.'); return; }
+  const r = parseOtherAi(txt); if (!r.ings.length) { toast('Couldn’t read that answer. Copy all of it, or enter the numbers yourself.'); return; }
+  e.ings = r.ings.map(i => ({ name: i.name, grams: n0(i.grams), oil: /oil|ghee|butter/i.test(i.name), r: { k: i.k / i.grams, p: i.p / i.grams, f: i.f / i.grams, c: i.c / i.grams, b: i.b / i.grams } }));
+  e.portion = r.portion || '1 portion'; e.assumptions = ''; e.servings = 1; e.manualNums = false; e.other = true; e.err = '';
+  if (!(e.name || '').trim()) e.name = r.dish || 'Dish';
+  addRender();
+});
 on('est-g', b => { const i = ADD.est.ings[+b.dataset.i]; i.grams = Math.max(0, i.grams + (+b.dataset.d)); addRender(); });
 on('est-serv', b => { const e = ADD.est; e.servings = Math.max(0.5, e.servings + (+b.dataset.d)); addRender(); });
 on('est-manual', () => {
@@ -960,7 +1030,7 @@ on('est-manual', () => {
 });
 on('est-add', () => {
   const e = ADD.est, name0 = (e.name || 'Dish').trim(), name = name0.charAt(0).toUpperCase() + name0.slice(1); const per = estTotals({ ...e, servings: 1 });
-  const cand = { name, per: 'portion', k: per.kcal, p: per.protein, f: per.fat, c: per.carbs, b: per.fibre, portionLabel: e.portion || '1 portion', src: e.manualNums ? 'Entered by you' : 'Gemini estimate, checked by you' };
+  const cand = { name, per: 'portion', k: per.kcal, p: per.protein, f: per.fat, c: per.carbs, b: per.fibre, portionLabel: e.portion || '1 portion', src: e.manualNums ? 'Entered by you' : e.other ? 'Estimate from another AI, checked by you' : 'Gemini estimate, checked by you' };
   if (e.save) { const ex = S.dishes.findIndex(x => x.name.toLowerCase() === name.toLowerCase()); const dish = { ...cand, id: uid(), src: 'My dish', ingredients: (e.ings || []).map(i => ({ name: i.name, grams: i.grams })) }; if (ex >= 0) S.dishes[ex] = dish; else S.dishes.push(dish); }
   if (e.url) URL.revokeObjectURL(e.url);
   ADD.est = null; commitFood(cand, e.servings, 'portion');
@@ -974,14 +1044,14 @@ Break it into its main ingredients with realistic grams for ONE portion as descr
   const parts = [{ text: prompt }];
   try {
     if (e.file) { const data = await downscale(e.file, 1024, 0.8); parts.push({ inline_data: { mime_type: 'image/jpeg', data: data.split(',')[1] } }); }
-    const txt = await gemini(parts, { schema: EST_SCHEMA });
+    const txt = await gemini(parts, { schema: EST_SCHEMA, onWait: () => { e.wait = 'Google is busy. Trying again…'; const bt = $('[data-a=est-go]'); if (bt) bt.textContent = e.wait; } });
     const j = JSON.parse(txt);
     if (!j.ingredients || !j.ingredients.length) throw Error('Gemini sent back no ingredients.');
     e.ings = j.ingredients.filter(i => i && +i.grams > 0).map(i => { const g = +i.grams; return { name: String(i.name), grams: n0(g), oil: !!i.isAddedFat || /oil|ghee|butter/i.test(i.name), r: { k: (+i.kcal || 0) / g, p: (+i.protein || 0) / g, f: (+i.fat || 0) / g, c: (+i.carbs || 0) / g, b: (+i.fibre || 0) / g } }; });
-    e.portion = j.portion || '1 portion'; e.assumptions = j.assumptions || ''; e.servings = 1; e.manualNums = false;
+    e.portion = j.portion || '1 portion'; e.assumptions = j.assumptions || ''; e.servings = 1; e.manualNums = false; e.other = false;
     if (!e.name.trim()) e.name = j.dish || 'Dish';
   } catch (err) { e.err = geminiErr(err); }
-  e.loading = false; if (ADD && ADD.est === e) addRender();
+  e.loading = false; e.wait = ''; if (ADD && ADD.est === e) addRender();
 });
 function downscale(file, max, q) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const s = Math.min(1, max / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', q)); }; img.onerror = () => rej(Error('photo')); img.src = String(r.result); }; r.onerror = () => rej(Error('photo')); r.readAsDataURL(file); }); }
 
@@ -1325,14 +1395,15 @@ on('talk-heard', b => { const url = b.dataset.url; markHeard(url, !S.talks.heard
 on('stayed-later', () => { stayed = null; render(); });
 on('themes-toggle', b => { const el = $('#th-' + b.dataset.i); if (el) el.hidden = !el.hidden; });
 on('themes-redo', b => { stayed = { url: b.dataset.url, loading: false, err: '' }; delete S.talks.themes[b.dataset.url]; save(); render(); });
+function busyNote() { if (stayed) { stayed.wait = 'Google is busy. Trying again…'; render(); } }
 async function themesFromPage(url) {
   stayed.loading = true; render();
   const info = talkByUrl[url];
   try {
-    const txt = await gemini([{ text: `Read this talk: ${url}\nIt is "${info.title}" (${info.series}).\nGive 3 to 5 key themes of the talk, each on its own line starting with "- ", in plain words, each under 15 words. Then one line starting with "Sit with: " giving one question from the talk to sit with. Use only what the page actually says; do not quote at length. If the page has no readable talk text, reply with exactly NO_TEXT.` }], { tools: [{ url_context: {} }] });
-    if (/NO_TEXT/.test(txt) || !/^-\s/m.test(txt)) { stayed.loading = false; stayed.note = 'Gemini couldn’t read this page, so tell it what stayed with you.'; render(); return; }
+    const txt = await gemini([{ text: `Read this talk: ${url}\nIt is "${info.title}" (${info.series}).\nGive 3 to 5 key themes of the talk, each on its own line starting with "- ", in plain words, each under 15 words. Then one line starting with "Sit with: " giving one question from the talk to sit with. Use only what the page actually says; do not quote at length. If the page has no readable talk text, reply with exactly NO_TEXT.` }], { tools: [{ url_context: {} }], onWait: busyNote });
+    if (/NO_TEXT/.test(txt) || !/^-\s/m.test(txt)) { stayed.loading = false; stayed.wait = ''; stayed.note = 'Gemini couldn’t read this page, so tell it what stayed with you.'; render(); return; }
     S.talks.themes[url] = { text: txt.trim(), from: 'page', created: new Date().toISOString() }; save(); stayed = null; render();
-  } catch (e) { if (stayed) { stayed.loading = false; stayed.err = geminiErr(e); render(); } }
+  } catch (e) { if (stayed) { stayed.loading = false; stayed.wait = ''; stayed.err = geminiErr(e); render(); } }
 }
 on('stayed-make', async b => {
   const url = b.dataset.url, v = ($('#stayed-text') || {}).value || ''; if (!v.trim()) { toast('A few words is enough.'); return; }
@@ -1340,14 +1411,14 @@ on('stayed-make', async b => {
   if (!S.profile.geminiKey) { S.talks.themes[url] = { text: v.trim(), from: 'you-raw', created: new Date().toISOString() }; save(); stayed = null; render(); return; }
   stayed.loading = true; stayed.draft = v; render();
   try {
-    const txt = await gemini([{ text: `Someone has just listened to the talk "${info.title}" (${info.series}). In their own words, this is what stayed with them:\n"""${v}"""\nShape only what they said into 2 to 5 short key themes, each on its own line starting with "- ", keeping their language. Add nothing they did not say. Then one line starting with "Sit with: " with a single gentle question drawn from their words.` }]);
+    const txt = await gemini([{ text: `Someone has just listened to the talk "${info.title}" (${info.series}). In their own words, this is what stayed with them:\n"""${v}"""\nShape only what they said into 2 to 5 short key themes, each on its own line starting with "- ", keeping their language. Add nothing they did not say. Then one line starting with "Sit with: " with a single gentle question drawn from their words.` }], { onWait: busyNote });
     S.talks.themes[url] = { text: txt.trim(), from: 'you', said: v.trim(), created: new Date().toISOString() }; save(); stayed = null; render();
-  } catch (e) { stayed.loading = false; stayed.err = geminiErr(e); render(); }
+  } catch (e) { stayed.loading = false; stayed.wait = ''; stayed.err = geminiErr(e); render(); }
 });
 function themesBlock(url, i) {
   const th = S.talks.themes[url];
   if (stayed && stayed.url === url) {
-    if (stayed.loading) return `<div class="themes"><p class="small">Gemini is ${isTextPage(url) && !stayed.draft ? 'reading the talk' : 'shaping your words'}…</p></div>`;
+    if (stayed.loading) return `<div class="themes"><p class="small">${stayed.wait ? esc(stayed.wait) : 'Gemini is ' + (isTextPage(url) && !stayed.draft ? 'reading the talk' : 'shaping your words') + '…'}</p></div>`;
     return `<div class="themes stack" style="gap:10px"><label for="stayed-text"><strong>What stayed with you?</strong></label><textarea class="input" id="stayed-text" placeholder="Say it or type it. A few words is enough.">${esc(stayed.draft || '')}</textarea>
     <p class="tiny">${esc(stayed.note || (isTextPage(url) ? '' : 'This talk is audio only, so Gemini can’t hear it.'))} ${S.profile.geminiKey ? 'Gemini shapes your words into key themes.' : 'It’s kept with the talk.'}</p>
     ${stayed.err ? `<p class="small" style="color:var(--danger)">${esc(stayed.err)}</p>` : ''}
@@ -1758,8 +1829,8 @@ on('g-save', async () => {
   const raw = $('#g-key').value, v = cleanKey(raw), st = $('#g-status'); if (!v) { toast('Paste the key first.'); return; }
   if (!/^(AQ\.|AIza)/.test(v)) st.innerHTML = '<p class="small">That doesn’t look like a Gemini key. Gemini keys start with ‘AQ.’ (older ones ‘AIza’). Testing anyway…</p>'; else st.innerHTML = '<p class="small">Testing…</p>';
   S.profile.geminiKey = v; delete S.profile.geminiModel; save(); $('#g-key').value = v;
-  try { await gemini([{ text: 'Reply with the single word: ready' }]); st.innerHTML = `<div class="okbox">Connected. Gemini answered (${esc(S.profile.geminiModel || '')}).</div>`; }
-  catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${esc(geminiErr(e))}</p>${e && e.status && e.detail ? `<p class="tiny" style="margin-top:6px">Google said: ${esc(String(e.detail).slice(0, 300))}${e.model ? ' (' + esc(e.model) + ')' : ''}</p>` : ''}</div>`; }
+  try { await gemini([{ text: 'Reply with the single word: ready' }], { onWait: () => { st.innerHTML = '<p class="small">Google is busy. Trying again…</p>'; } }); st.innerHTML = `<div class="okbox">Connected. Gemini answered (${esc(S.profile.geminiModel || '')}).</div>`; }
+  catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${esc(geminiErr(e))}</p>${e && e.status && e.detail ? `<details class="fold" style="margin-top:6px"><summary class="tiny">Details</summary><p class="tiny">${esc(String(e.detail).slice(0, 300))}${e.model ? ' (' + esc(e.model) + ')' : ''}</p></details>` : ''}</div>`; }
 });
 on('g-remove', () => { delete S.profile.geminiKey; delete S.profile.geminiModel; save(); render(); toast('Key removed from this phone.'); });
 function musicHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Meditation music</h1><p class="muted small">Begin Gauri Shankar opens this in Spotify. Paste a different album or playlist link to change it.</p><div><label class="lab" for="gs-link">Spotify link</label><input class="input" id="gs-link" inputmode="url" autocomplete="off" value="${esc(gsLink())}"></div><button class="btn" data-a="med-music">Open in Spotify</button></div>`; }
