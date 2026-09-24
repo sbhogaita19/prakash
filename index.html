@@ -609,14 +609,13 @@ TAB_RENDER.food = function(){
     <button class="btn primary" id="f-continue" ${pauseChoice?'':'disabled'}>Noticed. Continue to log</button>
     <p class="note">Whatever the answer, there is no judgement here. You noticed, and that is enough.</p>`;
   else pauseHtml=`<p class="note">Pause taken. Now log what you ate, as close to the real amounts as you can.</p>`;
+  const searchResultsHtml=()=>((searchMsg?`<p class="note">${esc(searchMsg)}</p>`:'')+'<div class="list">'+searchResults.map((r,i)=>`<button class="rowbtn" data-found="${i}"><span><strong>${esc(r.name)}</strong>${r.brand?`<span class="dim">, ${esc(r.brand)}</span>`:''}</span><span class="dim">${Math.round(r.kcal100)} kcal, ${Math.round(r.prot100)} g protein${r.fat100!=null?', '+Math.round(r.fat100)+' g fat':''}${r.carb100!=null?', '+Math.round(r.carb100)+' g carbs':''} per 100 g</span></button>`).join('')+'</div><p class="note">Results from Open Food Facts. Values are per 100 g from the packet label.</p>');
   let addHtml='';
   if(foodStage==='log'){
     let body='';
     if(foodTab==='staples') body=`<div class="list">${STAPLES.map((s,i)=>`<button class="rowbtn" data-staple="${i}"><span><strong>${esc(s[0])}</strong></span><span class="dim">${s[1]} kcal, ${s[2]} g protein, ${s[3]} g fat, ${s[4]} g carbs per ${esc(s[5])}</span></button>`).join('')}</div>`;
     else if(foodTab==='search') body=`<div class="searchrow"><input class="input" id="f-q" placeholder="Search a food, e.g. paneer" value="${esc(searchQuery)}"><button class="btn" id="f-go">Search</button></div>
-      ${searchMsg?`<p class="note">${esc(searchMsg)}</p>`:''}
-      <div class="list">${searchResults.map((r,i)=>`<button class="rowbtn" data-found="${i}"><span><strong>${esc(r.name)}</strong>${r.brand?`<span class="dim">, ${esc(r.brand)}</span>`:''}</span><span class="dim">${Math.round(r.kcal100)} kcal, ${Math.round(r.prot100)} g protein${r.fat100!=null?', '+Math.round(r.fat100)+' g fat':''}${r.carb100!=null?', '+Math.round(r.carb100)+' g carbs':''} per 100 g</span></button>`).join('')}</div>
-      <p class="note">Results from Open Food Facts. Values are per 100 g from the packet label.</p>`;
+      <div id="f-results">${searchResultsHtml()}</div>`;
     else if(foodTab==='scan') body=`<p class="note">Point the camera at the barcode on the packet, or type the number below. Nutrition comes from Open Food Facts and needs internet.</p>
       ${scanLive?`<video id="f-cam" autoplay playsinline muted style="width:100%;border-radius:8px;background:#000;min-height:200px"></video><div class="qr"><button class="btn" id="f-scanstop">Cancel scan</button></div><p class="note">Hold the barcode steady inside the frame. It is picked up automatically.</p>`:`<div class="qr"><button class="btn primary" id="f-scan">Scan a barcode</button></div>`}
       <div class="searchrow"><input class="input" inputmode="numeric" id="f-bc" placeholder="Barcode number, e.g. 3017620422003"><button class="btn" id="f-bclookup">Look up</button></div>
@@ -661,7 +660,7 @@ TAB_RENDER.food = function(){
     ${slot==='snack'?`<div class="field"><span class="label">What triggered it? Noticing, not judging.</span><div class="chips">${TRIGGERS.map(tr=>`<button class="chip${trigger===tr?' on':''}" data-tr="${esc(tr)}">${esc(tr)}</button>`).join('')}</div></div>`:''}`;
   }
   const recentFoods=[]; const seenRecent=new Set(); Object.keys(state.days).sort().reverse().forEach(dk=>(state.days[dk].foods||[]).slice().reverse().forEach(f=>{const sig=[f.name,f.kcal,f.protein,f.fat??'',f.carbs??'',f.fibre??'',f.slot||''].join('|');if(!seenRecent.has(sig)&&recentFoods.length<8){seenRecent.add(sig);recentFoods.push(f)}}));
-  const allLocalFoods=[];const localMap=new Map();Object.keys(state.days).sort().forEach(dk=>(state.days[dk].foods||[]).forEach(f=>{const key=f.name.toLowerCase();const old=localMap.get(key)||{...f,count:0,last:0};old.count++;old.last=Math.max(old.last,Number(f.ts)||dateFromKey(dk).getTime());localMap.set(key,old);}));allLocalFoods.push(...[...localMap.values()].sort((a,b)=>b.count-a.count||b.last-a.last));const localMatches=localFoodQuery.trim()?allLocalFoods.filter(f=>f.name.toLowerCase().includes(localFoodQuery.trim().toLowerCase())).slice(0,12):[];
+  const allLocalFoods=[];const localMap=new Map();Object.keys(state.days).sort().forEach(dk=>(state.days[dk].foods||[]).forEach(f=>{const key=f.name.toLowerCase();const old=localMap.get(key)||{...f,count:0,last:0};old.count++;old.last=Math.max(old.last,Number(f.ts)||dateFromKey(dk).getTime());localMap.set(key,old);}));allLocalFoods.push(...[...localMap.values()].sort((a,b)=>b.count-a.count||b.last-a.last));const computeLocalMatches=()=>localFoodQuery.trim()?allLocalFoods.filter(f=>f.name.toLowerCase().includes(localFoodQuery.trim().toLowerCase())).slice(0,12):[];let localMatches=computeLocalMatches();const localMatchesHtml=()=>localMatches.length?`<div class="quick-foods">${localMatches.map((f,i)=>`<button class="btn quick-food" data-localfood="${i}"><strong>${esc(f.name)}</strong><small>${f.count} time${f.count===1?'':'s'} logged</small></button>`).join('')}</div>`:(localFoodQuery.trim()?'<p class="note">No saved food by that name yet.</p>':'');
   const quickFoods=[...state.foodFavourites.map(f=>({...f,_quick:'Favourite'})),...recentFoods.filter(f=>!state.foodFavourites.some(x=>x.name===f.name&&x.kcal===f.kcal)).filter((f,i,a)=>a.findIndex(x=>x.name===f.name)===i).slice(0,6).map(f=>({...f,_quick:'Recent'}))];
   document.getElementById('tab-food').innerHTML=`
   ${weekStrip()}<div class="food-pause">${pauseHtml}</div>${addHtml}
@@ -674,7 +673,7 @@ TAB_RENDER.food = function(){
         <div class="setrow"><button class="btn mini" id="e-sminus" aria-label="Less">-</button><input class="input mini" style="width:96px" inputmode="decimal" id="e-serv" value="${editServ}"><button class="btn mini" id="e-splus" aria-label="More">+</button></div></div>
         <div class="qr"><button class="btn primary" id="e-save">Save changes</button><button class="btn" id="e-cancel">Cancel</button></div></div>`:''}`).join('')}</div>`:`<p class="tiny meal-empty">Nothing yet.</p>`}</div>`}).join('')})()}
   <p class="tiny food-window">Food window: about 6:30 am to 6:30 pm.</p>
-  <h2>Find your foods</h2><div class="food-find"><input class="input" id="f-local-find" value="${esc(localFoodQuery)}" placeholder="Type a food you have logged"></div>${localMatches.length?`<div class="quick-foods">${localMatches.map((f,i)=>`<button class="btn quick-food" data-localfood="${i}"><strong>${esc(f.name)}</strong><small>${f.count} time${f.count===1?'':'s'} logged</small></button>`).join('')}</div>`:(localFoodQuery.trim()?'<p class="note">No saved food by that name yet.</p>':'')}
+  <h2>Find your foods</h2><div class="food-find"><input class="input" id="f-local-find" value="${esc(localFoodQuery)}" placeholder="Type a food you have logged"></div><div id="f-local-results">${localMatchesHtml()}</div>
   <h2>Recent and favourite foods</h2>
   ${quickFoods.length?`<div class="quick-foods">${quickFoods.map((f,i)=>`<button class="btn quick-food" data-quickfood="${i}"><strong>${esc(f.name)}</strong><small>${f._quick} · one tap to add</small></button>`).join('')}</div>`:'<p class="note">Foods you log will appear here for one-tap reuse. Mark any entry as a favourite from Actions.</p>'}
   <details class="card fold"><summary>Pitta-Vata food orientation</summary><p class="note">A quiet Ayurvedic orientation, not a rulebook: notice what leaves you settled.</p><div class="facts"><div class="fact"><span>Often favours</span><strong>Warm, cooked, grounding meals · regular times · mild spicing · moist foods</strong></div><div class="fact"><span>Often worth easing off</span><strong>Excess chilli or heat · very dry, cold or raw-heavy meals · caffeine · irregular meals</strong></div></div><p class="tiny">Nothing is banned. This is a traditional Pitta-Vata lens, not medical advice; your own lived response remains the fact.</p></details>
@@ -694,8 +693,8 @@ TAB_RENDER.food = function(){
   const q=s=>sec.querySelector(s);
   const qa=s=>sec.querySelectorAll(s);
   bindWeek(sec,TAB_RENDER.food);
-  if(q('#f-local-find'))q('#f-local-find').oninput=e=>{localFoodQuery=e.target.value;TAB_RENDER.food();setTimeout(()=>{const x=document.querySelector('#f-local-find');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},0)};
-  qa('[data-localfood]').forEach(b=>b.onclick=()=>{const f=localMatches[Number(b.dataset.localfood)];if(!f)return;foodAwareness(()=>{d.foods.push({...f,id:uid(),ts:Date.now(),source:'Your local food history'});save();TAB_RENDER.food();toast('Added '+f.name+'.')})});
+  if(q('#f-local-find'))q('#f-local-find').oninput=e=>{localFoodQuery=e.target.value;localMatches=computeLocalMatches();const lr=q('#f-local-results');if(lr){lr.innerHTML=localMatchesHtml();bindLocalFood();}};
+  const bindLocalFood=()=>qa('[data-localfood]').forEach(b=>b.onclick=()=>{const f=localMatches[Number(b.dataset.localfood)];if(!f)return;foodAwareness(()=>{d.foods.push({...f,id:uid(),ts:Date.now(),source:'Your local food history'});save();TAB_RENDER.food();toast('Added '+f.name+'.')})});bindLocalFood();
   qa('[data-daynav]').forEach(b=>b.onclick=()=>{viewDate=addDaysKey(viewDate,Number(b.dataset.daynav));weekOffset=0;TAB_RENDER.food();});
   qa('[data-quickfood]').forEach(b=>b.onclick=()=>{const f=quickFoods[Number(b.dataset.quickfood)];if(!f)return;foodAwareness(()=>{d.foods.push({...f,id:uid(),ts:Date.now(),slot:f.slot||slot,snack:(f.slot||slot)==='snack',source:f._quick==='Favourite'?'Favourite reuse':'Recent reuse'});save();TAB_RENDER.food();toast('Added '+f.name+'.');});});
   const repeatMeal=sl=>{const prev=state.days[addDaysKey(k,-1)],items=prev?(prev.foods||[]).filter(f=>(f.slot||(f.snack?'snack':''))===sl):[];if(!items.length){toast('No matching meal on the previous day.');return;}foodAwareness(()=>{items.forEach(f=>d.foods.push({...f,id:uid(),ts:Date.now(),source:'Repeated from previous day'}));save();TAB_RENDER.food();toast('Previous meal repeated.');});};
@@ -713,7 +712,7 @@ TAB_RENDER.food = function(){
     if(s[6]){ pick.serveGrams=s[6]; pick.serveLabel=s[7]||'serving'; }
     if(s[8]==='s'&&s[6]){ pick.mode='s'; pick.qty='1'; }
     TAB_RENDER.food(); });
-  qa('[data-found]').forEach(b=>b.onclick=()=>{ const r=searchResults[parseInt(b.dataset.found,10)]; pick={name:r.name,kcal100:r.kcal100,prot100:r.prot100,fat100:r.fat100,carb100:r.carb100,fib100:r.fib100,per:'100 g',defGrams:'100',qty:'100',mode:'w',serveGrams:r.serveGrams,serveLabel:r.serveLabel}; TAB_RENDER.food(); });
+  const bindFound=()=>qa('[data-found]').forEach(b=>b.onclick=()=>{ const r=searchResults[parseInt(b.dataset.found,10)]; pick={name:r.name,kcal100:r.kcal100,prot100:r.prot100,fat100:r.fat100,carb100:r.carb100,fib100:r.fib100,per:'100 g',defGrams:'100',qty:'100',mode:'w',serveGrams:r.serveGrams,serveLabel:r.serveLabel}; TAB_RENDER.food(); });bindFound();
   qa('[data-slot]').forEach(b=>b.onclick=()=>{ slot=b.dataset.slot; TAB_RENDER.food(); });
   qa('[data-ms]').forEach(b=>b.onclick=()=>{ macroScope=b.dataset.ms; TAB_RENDER.food(); });
   if(q('#w-evadd')) q('#w-evadd').onclick=()=>{ const n=q('#w-evn').value.trim(), dtv=q('#w-evd').value, ex=parseInt(q('#w-eve').value,10); if(!n||!dtv||!(ex>0)){ toast('Name, date and expected extra are needed.'); return; } (state.events||(state.events=[])).push({id:uid(),name:n,date:dtv,extra:ex}); save(); TAB_RENDER.food(); toast('Event added.'); };
@@ -798,7 +797,7 @@ TAB_RENDER.food = function(){
   if(q('#f-go')) q('#f-go').onclick=async ()=>{
     const query=q('#f-q').value.trim(); if(!query) return;
     searchQuery=query;
-    searchMsg='Searching...'; searchResults=[]; TAB_RENDER.food();
+    searchMsg='Searching...'; searchResults=[]; const frs=q('#f-results'); if(frs)frs.innerHTML=searchResultsHtml();
     const url='https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(query)+'&search_simple=1&action=process&json=1&page_size=12&fields=product_name,brands,nutriments,serving_size';
     let httpErr=false;
     try{
@@ -833,7 +832,7 @@ TAB_RENDER.food = function(){
         ?'Open Food Facts is busy right now. Wait a moment and search again - Staples and Custom always work.'
         :'Search could not reach Open Food Facts. Check the internet connection; if a content blocker or Brave Shields is on, allow world.openfoodfacts.org. Staples and Custom work offline.';
     }
-    TAB_RENDER.food();
+    const frf=q('#f-results'); if(frf){frf.innerHTML=searchResultsHtml(); bindFound();} else TAB_RENDER.food();
   };
   if(q('#f-q')) q('#f-q').onkeydown=e=>{ if(e.key==='Enter') q('#f-go').click(); };
   function scaleEdit(ns){ ns=Math.min(20,Math.max(0.5,Math.round(ns*2)/2)); if(!isFinite(ns)||ns<=0) return; const old=editServ>0?editServ:1; const f=ns/old; editServ=ns;
@@ -1377,6 +1376,7 @@ TAB_RENDER.data = function(){
   </div>
   ${backupImportPreview?`<div class="import-result"><strong>Restore preview - nothing written yet</strong><br>${backupImportPreview.rows} food rows · ${backupImportPreview.dateMin||'no dated days'} to ${backupImportPreview.dateMax||'no dated days'}<br>${backupImportPreview.duplicates} dates already exist on this phone · ${backupImportPreview.anomalies.length} anomal${backupImportPreview.anomalies.length===1?'y':'ies'}${backupImportPreview.anomalies.length?`<ul class="plain">${backupImportPreview.anomalies.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>`:''}<p class="note">Restore replaces the current local Prakash data with this backup. Export the current data first if you need both.</p><div class="qr"><button class="btn primary" id="d-import-apply">Restore this backup</button><button class="btn" id="d-import-cancel">Cancel</button></div></div>`:''}
   <div class="card fresh-card"><h2>Start fresh</h2><p class="note">Begin again without losing the past. Prakash first downloads one complete backup, including journal voice notes. Only your logs are then cleared; the app and your saved settings stay.</p><button class="btn danger" id="d-fresh">Download backup and start fresh</button><div id="d-fresh-status"></div></div>
+  <details class="card fold"><summary>What's new &middot; v71</summary><ul class="plain"><li>Food search stays still now. Typing a saved food or searching Open Food Facts no longer rebuilds the page under your fingers - only the results change, so the keyboard and the page hold their place.</li></ul></details>
   <details class="card fold"><summary>What's new &middot; v70</summary><ul class="plain"><li>The Journal's third question no longer asks what love would do. It stays with the one who is watching, and asks where the 'I' rises from.</li></ul></details>
   <details class="card fold"><summary>What's new &middot; v69</summary><ul class="plain"><li>The sleep timer lives wholly on Today now: the evening card starts the night, and while a night is running the same card offers "I woke up" - at any hour. More keeps only the written record.</li></ul></details>
   <details class="card fold"><summary>What's new &middot; v68</summary><ul class="plain"><li>Bedtime and wake time entered by hand now work out the sleep hours themselves.</li><li>Practice and Remember are separate rooms now: meditation on one side; the Stop, the anger pause and the bell on the other. Truths - the plain daily facts - have moved to More.</li><li>Only workouts are counted beside practice; sits are simply facts in Truths.</li><li>Reading places fold into Talks & Prayers; the Reading tab is gone.</li><li>The food button says "Log food" - the pause above it already says the rest.</li><li>The sleep timer starts from Today's evening card; More keeps the record, and the "I woke up" while a night is running.</li><li>A zero on the dashboard now reads "not yet" instead of a scoreboard fraction.</li></ul></details>
