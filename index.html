@@ -97,6 +97,13 @@ details.fold>summary:after{content:'›';font-size:22px;color:var(--ink3);transi
 details.fold[open]>summary:after{transform:rotate(90deg)}
 .warnbox{background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:14px;padding:10px 12px}
 .warnbox .tiny{color:var(--warn-ink)}
+.hint{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--now);border:1px solid var(--now-line);border-radius:14px;padding:10px 12px 10px 14px;font-size:15px;line-height:1.4}
+.hint .link{flex:none;padding:6px 4px}
+html.big-text{zoom:1.18}
+html.big-text .rings3-svg{width:min(38vw,150px)}
+html.big-text .rings3-top{gap:14px}
+html.big-text .rings3-keys .rs{white-space:nowrap}
+.wchart .day{opacity:.35}
 .okbox{background:var(--now);border:1px solid var(--now-line);border-radius:14px;padding:12px 14px}
 /* top */
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -180,6 +187,10 @@ nav.tabs svg{width:24px;height:24px}
 /* practice */
 .talk{display:flex;align-items:center;gap:8px;min-height:60px;border-top:1px solid var(--hair2);touch-action:pan-y;transition:background .2s}
 .talk .name{flex:1;min-width:0;font-size:16px;color:var(--ink);text-decoration:none;min-height:48px;display:flex;align-items:center}
+.talk button.talk-open{text-align:left;background:none;border:0;padding:8px 0;font:inherit;text-align:left;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;cursor:pointer}
+.talk button.talk-open small{font-size:13px;color:var(--ink3);line-height:1.35}
+button.card.continue{width:100%;font:inherit;color:var(--ink);text-align:left;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}
+.reader-frame{width:100%;height:62vh;border:0;border-radius:14px;background:var(--card2)}
 .themes{margin:0 0 12px 56px;padding:12px 14px;border-radius:14px;background:var(--card2);border:1px solid var(--hair)}
 .themes ul{margin:6px 0 0;padding-left:18px}
 .prayer-text{font-family:var(--serif);font-size:19px;line-height:1.6;white-space:pre-line;color:#e6ebe8}
@@ -191,6 +202,7 @@ table.t{width:100%;border-collapse:collapse;font-size:15px}
 table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-align:left}
 .photogrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .photogrid img{width:100%;border-radius:12px;display:block}
+.datefield{position:relative;display:block}.datefield input{color:transparent}.datefield input::-webkit-datetime-edit{color:transparent;opacity:0}.datefield .date-show{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:17px;color:var(--ink)}
 .filebtn{position:relative;overflow:hidden}.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .bp-report{display:none}
 /* setup */
@@ -222,7 +234,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.0.9';
+const VERSION = '1.2.1';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -241,8 +253,14 @@ function keyOf(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d
 const todayKey = () => keyOf();
 function dateOf(k) { const a = k.split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]); }
 function addDays(k, n) { const d = dateOf(k); d.setDate(d.getDate() + n); return keyOf(d); }
-function fmtDay(k) { return dateOf(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
-function fmtDate(k) { return dateOf(k).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function fmtD(d) { d = new Date(d); return d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear(); }   // 24 Sep 2026, everywhere
+function fmtDate(k) { return fmtD(dateOf(k)); }
+function fmtDay(k) { const d = dateOf(k); return WDAY[d.getDay()] + ' ' + fmtD(d); }
+/* A date field that always reads "24 Sep 2026": the phone's own date picker sits invisibly on top. */
+function dateField(id, value, attrs) { return `<span class="datefield"><input class="input" type="date" id="${id}" value="${esc(value || '')}" ${attrs || ''}><span class="date-show" aria-hidden="true">${value ? fmtDate(value) : 'Choose a date'}</span></span>`; }
+document.addEventListener('input', e => { const i = e.target; if (i && i.type === 'date' && i.parentNode && i.parentNode.classList && i.parentNode.classList.contains('datefield')) { const s = i.parentNode.querySelector('.date-show'); if (s) s.textContent = i.value ? fmtDate(i.value) : 'Choose a date'; } }, true);
+document.addEventListener('change', e => { const i = e.target; if (i && i.type === 'date' && i.parentNode && i.parentNode.classList && i.parentNode.classList.contains('datefield')) { const s = i.parentNode.querySelector('.date-show'); if (s) s.textContent = i.value ? fmtDate(i.value) : 'Choose a date'; } }, true);
 function fmtTime(d) { return new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
 function n0(x) { return Math.round(Number(x) || 0); }
 function n1(x) { return Math.round((Number(x) || 0) * 10) / 10; }
@@ -255,6 +273,24 @@ function weekKeys(k) { const m = mondayOf(k); return [0, 1, 2, 3, 4, 5, 6].map(i
 function lastDays(n) { const t = todayKey(); const out = []; for (let i = n - 1; i >= 0; i--) out.push(addDays(t, -i)); return out; }
 const CM_IN = 2.54;
 function waistShow(cm) { if (cm == null) return '-'; return S.profile.waistUnit === 'cm' ? n1(cm) + ' cm' : n1(cm / CM_IN) + ' in'; }
+/* weight: kg, or stones and pounds */
+const KG_LB = 2.20462;
+function stLb(kg) { let lb = Math.round(kg * KG_LB); const st = Math.floor(lb / 14); lb = lb - st * 14; return [st, lb]; }
+function wShow(kg) { if (kg == null || !(+kg > 0)) return '-'; if (S.profile.weightUnit === 'st') { const [st, lb] = stLb(+kg); return st + ' st ' + lb + ' lb'; } return n1(kg) + ' kg'; }
+function wChartVal(kg) { return S.profile.weightUnit === 'st' ? n1(kg * KG_LB / 14) : n1(kg); }
+function wChartUnit() { return S.profile.weightUnit === 'st' ? 'st' : 'kg'; }
+function weightFields(prefix, kg, label, extra) {
+  if (S.profile.weightUnit === 'st') { const v = kg ? stLb(+kg) : ['', '']; return `<fieldset class="wfield" style="border:0;padding:0;margin:0"><legend class="lab">${esc(label)}</legend><div class="grid2"><div><label class="lab" for="${prefix}-st">Stones</label><input class="input" id="${prefix}-st" inputmode="numeric" value="${v[0]}" ${extra || ''}></div><div><label class="lab" for="${prefix}-lb">Pounds</label><input class="input" id="${prefix}-lb" inputmode="decimal" value="${v[1]}" ${extra || ''}></div></div></fieldset>`; }
+  return `<div><label class="lab" for="${prefix}">${esc(label)} (kg)</label><input class="input" id="${prefix}" inputmode="decimal" value="${kg ? n1(kg) : ''}" ${extra || ''}></div>`;
+}
+function unitChips(act) {
+  const p = S.profile, row = (k, label, opts, cur) => `<div><span class="lab">${label}</span><div class="chips">${opts.map(o => `<button class="chip" data-a="${act}" data-k="${k}" data-u="${o[0]}" aria-pressed="${cur === o[0]}">${o[1]}</button>`).join('')}</div></div>`;
+  return row('weightUnit', 'Weigh yourself in', [['kg', 'Kilograms'], ['st', 'Stones and pounds']], p.weightUnit === 'st' ? 'st' : 'kg') + row('waistUnit', 'Measure your waist in', [['in', 'Inches'], ['cm', 'Centimetres']], p.waistUnit === 'cm' ? 'cm' : 'in');
+}
+function readWeight(prefix) {
+  if (S.profile.weightUnit === 'st') { const st = num(($('#' + prefix + '-st') || {}).value), lb = num(($('#' + prefix + '-lb') || {}).value); if (st == null && lb == null) return null; return n1(((st || 0) * 14 + (lb || 0)) / KG_LB); }
+  return num(($('#' + prefix) || {}).value);
+}
 function waistToCm(v) { v = num(v); if (v == null) return null; return S.profile.waistUnit === 'cm' ? v : n1(v * CM_IN); }
 
 /* ---------- state ---------- */
@@ -264,7 +300,7 @@ function defaults() {
     profile: {
       setupDone: false, onboardedV: 0, sex: '', dob: null, heightCm: null,
       kcalTarget: 1700, proteinTarget: 130, waterTarget: 8, stepsTarget: 10000,
-      goalWeight: null, waistGoalCm: null, waistUnit: 'in',
+      goalWeight: null, waistGoalCm: null, waistUnit: 'in', weightUnit: 'kg',
       wake: '06:00', foodFrom: '06:30', foodTo: '18:30', bed: '22:00',
       trainingDays: 3, bpSafe: true, vegetarian: true, eggFree: true,
       breathBeforeMeals: true, silentWeekday: -1, restSec: 120,
@@ -319,7 +355,24 @@ function day(k) { if (!S.days[k]) S.days[k] = emptyDay(); const d = S.days[k]; i
 function peekDay(k) { return S.days[k] || null; }
 function T() { const t = todayKey(); if (!S.todayOnly || S.todayOnly.date !== t) S.todayOnly = { date: t, lamp: false, prayers: {}, bell: [] }; return S.todayOnly; }
 function mods() { return S.profile.modules; }
-function quiet() { return !!S.profile.quiet; }
+function quietToday() { return !!(S.todayOnly && S.todayOnly.date === todayKey() && S.todayOnly.quiet); }
+function quiet() { return !!S.profile.quiet || quietToday(); }
+/* one-time hints: shown once, where they're needed, gone for good when used or dismissed */
+function hintSeen(id) { return !!(S.profile.hints || {})[id]; }
+function hintDone(id) { S.profile.hints = S.profile.hints || {}; if (!S.profile.hints[id]) { S.profile.hints[id] = 1; save(); } }
+function hint(id, text) { if (hintSeen(id)) return ''; return `<div class="hint" role="note"><span>${esc(text)}</span><button class="link" data-a="hint-ok" data-h="${id}">Got it</button></div>`; }
+/* larger text */
+function applyTextSize() { document.documentElement.classList.toggle('big-text', !!(S && S.profile && S.profile.bigText)); }
+/* keep the screen on while sitting or training */
+let wakeSentinel = null;
+async function syncWake() {
+  const want = !!((S.meditationTimer && S.meditationTimer.startedAt) || (typeof draft !== 'undefined' && draft)) && !document.hidden;
+  try {
+    if (want && !wakeSentinel && navigator.wakeLock) { wakeSentinel = await navigator.wakeLock.request('screen'); wakeSentinel.addEventListener('release', () => { wakeSentinel = null; }); }
+    else if (!want && wakeSentinel) { const w = wakeSentinel; wakeSentinel = null; await w.release(); }
+  } catch (e) { wakeSentinel = null; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncWake(); });
 function totals(d) { let k = 0, p = 0, f = 0, c = 0, b = 0; for (const x of (d && d.foods) || []) { k += +x.kcal || 0; p += +x.protein || 0; f += +x.fat || 0; c += +x.carbs || 0; b += +x.fibre || 0; } return { kcal: n0(k), protein: n1(p), fat: n1(f), carbs: n1(c), fibre: n1(b) }; }
 function realFoods(d) { return ((d && d.foods) || []).filter(f => !f.autoChai); }
 function mealFoods(d, sl) { return d.foods.filter(f => (f.slot || 'snack') === sl); }
@@ -327,7 +380,7 @@ function isSilent(k) { const d = peekDay(k); if (d && d.silent) return true; ret
 function macroGoals() { const p = S.profile; const fatG = Math.round(p.kcalTarget * 0.3 / 9); const carbG = Math.max(0, Math.round((p.kcalTarget - p.proteinTarget * 4 - fatG * 9) / 4)); return { fatG, carbG }; }
 
 /* ---------- UI helpers ---------- */
-function toast(msg) { $$('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
+function toast(msg, ms) { $$('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms || 3200); }
 function undoBar(msg, fn, ms) { $$('.undo').forEach(x => x.remove()); const u = document.createElement('div'); u.className = 'undo'; u.setAttribute('role', 'status'); u.innerHTML = '<span>' + esc(msg) + '</span><button class="btn">Undo</button>'; document.body.appendChild(u); u.querySelector('button').onclick = () => { u.remove(); fn(); }; setTimeout(() => u.remove(), ms || 6000); }
 let sheetReturnFocus = null;
 function openSheet(html, opts) {
@@ -387,6 +440,7 @@ function render() {
   main.oninput = null; main.onchange = null;
   main.innerHTML = R[tab]();
   if (R[tab + 'After']) R[tab + 'After'](main);
+  syncWake();
 }
 function go(t, v) { if (v) view[t] = v; tab = t; render(); window.scrollTo(0, 0); }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (!b) return; if (b.dataset.tab === tab && view[tab]) { const home = { food: 'day', train: 'home', practice: view.practice, you: 'home' }[tab]; view[tab] = home; } go(b.dataset.tab); });
@@ -488,6 +542,8 @@ const GS_STAGES = [
   ['Third stage · 15 minutes', 'With closed eyes, stand up and let your body be loose and receptive. Let the moving happen, gently and gracefully.'],
   ['Fourth stage · 15 minutes', 'Lie down with closed eyes, silent and still.']];
 /* ================= TODAY ================= */
+on('hint-ok', b => { hintDone(b.dataset.h); const el = b.closest('.hint'); if (el) el.remove(); });
+on('big-text', () => { S.profile.bigText = !S.profile.bigText; save(); applyTextSize(); if ($('#setup.open')) showSetup(); else render(); });
 /* Three rings: Eat, Move, Still — body, mind and soul. */
 function threeRings(k) {
   const d = day(k), p = S.profile, t = totals(d);
@@ -516,7 +572,9 @@ on('go-food', () => go('food', 'day'));
 on('go-sleep', () => { go('you', 'body'); setTimeout(() => { const s = $('#sleep-card'); if (s) s.scrollIntoView({ block: 'start' }); }, 60); });
 on('water', () => { day(todayKey()).water++; save(); render(); });
 on('steps', () => { day(todayKey()).steps += 1000; save(); render(); });
-on('lamp', () => { const t = T(); t.lamp = !t.lamp; save(); render(); if (t.lamp) bell(528, 2.5); });
+on('lamp', () => { const t = T(); t.lamp = !t.lamp; if (t.lamp) hintDone('lamp'); save(); render(); if (t.lamp) bell(528, 2.5); });
+on('quiet-today', () => { const t = T(); t.quiet = !t.quiet; save(); render(); toast(t.quiet ? 'Quiet until midnight. Only what happened.' : 'Targets are back.'); });
+function everLogged() { return Object.values(S.days).some(d => (d.foods || []).some(f => !f.autoChai)); }
 
 /* The one "Now" card: chosen by the time of day. */
 function nowCard() {
@@ -547,10 +605,12 @@ function nowCard() {
     if (gap >= 2) return { eyebrow: 'Training', title: 'Next: ' + PROGRAM[next].title, body: PROGRAM[next].sub + '.', btns: [['Start workout', 'wo-start-next', 'primary']] };
   }
   if (mods().spiritual && m >= mins('11:50') && m < mins('13:00') && !lit('noon')) return prayerCard('noon');
+  if (checkinDue()) return { eyebrow: 'Sunday', title: 'Weekly check-in', body: 'Weight, waist and a photo, in one go. Skip any of them.', btns: [['Begin', 'checkin', 'primary'], ['Not this week', 'checkin-skip', '']] };
   if (photoDue) return { eyebrow: 'Every two weeks', title: 'Progress photo', body: 'Front and side, same light, same spot.', btns: [['Open photos', 'photos-open', 'primary'], ['Not now', 'photo-snooze', '']] };
   return null;
 }
 function nowHtml() {
+  const sp = stopPending(); if (sp) { const f = STOP_FORMS[sp.ix]; return `<section class="card now stop-card stack" aria-label="The Stop" style="gap:10px;text-align:center;padding:28px 18px"><span class="eyebrow">The Stop · ${fmtTime(sp.at)}</span><div style="font-family:var(--serif);font-size:40px;line-height:1.1">${esc(f.word)}</div><p class="muted">${esc(f.line)}</p><button class="stop-leave" data-a="stop-card-leave" style="margin:0;align-self:center">leave</button></section>`; }
   const c = nowCard(); if (!c) return '';
   return `<section class="card now stack" aria-label="Now" style="gap:10px"><span class="eyebrow">${esc(c.eyebrow)}</span><h2>${esc(c.title)}</h2>${c.body ? `<p class="${c.prayer ? 'prayer-text' : 'muted'}" style="${c.prayer ? 'font-size:18px' : ''}">${esc(c.body)}</p>` : ''}
   <div class="btns">${c.prayer ? `<button class="btn" data-a="pray-toggle" data-id="${c.prayer}" aria-pressed="false"><span class="lampbtn" style="width:30px;height:30px;border:0">${diyaSvg(26)}</span>Prayed</button>` : ''}${c.btns.map(b => `<button class="btn ${b[2]}" data-a="${b[1]}">${esc(b[0])}</button>`).join('')}</div>
@@ -587,10 +647,13 @@ R.today = function () {
   <div class="top"><div><h1 style="font-size:28px;line-height:1.1">${new Date().toLocaleDateString('en-GB', { weekday: 'long' })}</h1><span class="tiny">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}</span></div>
   <button class="diya" data-a="lamp" aria-pressed="${T().lamp}" aria-label="${T().lamp ? 'The lamp is lit for today. Tap to let it go out' : 'Light the lamp for today'}">${diyaSvg(46)}</button></div>
   ${ringsHtml(k)}
+  ${T().lamp ? '' : hint('lamp', 'Light the lamp at the top when you begin the day. Tap water to add a glass.')}
   ${nowHtml()}
   ${mods().food ? `<section class="card flat" aria-label="Today's food"><div class="between" style="padding:12px 0 4px"><h2 style="font-size:22px">Today's food</h2><span class="tiny">${quiet() ? big(t.kcal) + ' calories' : left >= 0 ? big(left) + ' calories left' : big(-left) + ' over'}</span></div>
-    ${MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); return `<div class="li"><div class="t"><strong style="font-size:17px">${nm}</strong><span>${fs.length ? esc(fs.map(f => f.name).slice(0, 3).join(', ')) + (fs.length > 3 ? '…' : '') + ' · ' + big(kc) + ' cal' : 'Nothing yet'}</span></div><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>`; }).join('')}</section>` : ''}
+    ${MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); const y = !fs.length && peekDay(addDays(k, -1)), hadY = y && mealFoods(y, sl).filter(f => !f.autoChai).length; return `<div class="li"><div class="t"><strong style="font-size:17px">${nm}</strong><span>${fs.length ? esc(fs.map(f => f.name).slice(0, 3).join(', ')) + (fs.length > 3 ? '…' : '') + ' · ' + big(kc) + ' cal' : 'Nothing yet'}</span>${hadY ? `<button class="link" data-a="repeat-meal" data-slot="${sl}" data-k="${k}" style="padding:4px 0 0;font-size:15px;align-self:flex-start">Same as yesterday</button>` : ''}</div><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>`; }).join('')}
+    ${everLogged() ? '' : hint('food', 'Tap + Add on a meal. After that, anything you’ve had before is one tap.')}</section>` : ''}
   <blockquote class="quote" style="margin:6px 4px 0">“${esc(q.t)}”<span>${esc(q.b)}</span></blockquote>
+  ${S.profile.quiet ? '' : `<button class="choice" data-a="quiet-today" aria-pressed="${quietToday()}" style="margin-top:4px"><span><strong>Quiet for today</strong><small>${quietToday() ? 'On until midnight: only what happened, no targets' : 'Hide targets until midnight, then back to normal'}</small></span><span class="tiny">${quietToday() ? 'On' : 'Off'}</span></button>`}
   </div>`;
 };
 /* ---------- Gemini (free tier, your own key, called straight from this phone) ---------- */
@@ -683,16 +746,16 @@ function foodDayHtml() {
   ${silent ? '' : MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); const y = peekDay(addDays(k, -1)); const hadY = y && mealFoods(y, sl).length && !fs.length;
     return `<section class="meal" aria-label="${nm}"><div class="meal-head"><strong>${nm}${fs.length ? ` <span class="tiny" style="font-weight:400">${big(kc)} cal</span>` : ''}</strong><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>
     ${fs.map(f => `<button class="food-row" data-a="food-item" data-id="${f.id}"><span class="t"><strong style="font-weight:500">${esc(f.name)}</strong><span>${esc(f.amount || '')}${f.amount ? ' · ' : ''}${n0(f.protein)} g protein${f.trigger ? ' · ' + esc(f.trigger) : ''}</span></span><span class="k">${big(f.kcal)}</span></button>`).join('')}
-    ${hadY ? `<button class="link" data-a="repeat-meal" data-slot="${sl}" style="padding:0 0 6px">Same as yesterday</button>` : ''}</section>`; }).join('')}
+    ${hadY ? `<button class="link" data-a="repeat-meal" data-slot="${sl}" data-k="${k}" style="padding:0 0 6px">Same as yesterday</button>` : ''}</section>`; }).join('')}
   <div class="btns">${!silent && real ? (d.closed ? `<button class="btn" data-a="day-open">Day closed · reopen</button>` : `<button class="btn" data-a="day-close">That's everything for ${k === t ? 'today' : 'this day'}</button>`) : ''}${!silent && !real ? `<button class="btn" data-a="silent-on">Make it a silent day</button>` : ''}</div>
-  <button class="navrow" data-a="food-week"><span>This week<small>Calories across the week, and what's coming up</small></span></button>
+  <button class="navrow" data-a="food-week"><span>See the whole week<small>Calories across the week, and what's coming up</small></span></button>
   </div>`;
 }
 on('day-close', () => { day(foodDate).closed = true; save(); render(); });
 on('day-open', () => { day(foodDate).closed = false; save(); render(); });
 on('silent-on', () => { const d = day(foodDate); d.silent = true; d.silentOff = false; save(); render(); });
 on('silent-off', () => { const d = day(foodDate); d.silent = false; d.silentOff = true; save(); render(); });
-on('repeat-meal', b => { const y = day(addDays(foodDate, -1)), d = day(foodDate); const items = mealFoods(y, b.dataset.slot).filter(f => !f.autoChai); items.forEach(f => d.foods.push({ ...f, id: uid(), ts: Date.now(), source: 'Same as yesterday' })); save(); render(); undoBar(items.length + ' item' + (items.length === 1 ? '' : 's') + ' added.', () => { const ids = new Set(items.map(x => x.name)); d.foods = d.foods.filter(f => !(f.source === 'Same as yesterday' && ids.has(f.name) && f.slot === b.dataset.slot)); save(); render(); }); });
+on('repeat-meal', b => { const k = b.dataset.k || foodDate, sl = b.dataset.slot, y = day(addDays(k, -1)), d = day(k); const items = mealFoods(y, sl).filter(f => !f.autoChai).map(f => ({ ...f, id: uid(), ts: Date.now(), slot: sl, source: 'Same as yesterday' })); if (!items.length) return; d.foods.push(...items); d.silent = false; save(); render(); const ids = new Set(items.map(x => x.id)); undoBar(items.length === 1 ? items[0].name + ' added.' : items.length + ' foods added.', () => { d.foods = d.foods.filter(f => !ids.has(f.id)); save(); render(); }); });
 
 /* ---------- the add sheet ---------- */
 let ADD = null;
@@ -735,8 +798,8 @@ function addRender() {
     ${a.added.length ? `<div class="okbox small">Added to ${nm}: ${esc(a.added.join(', '))}</div>` : ''}
     <div class="searchbar"><label><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb8b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="add-q" type="search" enterkeyhint="search" placeholder="Search foods and dishes" value="${esc(a.q)}" aria-label="Search foods and dishes" autocomplete="off"></label><button class="iconbtn" data-a="add-scan" aria-label="Scan a barcode"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M11 8v8M14 8v8M17 8v8"/></svg></button></div>
     <button class="card now" data-a="add-photo" style="display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;padding:12px 14px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9fd6be" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span><strong>Photo or describe a dish</strong><span class="tiny" style="display:block">${S.profile.geminiKey ? 'Gemini fills in the numbers' : 'Enter the numbers, or connect Gemini to fill them in'}</span></span></button>
-    <div class="seg${emptyTabs ? '' : ' hidden'}" id="add-tabs" role="tablist">${[['recent', 'Recent'], ['fav', 'Favourites'], ['dish', 'My dishes'], ['basics', 'Basics']].map(x => `<button role="tab" data-a="add-list" data-l="${x[0]}" aria-selected="${a.list === x[0]}">${x[1]}</button>`).join('')}</div>
-    <div id="add-res">${addResultsHtml()}</div>
+    <div class="seg${emptyTabs ? '' : ' hidden'}" id="add-tabs" role="tablist" aria-label="Food lists">${[['recent', 'Recent'], ['fav', 'Favourites'], ['dish', 'My dishes'], ['basics', 'Basics']].map(x => `<button role="tab" id="add-tab-${x[0]}" aria-controls="add-res" data-a="add-list" data-l="${x[0]}" aria-selected="${a.list === x[0]}" tabindex="${a.list === x[0] ? 0 : -1}">${x[1]}</button>`).join('')}</div>
+    <div id="add-res"${emptyTabs ? ` role="tabpanel" aria-labelledby="add-tab-${a.list}"` : ''}>${addResultsHtml()}</div>
     <p class="tiny">Tap + to add straight away. Tap a name to change the amount.</p></div>`;
   } else if (a.mode === 'amount') {
     const c = a.cand, v = calc(c, a.qty, a.unit), step = a.unit === 'g' ? 10 : 0.5;
@@ -765,10 +828,16 @@ function addRender() {
   if (a.mode === 'photo') bindEstimate(b);
   if (a.mode === 'recipe') bindRecipe(b);
 }
-function refreshAddResults() { const r = $('#add-res'); if (!r || !ADD || ADD.mode !== 'list') return addRender(); r.innerHTML = addResultsHtml(); const tabs = $('#add-tabs'); if (tabs) tabs.classList.toggle('hidden', !!ADD.q.trim()); }
+function refreshAddResults() { const r = $('#add-res'); if (!r || !ADD || ADD.mode !== 'list') return addRender(); r.innerHTML = addResultsHtml(); const tabs = $('#add-tabs'), on = !ADD.q.trim(); if (tabs) tabs.classList.toggle('hidden', !on); if (on) { r.setAttribute('role', 'tabpanel'); r.setAttribute('aria-labelledby', 'add-tab-' + ADD.list); } else { r.removeAttribute('role'); r.removeAttribute('aria-labelledby'); } }
 function addItem(src, i) { const a = ADD; if (src === 'o') return a.online[i]; const it = a._items[i]; return it && it.c; }
 on('add-reason', b => { ADD.reason = ADD.reason === b.dataset.r ? '' : b.dataset.r; addRender(); });
-on('add-list', b => { ADD.list = b.dataset.l; $$('#add-tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b))); refreshAddResults(); });
+on('add-list', b => { ADD.list = b.dataset.l; $$('#add-tabs button').forEach(x => { x.setAttribute('aria-selected', String(x === b)); x.tabIndex = x === b ? 0 : -1; }); const r = $('#add-res'); if (r) r.setAttribute('aria-labelledby', b.id); refreshAddResults(); });
+document.addEventListener('keydown', e => {
+  const t = e.target; if (!t.matches || !t.matches('#add-tabs [role=tab]')) return;
+  const tabs = $$('#add-tabs [role=tab]'), i = tabs.indexOf(t); let j = null;
+  if (e.key === 'ArrowRight') j = (i + 1) % tabs.length; else if (e.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length; else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = tabs.length - 1;
+  if (j == null) return; e.preventDefault(); tabs[j].focus(); tabs[j].click();
+});
 on('add-back', () => { stopScan(); ADD.mode = 'list'; addRender(); });
 on('add-pick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; ADD.cand = c; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); ADD.qty = am.qty; ADD.unit = am.unit; ADD.mode = 'amount'; addRender(); });
 on('add-quick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); commitFood(c, am.qty, am.unit); });
@@ -782,16 +851,22 @@ function commitFood(c, qty, unit) {
   a.added.push(c.name); a.breath = false; a.mode = 'list'; addRender();
   undoBar(c.name + ' added.', () => { d.foods = d.foods.filter(x => x.id !== e.id); a.added = a.added.filter((x, i) => i !== a.added.lastIndexOf(c.name)); save(); addRender(); render(); }, 5000);
 }
+/* searches made online are kept, so they still work with no signal */
+const OFF_KEY = 'prakash-off-cache';
+function offCacheGet() { try { return JSON.parse(localStorage.getItem(OFF_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function offCachePut(q, list) { if (!list || !list.length) return; const c = offCacheGet(); c[q.toLowerCase().trim()] = { at: Date.now(), c: list.slice(0, 15) }; const ks = Object.keys(c).sort((a, b) => c[b].at - c[a].at); ks.slice(60).forEach(k => delete c[k]); try { localStorage.setItem(OFF_KEY, JSON.stringify(c)); } catch (e) {} }
+function offCacheFind(q) { q = q.toLowerCase().trim(); const c = offCacheGet(); if (c[q]) return c[q].c; const words = q.split(/\s+/).filter(Boolean), seen = new Set(), out = []; Object.values(c).forEach(e => e.c.forEach(x => { const n = (x.name + ' ' + (x.brand || '')).toLowerCase(); if (words.every(w => n.includes(w)) && !seen.has(n)) { seen.add(n); out.push(x); } })); return out.slice(0, 15); }
 on('add-online', async () => {
   const a = ADD, query = a.q.trim(); if (!query) return;
   a.onlineMsg = 'Searching Open Food Facts…'; refreshAddResults();
   const urls = ['https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(query) + '&search_simple=1&action=process&json=1&page_size=15&fields=product_name,brands,nutriments,serving_size',
     'https://world.openfoodfacts.org/api/v2/search?search_terms=' + encodeURIComponent(query) + '&page_size=15&fields=product_name,brands,nutriments,serving_size'];
   let j = null, busy = false;
+  if (navigator.onLine === false) { const kept = offCacheFind(query); a.online = kept; a.onlineMsg = kept.length ? 'No connection, so these are from searches you’ve made before.' : 'No connection. Your own foods and Basics still work.'; refreshAddResults(); return; }
   for (const u of urls) { try { const r = await fetch(u, { headers: { Accept: 'application/json' } }); if (r.ok) { j = await r.json(); break; } busy = true; } catch (e) {} }
   if (ADD !== a) return;
-  if (!j) { a.onlineMsg = busy ? 'Open Food Facts is busy. Try again in a moment.' : 'Couldn’t reach Open Food Facts. Check the internet connection.'; refreshAddResults(); return; }
-  a.online = (j.products || []).map(offCand).filter(Boolean);
+  if (!j) { const kept = offCacheFind(query); if (kept.length) { a.online = kept; a.onlineMsg = 'No connection, so these are from searches you’ve made before.'; refreshAddResults(); return; } a.onlineMsg = busy ? 'Open Food Facts is busy. Try again in a moment.' : 'Couldn’t reach Open Food Facts. Check the internet connection.'; refreshAddResults(); return; }
+  a.online = (j.products || []).map(offCand).filter(Boolean); offCachePut(query, a.online);
   a.onlineMsg = a.online.length ? 'Values from packet labels (Open Food Facts).' : 'Nothing with nutrition values matched.'; refreshAddResults();
 });
 function parseServing(s) { const m = String(s || '').match(/(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i); return m ? parseFloat(m[1]) : 0; }
@@ -821,10 +896,11 @@ async function lookupBarcode(code) {
   try {
     const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + code + '.json?fields=product_name,brands,nutriments,serving_size'); const j = await r.json();
     const c = j && j.status === 1 && j.product ? offCand(j.product) : null;
+    if (c) offCachePut('#' + code, [c]);
     if (ADD !== a) return;
     if (!c) { a.scanMsg = 'No nutrition values found for ' + code + '. Search by name, or photo it.'; addRender(); return; }
     a.cand = c; const am = defaultAmt(c); a.qty = am.qty; a.unit = am.unit; a.mode = 'amount'; addRender();
-  } catch (e) { a.scanMsg = 'Barcode look-up needs the internet. Try again when online.'; addRender(); }
+  } catch (e) { const kept = offCacheGet()['#' + code]; if (kept && ADD === a) { a.cand = kept.c[0]; const am = defaultAmt(a.cand); a.qty = am.qty; a.unit = am.unit; a.mode = 'amount'; addRender(); return; } a.scanMsg = 'Barcode look-up needs the internet. Try again when online.'; addRender(); }
 }
 
 /* ---------- photo / describe a dish, with Gemini ---------- */
@@ -979,11 +1055,11 @@ function foodWeekHtml() {
   <section class="card"><div class="facts">
     <div class="fact"><span>Protein, logged days</span><strong>${prot != null ? prot + ' g a day' : '-'}</strong></div>
     <div class="fact"><span>Fibre, logged days</span><strong>${fib != null ? fib + ' g a day' : '-'}</strong></div>
-    <div class="fact"><span>Weight, weekly average</span><strong>${wThis != null ? wThis + ' kg' + (wLast != null ? ' (week before ' + wLast + ')' : '') : '-'}</strong></div>
+    <div class="fact"><span>Weight, weekly average</span><strong>${wThis != null ? wShow(wThis) + (wLast != null ? ' (week before ' + wShow(wLast) + ')' : '') : '-'}</strong></div>
   </div></section>
   <h2>Coming up</h2>
   ${up.length ? `<ul class="list">${up.map(e => { const dl = Math.round((dateOf(e.date) - dateOf(t)) / 864e5); return `<li class="li"><div class="t"><strong>${esc(e.name)}</strong><span>${fmtDay(e.date)} · about ${big(e.extra)} extra${quiet() ? '.' : dl >= 1 ? '. Eat about ' + big(Math.ceil(e.extra / dl)) + ' fewer a day until then and it’s covered.' : '. Enjoy it.'}</span></div><button class="link" data-a="ev-del" data-id="${e.id}" aria-label="Remove ${esc(e.name)}">Remove</button></li>`; }).join('')}</ul>` : '<p class="tiny">A party or a meal out coming up? Add it, and the week makes room for it.</p>'}
-  <div class="card stack"><div><label class="lab" for="ev-n">What</label><input class="input" id="ev-n" placeholder="e.g. Diwali party"></div><div class="grid2"><div><label class="lab" for="ev-d">Date</label><input class="input" type="date" id="ev-d" min="${t}"></div><div><label class="lab" for="ev-x">Extra calories</label><input class="input" id="ev-x" inputmode="numeric" placeholder="800"></div></div><button class="btn" data-a="ev-add">Add to Coming up</button></div>
+  <div class="card stack"><div><label class="lab" for="ev-n">What</label><input class="input" id="ev-n" placeholder="e.g. Diwali party"></div><div class="grid2"><div><label class="lab" for="ev-d">Date</label>${dateField('ev-d', '', `min="${t}"`)}</div><div><label class="lab" for="ev-x">Extra calories</label><input class="input" id="ev-x" inputmode="numeric" placeholder="800"></div></div><button class="btn" data-a="ev-add">Add to Coming up</button></div>
   </div>`;
 }
 R.food = () => view.food === 'week' ? foodWeekHtml() : foodDayHtml();
@@ -1029,8 +1105,8 @@ on('rec-add', b => { const rec = ADD.rec, c = (b.dataset.src === 'o' ? rec.onlin
 on('rec-custom', () => { const nm = $('#rc-n').value.trim(), k = num($('#rc-k').value), p = num($('#rc-p').value) || 0, g = num($('#rc-g').value) || 100; if (!nm || !k) { toast('Add the name and calories per 100 g.'); return; } ADD.rec.ings.push({ name: nm, k, p, f: 0, c: 0, b: 0, grams: g }); addRender(); });
 on('rec-online', async () => {
   const rec = ADD.rec, query = rec.q.trim(); if (!query) return; rec.msg = 'Searching Open Food Facts…'; addRender();
-  try { const r = await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(query) + '&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_size'); const j = await r.json(); rec.online = (j.products || []).map(offCand).filter(Boolean); rec.msg = rec.online.length ? '' : 'Nothing with nutrition values matched. Enter it yourself below.'; }
-  catch (e) { rec.msg = 'Couldn’t reach Open Food Facts. Enter it yourself below.'; }
+  try { const r = await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(query) + '&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_size'); const j = await r.json(); rec.online = (j.products || []).map(offCand).filter(Boolean); offCachePut(query, rec.online); rec.msg = rec.online.length ? '' : 'Nothing with nutrition values matched. Enter it yourself below.'; }
+  catch (e) { const kept = offCacheFind(query); if (kept.length) { rec.online = kept; rec.msg = 'No connection, so these are from searches you’ve made before.'; } else rec.msg = 'Couldn’t reach Open Food Facts. Enter it yourself below.'; }
   if (ADD && ADD.rec === rec) addRender();
 });
 on('rec-save', b => {
@@ -1189,11 +1265,37 @@ let listenCh = null, stayed = null; // stayed: {url, loading, err}
 const talkByUrl = {};
 TALKS.forEach((ch, ci) => ch[2].forEach((g, gi) => g[1].forEach((t, ti) => { talkByUrl[t[1]] = { ci, gi, ti, title: t[0], series: g[0] }; })));
 function shortTitle(series, title) { const norm = x => x.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); const a = norm(series), b = norm(title); if (a && b.startsWith(a) && b.length > a.length) { const rest = title.slice(title.length - (b.length - a.length)).trim(); const m = rest.match(/^(\d+)\s*(.*)$/); if (m) { let extra = m[2].trim(); if (extra && extra === extra.toUpperCase()) extra = extra.charAt(0) + extra.slice(1).toLowerCase(); return 'Talk ' + m[1] + (extra ? ' · ' + extra : ''); } } return title; }
+const TALK_META = {"https://oshoworld.com/the-path-of-love-01": ["Love Is the Master Key", "Discourse 1 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-02": ["So Far, So Good", "Discourse 2 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-03": ["And Home Is Not Far Away", "Discourse 3 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-04": ["Religion Is Individual Flowering", "Discourse 4 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-05": ["I Sing the Glory of Forms", "Discourse 5 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-06": ["The Inner Trinity", "Discourse 6 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-07": ["A Harmony of Love and Renunciation", "Discourse 7 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-08": ["God Still Hopes", "Discourse 8 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-09": ["Heaven Is All the Way to Heaven", "Discourse 9 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-10": ["Please Wake Up", "Discourse 10 · Osho on the songs of Kabir"], "https://oshoworld.com/philosophia-perennis-vol-1-01": ["The Greatest Luxury", "Discourse 1 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-02": ["Love Comes Faceless", "Discourse 2 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-03": ["Falling Upwards", "Discourse 3 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-04": ["I Mean Business!", "Discourse 4 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-05": ["Beep Beep!", "Discourse 5 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-06": ["Logos: Power: Necessity", "Discourse 6 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-07": ["Awareness: The Master Key", "Discourse 7 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-08": ["You Are Without Stain", "Discourse 8 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-09": ["Philosophia Perennis, discourse 9", "Discourse 9 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-10": ["Bliss Beyond All Duality", "Discourse 10 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/prem-nadi-ke-teera-02": ["Prem Nadi Ke Teera, discourse 2", "प्रेम नदी के तीरा · Osho in Hindi"], "https://oshoworld.com/rahiman-dhaga-prem-ka-02": ["Rahiman Dhaga Prem Ka, discourse 2", "रहिमन धागा प्रेम का · Osho in Hindi; the title is a line from Rahim"], "https://oshoworld.com/sufis-people-of-the-path-vol-1-01": ["A Rare Kind of Magic", "Sufis: The People of the Path · Osho on Sufi stories"], "https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video": ["Understanding Is Love’s Other Name", "Thich Nhat Hanh · a short teaching from Plum Village"], "https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786": ["Zarathustra Is Not a Thinker but a Seer", "Osho on Nietzsche’s Zarathustra · to read"], "https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01": ["The Three Metamorphoses", "Nietzsche’s camel, lion and child · the text itself"], "https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23": ["The Night Song", "Zarathustra: A God That Can Dance, discourse 23 · to read"], "https://www.osho.com/read/osho/osho-on-topics/ashtavakra": ["Pure Witnessing, Just Watching", "Osho on Ashtavakra · a short read"], "https://osholive.com/the-mahageeta-vol-1/discourse-1": ["Ashtavakra: The Purest Expression of Truth", "The Mahageeta, discourse 1 · Osho on the Ashtavakra Gita"], "https://oshoworld.com/maha-geeta-by-osho-01-91": ["Maha Geeta, discourse 1", "The Ashtavakra Gita · Osho in Hindi"], "https://oshoworld.com/tao-the-pathless-path-vol-2-01/": ["The Ultimate Synthesis", "Tao: The Pathless Path · Osho on the stories of Lieh Tzu"], "https://oshoworld.com/bodhidharma-the-greatest-zen-master-01": ["To Seek Nothing Is Bliss", "Bodhidharma · Osho on the sermons of the first Zen patriarch"], "https://oshoworld.com/walking-in-zen-sitting-in-zen-01": ["The Breath of the Soul", "Walking in Zen, Sitting in Zen · Osho answers questions"], "https://www.gururamana.org/Teachings/instructions": ["Self-Enquiry Instructions", "Ramana Maharshi · “Who am I?” in his own words"], "https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/": ["The Observer and the Observed Are the Same", "J. Krishnamurti · a short talk"], "https://oshoworld.com/be-still-and-know-01": ["Always on the Rocks", "Be Still and Know · Osho answers questions"], "https://oshoworld.com/be-still-and-know-10": ["Me, Enlightened?", "Be Still and Know · Osho answers questions"], "https://oshoworld.com/the-ultimate-alchemy-vol-2-11/": ["The Ultimate Alchemy, discourse 11", "Questions and answers · Osho on the Atma Pooja Upanishad"], "https://www.organism.earth/library/document/ecological-awareness": ["Ecological Awareness", "Alan Watts · a lecture, as text"], "https://oshoworld.com/tao-upanishad-01": ["Tao Upanishad, discourse 1", "Osho in Hindi on Lao Tzu"], "https://oshoworld.com/this-very-body-the-buddha-01": ["The Lion’s Roar", "This Very Body the Buddha · Osho on Hakuin’s Song of Meditation"]};
+function talkTitle(url) { const own = (S.talks.titles || {})[url]; if (own) return own; const m = TALK_META[url]; if (m) return m[0]; const i = talkByUrl[url]; if (!i) return ''; const t = i.title.split(' · '); return t.length > 1 && i.series.startsWith('Alan Watts') ? t[1] : shortTitle(i.series, i.title); }
+function talkDesc(url) { const m = TALK_META[url], i = talkByUrl[url]; if (m) return m[1]; if (i && i.series.startsWith('Alan Watts')) return 'Alan Watts · ' + i.title.split(' · ')[0] + ', recorded lecture'; return i ? i.series : ''; }
 function isTextPage(url) { return !/oshoworld\.com|drive\.google\.com/.test(url); }
 function seriesState(g) { const h = g[1].filter(t => S.talks.heard[t[1]]).length; return { heard: h, all: h === g[1].length, next: g[1].find(t => !S.talks.heard[t[1]]) }; }
-document.addEventListener('click', e => { const a = e.target.closest('a[data-open]'); if (!a) return; S.talks.opened = a.dataset.open; save(); }, true);
-on('opened-heard', () => { const u = S.talks.opened; delete S.talks.opened; listenCh = talkByUrl[u] ? talkByUrl[u].ci : null; markHeard(u, true); });
-on('opened-later', () => { delete S.talks.opened; save(); render(); });
+/* the reader: talks open inside Prakash */
+let readerUrl = null;
+function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
+function opensOutside(u) { return !!(S.talks.external || {})[hostOf(u)]; }
+function frameUrl(u) { const m = /drive\.google\.com\/file\/d\/([^/]+)/.exec(u); return m ? 'https://drive.google.com/file/d/' + m[1] + '/preview' : u; }
+function readerFoot() {
+  const url = readerUrl, heard = !!S.talks.heard[url], th = S.talks.themes[url];
+  return `<div class="btns"><button class="btn${heard ? '' : ' primary'}" data-a="reader-heard" aria-pressed="${heard}"><span class="lampbtn" aria-pressed="${heard}" style="width:30px;height:30px;border:0;background:none">${diyaSvg(26)}</span>${heard ? 'Heard' : 'I’ve heard it'}</button>${opensOutside(url) ? '' : `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open in browser</a>`}</div>
+  ${(stayed && stayed.url === url) || th ? themesBlock(url, 'r').replace('id="th-r" hidden', 'id="th-r"') : ''}
+  <button class="link" data-a="reader-rename" style="align-self:flex-start;padding:0">Rename this talk</button>`;
+}
+function openReader(url) {
+  readerUrl = url; const off = navigator.onLine === false;
+  const el = openSheet(`<div class="stack" style="gap:12px"><div><span class="eyebrow">${esc(talkDesc(url))}</span><h2 id="reader-title" style="margin-top:4px">${esc(talkTitle(url))}</h2></div>
+  ${off ? `<div class="card flat"><p class="small">You’re offline. The talk needs a connection; its lamp and your notes work as usual.</p></div>` : opensOutside(url) ? `<div class="card flat stack" style="gap:10px"><a class="btn primary big" href="${esc(url)}" target="_blank" rel="noopener">Open the talk</a><button class="link" data-a="talk-inside" style="align-self:flex-start;padding:0">Try inside Prakash again</button></div>` : `<iframe class="reader-frame" src="${esc(frameUrl(url))}" title="${esc(talkTitle(url))}" allow="autoplay; encrypted-media" referrerpolicy="no-referrer"></iframe><div class="between" style="gap:10px"><span class="tiny">Blank? Some sites won’t open inside apps.</span><button class="link" data-a="talk-outside" style="flex:none">Always use the browser for this site</button></div>`}
+  <div class="stack" id="reader-foot" style="gap:10px">${readerFoot()}</div></div>`, { full: true, title: 'Talk', label: talkTitle(url), onClose: () => { readerUrl = null; if (stayed && !stayed.loading) stayed = null; render(); } });
+  el.addEventListener('input', e => { if (e.target.id === 'stayed-text' && stayed) stayed.draft = e.target.value; });
+}
+function refreshReader() { const f = $('#reader-foot'); if (readerUrl && f) f.innerHTML = readerFoot(); const h = $('#reader-title'); if (readerUrl && h) h.textContent = talkTitle(readerUrl); }
+on('talk-open', b => openReader(b.dataset.url));
+on('talk-outside', () => { const u = readerUrl; S.talks.external = S.talks.external || {}; S.talks.external[hostOf(u)] = true; save(); openReader(u); });
+on('talk-inside', () => { const u = readerUrl; if (S.talks.external) delete S.talks.external[hostOf(u)]; save(); openReader(u); });
+on('reader-heard', () => markHeard(readerUrl, !S.talks.heard[readerUrl]));
+on('reader-rename', () => { const f = $('#reader-foot'); if (!f) return; f.insertAdjacentHTML('beforeend', `<div class="stack" style="gap:8px" id="rn-box"><label class="lab" for="rn-t">Title</label><input class="input" id="rn-t" value="${esc(talkTitle(readerUrl))}"><div class="btns"><button class="btn primary" data-a="reader-rename-save">Save title</button><button class="btn" data-a="reader-rename-reset">Use the original</button></div></div>`); const b = $('[data-a="reader-rename"]'); if (b) b.remove(); $('#rn-t').focus(); });
+on('reader-rename-save', () => { const v = $('#rn-t').value.trim(); S.talks.titles = S.talks.titles || {}; if (v) S.talks.titles[readerUrl] = v; else delete S.talks.titles[readerUrl]; save(); render(); toast('Title saved.'); });
+on('reader-rename-reset', () => { if (S.talks.titles) delete S.talks.titles[readerUrl]; save(); render(); });
 on('ch-open', b => { listenCh = +b.dataset.c; render(); window.scrollTo(0, 0); });
 on('ch-back', () => { listenCh = null; stayed = null; render(); });
 function markHeard(url, v) {
@@ -1242,23 +1344,26 @@ function themesBlock(url, i) {
 }
 on('read-edit', () => { openSheet(`<div class="stack"><div><label class="lab" for="rd-t">Book</label><input class="input" id="rd-t" value="${esc((S.witness.readings[0] || {}).title || '')}"></div><div><label class="lab" for="rd-p">Page</label><input class="input" id="rd-p" inputmode="numeric" value="${esc((S.witness.readings[0] || {}).page || '')}"></div><div><label class="lab" for="rd-n">What opened or questioned something? (optional)</label><textarea class="input" id="rd-n"></textarea></div><button class="btn primary" data-a="read-save">Save my place</button></div>`, { title: 'Reading' }); });
 on('read-save', () => { const t = $('#rd-t').value.trim(), p = parseInt($('#rd-p').value, 10); if (!t || !p) { toast('Add the book and the page.'); return; } S.witness.readings.unshift({ id: uid(), created: new Date().toISOString(), title: t, page: p, thoughts: $('#rd-n').value.trim() }); save(); closeSheet(); render(); });
+function onThisDay() {
+  const now = new Date(), md = (now.getMonth() + 1) + '-' + now.getDate();
+  const e = S.witness.entries.find(x => { const d = new Date(x.created); return d.getFullYear() < now.getFullYear() && (d.getMonth() + 1) + '-' + d.getDate() === md && (x.direct || x.story); });
+  if (!e) return '';
+  const txt = (e.direct || e.story || '').trim(), cut = txt.length > 280 ? txt.slice(0, 277).replace(/\s+\S*$/, '') + '…' : txt;
+  return `<section class="card stack" style="gap:8px"><span class="eyebrow">On this day · ${fmtD(e.created)}</span><p class="journal-q" style="font-size:18px;white-space:pre-wrap">${esc(cut)}</p></section>`;
+}
+function readingCard() { const rd = S.witness.readings[0]; return `<div class="card between"><span><span class="tiny" style="display:block">Reading</span><strong>${rd ? esc(rd.title) + ' · page ' + rd.page : 'No book yet'}</strong></span><button class="link" data-a="read-edit">${rd ? 'Update' : 'Add'}</button></div>`; }
 function listenHtml() {
   if (listenCh != null) {
     const ch = TALKS[listenCh]; let i = 0;
-    const op2 = S.talks.opened && !S.talks.heard[S.talks.opened] && talkByUrl[S.talks.opened] && talkByUrl[S.talks.opened].ci === listenCh ? talkByUrl[S.talks.opened] : null;
-    return `${backBar('Listen', 'ch-back')}${op2 ? `<section class="card now stack" style="gap:10px"><span class="eyebrow">You opened</span><strong>${esc(shortTitle(op2.series, op2.title))}</strong><div class="btns"><button class="btn primary" data-a="opened-heard">Heard it</button><button class="btn" data-a="opened-later">Not yet</button></div></section>` : ''}<h2>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}</h2><p class="muted small">${esc(ch[1])} Tap a talk to open it. Light its lamp when you've heard it.</p>
+    return `${backBar('Listen', 'ch-back')}<h2>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}</h2><p class="muted small">${esc(ch[1])} Tap a talk to open it. Light its lamp when you've heard it.</p>
     ${ch[2].map(g => { const st = seriesState(g); return `<section class="card flat" style="padding-bottom:6px"><div class="between" style="min-height:56px"><h3>${esc(g[0])}</h3>${st.all ? `<span class="lampbtn" aria-pressed="true" style="width:36px;height:36px;border:0;background:none">${diyaSvg(28)}</span>` : ''}</div>
-      ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++; return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(shortTitle(g[0], t[0]))}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><a class="name" href="${esc(url)}" target="_blank" rel="noopener" data-open="${esc(url)}">${esc(shortTitle(g[0], t[0]))}</a>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : ''}</div>${themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
+      ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++, title = talkTitle(url); return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(title)}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><button class="name talk-open" data-a="talk-open" data-url="${esc(url)}"><span>${esc(title)}</span><small>${heard ? 'Heard · ' : ''}${esc(talkDesc(url))}</small></button>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : ''}</div>${url === readerUrl ? '' : themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
   }
-  const op = S.talks.opened && !S.talks.heard[S.talks.opened] && talkByUrl[S.talks.opened] ? talkByUrl[S.talks.opened] : null;
-  const back = op ? `<section class="card now stack" style="gap:10px"><span class="eyebrow">You opened</span><strong>${esc(shortTitle(op.series, op.title))} · ${esc(op.series)}</strong><div class="btns"><button class="btn primary" data-a="opened-heard">Heard it</button><button class="btn" data-a="opened-later">Not yet</button></div></section>` : '';
   const cont = [];
   TALKS.forEach(ch => ch[2].forEach(g => { const st = seriesState(g); if (st.heard && !st.all) { const last = g[1].map(t => S.talks.heard[t[1]] || '').sort().pop(); cont.push({ g, st, last }); } }));
   cont.sort((a, b) => a.last < b.last ? 1 : -1);
-  const rd = S.witness.readings[0];
-  return `${back}<section class="stack" style="gap:10px"><span class="eyebrow">Continue</span>
-  ${cont.slice(0, 3).map(c => `<a class="card now" href="${esc(c.st.next[1])}" target="_blank" rel="noopener" data-open="${esc(c.st.next[1])}" style="text-decoration:none;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:12px"><span><span class="tiny" style="display:block">${esc(c.g[0])}</span><strong>${esc(shortTitle(c.g[0], c.st.next[0]))} is next</strong></span><span aria-hidden="true" style="color:var(--ink3);font-size:24px">›</span></a>`).join('') || '<p class="tiny">Mark a talk as heard and the next one waits here.</p>'}
-  <div class="card between"><span><span class="tiny" style="display:block">Reading</span><strong>${rd ? esc(rd.title) + ' · page ' + rd.page : 'No book yet'}</strong></span><button class="link" data-a="read-edit">${rd ? 'Update' : 'Add'}</button></div></section>
+  return `<section class="stack" style="gap:10px"><span class="eyebrow">Continue</span>
+  ${cont.slice(0, 3).map(c => `<button class="card now continue" data-a="talk-open" data-url="${esc(c.st.next[1])}"><span><span class="tiny" style="display:block">${esc(c.g[0])} · next</span><strong>${esc(talkTitle(c.st.next[1]))}</strong><small class="tiny" style="display:block;margin-top:2px">${esc(talkDesc(c.st.next[1]))}</small></span><span aria-hidden="true" style="color:var(--ink3);font-size:24px">›</span></button>`).join('') || '<p class="tiny">Mark a talk as heard and the next one waits here.</p>'}</section>
   <h3 style="margin-top:6px">All talks</h3>
   <div>${TALKS.map((ch, ci) => { const all = ch[2].reduce((a, g) => a + g[1].length, 0); return `<button class="navrow" data-a="ch-open" data-c="${ci}"><span>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}<small>${esc(ch[1])}</small></span></button>`; }).join('')}</div>`;
 }
@@ -1301,10 +1406,12 @@ function writeHtml() {
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${new Date(e.created).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
   <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
+  ${onThisDay()}
+  ${readingCard()}
   ${gratitudeHtml()}`;
 }
 on('j-home', () => { journalMode = 'home'; journalEdit = null; render(); });
@@ -1326,6 +1433,7 @@ function checkStop() {
   stopShown.push(...due.map(t => t.getTime()));
   if (Date.now() - due[due.length - 1].getTime() > 3 * 3600e3) return; // too stale to be a signal
   const ix = Math.floor(Math.random() * STOP_FORMS.length), f = STOP_FORMS[ix];
+  T().stop = { ix, at: Date.now() }; save(); if (tab === 'today' && !document.hidden) render();
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) navigator.serviceWorker.ready.then(reg => reg.showNotification(f.word, { body: f.line, tag: 'prakash-stop', silent: true, data: { stop: true } })).catch(() => {});
   else showStop(ix);
 }
@@ -1334,8 +1442,11 @@ function showStop(ix) {
   $$('.focus-mode.stop').forEach(x => x.remove());
   const o = document.createElement('div'); o.className = 'focus-mode stop leaveable'; o.setAttribute('role', 'dialog');
   o.innerHTML = `<div class="big" style="font-size:44px">${esc(f.word)}</div><div class="line">${esc(f.line)}</div><button class="stop-leave">leave</button>`;
-  document.body.appendChild(o); o.querySelector('button').onclick = () => o.remove();
+  document.body.appendChild(o); o.querySelector('button').onclick = () => { o.remove(); stopClear(); };
 }
+function stopPending() { const st = S.todayOnly && S.todayOnly.date === todayKey() && S.todayOnly.stop; return st && Date.now() - st.at < 30 * 60e3 && STOP_FORMS[st.ix] ? st : null; }
+function stopClear() { if (S.todayOnly && S.todayOnly.stop) { delete S.todayOnly.stop; save(); if (tab === 'today') render(); } }
+on('stop-card-leave', () => stopClear());
 function showAnger(step) {
   step = step || 0; let o = $('.focus-mode.anger'); if (!o) { o = document.createElement('div'); o.className = 'focus-mode anger leaveable'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
   if (step < ANGER_STEPS.length) { o.innerHTML = `<div class="line" style="font-size:24px">${esc(ANGER_STEPS[step])}</div><div><button class="btn" id="ag-next" style="min-width:140px">Next</button></div><button class="stop-leave" id="ag-leave">leave</button>`; $('#ag-next', o).onclick = () => showAnger(step + 1); $('#ag-leave', o).onclick = () => o.remove(); }
@@ -1369,6 +1480,7 @@ R.practice = function () {
   return `<div class="stack"><h1>Practice</h1>${practiceNav()}${body}</div>`;
 };
 R.practiceAfter = function (main) {
+  refreshReader();
   const mt = $('#med-time'); if (mt && S.meditationTimer.startedAt) ticker(() => { const s = Math.max(0, Math.floor((Date.now() - new Date(S.meditationTimer.startedAt)) / 1000)); mt.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); });
   $$('[data-talk]', main).forEach(el => swipe(el, () => { if (!S.talks.heard[el.dataset.talk]) markHeard(el.dataset.talk, true); }, () => { if (S.talks.heard[el.dataset.talk]) markHeard(el.dataset.talk, false); }));
   main.oninput = e => {
@@ -1404,26 +1516,37 @@ function youHome() {
     mods().body && ['body', 'Body', (lw ? 'Waist ' + waistShow(lw.cm) + ' · weight, photos, sleep, blood pressure' : 'Weight, waist, photos, sleep, blood pressure')],
     ['goals', 'Goals and your day', big(p.kcalTarget) + ' calories · wake ' + p.wake + ' · bed ' + p.bed],
     ['backup', 'Backup and restore', age == null ? 'Everything lives on this phone' : 'Last backup ' + (age === 0 ? 'today' : age === 1 ? 'yesterday' : age + ' days ago')],
-    ['settings', 'Settings', 'What to show, Gemini, meditation music, the tour'],
+    ['settings', 'Settings', 'What to show, units, Gemini, meditation music'],
     ['about', 'About Prakash', 'What’s new, and a note on privacy']
   ].filter(Boolean);
-  return `<div class="stack"><h1>You</h1>
-  <button class="choice" data-a="quiet" aria-pressed="${quiet()}"><span><strong>Quiet mode</strong><small>${quiet() ? 'On: only what happened. No targets, nothing left or over.' : 'Hide targets and show only what happened'}</small></span><span class="tiny">${quiet() ? 'On' : 'Off'}</span></button>
+  const notifAsk = 'Notification' in window && Notification.permission === 'default', geminiAsk = !p.geminiKey;
+  const extras = !p.extrasDismissed && (notifAsk || geminiAsk) ? `<section class="card stack" aria-labelledby="olt-h"><h2 id="olt-h">One last thing</h2>
+    ${geminiAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Gemini fills in dishes from a photo.</strong> Free, with a key from Google.</p><button class="btn" data-a="you" data-v="gemini">Connect Gemini</button></div>` : ''}
+    ${notifAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Quiet notifications for the Stop.</strong> A silent reminder to pause, a few times a day. No sound, no buzz.</p><button class="btn" data-a="extras-notify">Allow quiet notifications</button></div>` : ''}
+    <button class="btn ghost" data-a="extras-later">Not now</button></section>` : '';
+  return `<div class="stack"><h1>You</h1>${extras}
+  <button class="choice" data-a="quiet" aria-pressed="${!!p.quiet}"><span><strong>Quiet mode</strong><small>${p.quiet ? 'On: only what happened. No targets, nothing left or over.' : quietToday() ? 'Quiet for today is on until midnight. Tap to keep it on.' : 'Hide targets and show only what happened'}</small></span><span class="tiny">${p.quiet ? 'On' : 'Off'}</span></button>
+  <button class="choice" data-a="big-text" aria-pressed="${!!p.bigText}"><span><strong>Larger text</strong><small>${p.bigText ? 'On: bigger words and roomier buttons' : 'Make everything easier to read'}</small></span><span class="tiny">${p.bigText ? 'On' : 'Off'}</span></button>
   ${nudge}
   <div>${rows.map(r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`).join('')}</div></div>`;
 }
-on('quiet', () => { S.profile.quiet = !S.profile.quiet; save(); render(); toast(S.profile.quiet ? 'Quiet mode on. Only what happened.' : 'Quiet mode off.'); });
+on('extras-notify', () => { if ('Notification' in window) Notification.requestPermission().then(() => render()); });
+on('extras-later', () => { S.profile.extrasDismissed = true; save(); render(); });
+on('quiet', () => { S.profile.quiet = !S.profile.quiet; if (S.todayOnly) delete S.todayOnly.quiet; save(); render(); toast(S.profile.quiet ? 'Quiet mode on. Only what happened.' : 'Quiet mode off.'); });
 function settingsHtml() {
   const p = S.profile;
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Settings</h1><div>
   <button class="navrow" data-a="you" data-v="sections"><span>What to show<small>Hide what you don’t use. Nothing is deleted.</small></span></button>
+  <button class="navrow" data-a="you" data-v="units"><span>Units<small>${p.weightUnit === 'st' ? 'Stones and pounds' : 'Kilograms'} · waist in ${p.waistUnit === 'cm' ? 'centimetres' : 'inches'}</small></span></button>
   <button class="navrow" data-a="you" data-v="gemini"><span>Connect Gemini<small>${p.geminiKey ? 'Connected' : 'Free. Fills in dishes from a photo'}</small></span></button>
   <button class="navrow" data-a="you" data-v="music"><span>Meditation music<small>The Spotify link for Gauri Shankar</small></span></button>
   <button class="navrow" data-a="tour"><span>Show the tour<small>Thirty seconds on how Prakash works</small></span></button>
   <button class="navrow" data-a="setup-again"><span>Go through setup again<small>Your answers are kept and filled in</small></span></button></div></div>`;
 }
+function unitsHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Units</h1><p class="muted small">Used everywhere: Body, goals, charts and setup. What you've already saved is kept and shown in the new units.</p><section class="card stack">${unitChips('unit-set')}</section></div>`; }
+on('unit-set', b => { S.profile[b.dataset.k] = b.dataset.u; save(); render(); });
 function goalsHtml() { return targetsHtml().replace(/^<div class="stack">[\s\S]*?<\/h1>/, `<div class="stack">${backBar('You', 'you-home')}<h1>Goals and your day</h1>`).replace(/<\/div>$/, '') + rhythmHtml().replace(/^<div class="stack">[\s\S]*?<\/p>/, '<h2 style="margin-top:8px">Your day</h2><p class="muted small">These times decide what Today shows, and when.</p>'); }
-const YOU_PARENT = { body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
+const YOU_PARENT = { units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
 on('you-up', () => go('you', YOU_PARENT[view.you] || 'home'));
 /* ---------- body ---------- */
 function lineChart(pts, unit, goal) {
@@ -1431,6 +1554,23 @@ function lineChart(pts, unit, goal) {
   const vals = pts.map(p => p.v).concat(goal != null ? [goal] : []), mn = Math.min(...vals) - 1, mx = Math.max(...vals) + 1, W = 340, H = 150, P = 10;
   const x = i => P + (W - 2 * P) * i / (pts.length - 1), y = v => H - 22 - (H - 40) * (v - mn) / (mx - mn || 1);
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="bar-svg" role="img" aria-label="Trend">${goal != null ? `<line x1="${P}" x2="${W - P}" y1="${y(goal)}" y2="${y(goal)}" style="stroke:var(--mint)" stroke-dasharray="5 4"/><text x="${W - P}" y="${y(goal) - 5}" text-anchor="end">goal ${goal}</text>` : ''}<polyline points="${pts.map((p, i) => x(i).toFixed(1) + ',' + y(p.v).toFixed(1)).join(' ')}" fill="none" style="stroke:var(--ink)" stroke-width="2"/>${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="3" style="fill:var(--ink)"/>`).join('')}<text x="${P}" y="${H - 4}">${fmtDate(pts[0].date)}</text><text x="${W - P}" y="${H - 4}" text-anchor="end">${fmtDate(pts[pts.length - 1].date)} · ${pts[pts.length - 1].v} ${unit}</text></svg>`;
+}
+/* weight: the 7-day average is the line; single days sit faintly behind it */
+function weightChart(ws, goalKg) {
+  const t = todayKey(), from = addDays(t, -60), pts = ws.filter(w => w.date >= from);
+  if (pts.length < 2) return '<p class="tiny">The chart appears after the second reading.</p>';
+  const avg = pts.map(w => { const lo = addDays(w.date, -6), win = ws.filter(x => x.date >= lo && x.date <= w.date); return { date: w.date, v: win.reduce((a, x) => a + +x.kg, 0) / win.length }; });
+  const V = kg => S.profile.weightUnit === 'st' ? kg * KG_LB / 14 : kg;
+  const t0 = dateOf(pts[0].date).getTime(), t1 = dateOf(pts[pts.length - 1].date).getTime(), span = Math.max(1, t1 - t0);
+  const vals = pts.map(w => V(+w.kg)).concat(goalKg ? [V(goalKg)] : []), mn = Math.min(...vals) - 0.5, mx = Math.max(...vals) + 0.5, W = 340, H = 160, P = 10;
+  const x = d => P + (W - 2 * P) * (dateOf(d).getTime() - t0) / span, y = v => H - 24 - (H - 44) * (v - mn) / (mx - mn || 1);
+  const last = avg[avg.length - 1];
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="bar-svg wchart" role="img" aria-label="Weight, 7-day average: ${esc(wShow(last.v))}">
+  ${goalKg ? `<line x1="${P}" x2="${W - P}" y1="${y(V(goalKg))}" y2="${y(V(goalKg))}" style="stroke:var(--mint)" stroke-dasharray="5 4"/><text x="${W - P}" y="${y(V(goalKg)) - 5}" text-anchor="end">goal</text>` : ''}
+  ${pts.map(w => `<circle class="day" cx="${x(w.date).toFixed(1)}" cy="${y(V(+w.kg)).toFixed(1)}" r="3" style="fill:var(--ink)"/>`).join('')}
+  <polyline points="${avg.map(a => x(a.date).toFixed(1) + ',' + y(V(a.v)).toFixed(1)).join(' ')}" fill="none" style="stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="${P}" y="${H - 4}">${fmtDate(pts[0].date)}</text><text x="${W - P}" y="${H - 4}" text-anchor="end">7-day average · ${esc(wShow(last.v))}</text></svg>
+  <p class="tiny">The line is the 7-day average. The faint dots are single mornings; water and salt move them about.</p>`;
 }
 const SCALE = [['kg', 'Weight', 'kg', 20, 400], ['bodyFat', 'Body fat (scale)', '%', 2, 75], ['muscleKg', 'Muscle (scale)', 'kg', 5, 150], ['visceral', 'Visceral fat', '', 1, 60], ['waterPct', 'Body water', '%', 20, 80]];
 function bodyHtml() {
@@ -1443,16 +1583,17 @@ function bodyHtml() {
   const toGo = quiet() ? null : lw && goal ? n1((lw.cm - goal) / (inU ? CM_IN : 1)) : null;
   const photos = [...S.photos].sort((a, b) => a.date < b.date ? 1 : -1);
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Body</h1>
+  <button class="navrow" data-a="checkin"><span>Weekly check-in<small>Weight, waist and a photo, in one go</small></span></button>
   <section class="card stack"><h2>Waist</h2><p class="muted small">At the belly button, relaxed, first thing in the morning. It shows the stomach changing even when the scale stands still.</p>
   <div class="facts"><div class="fact"><span>Latest</span><strong>${lw ? waistShow(lw.cm) + ' · ' + fmtDate(lw.date) : '-'}</strong></div>${goal && !quiet() ? `<div class="fact"><span>Goal</span><strong>${waistShow(goal)}${toGo != null ? (toGo > 0 ? ' · ' + toGo + (inU ? ' in' : ' cm') + ' to go' : ' · reached') : ''}</strong></div>` : ''}${p.heightCm && lw ? `<div class="fact"><span>Waist to height</span><strong>${(lw.cm / p.heightCm).toFixed(2)} (under 0.5 is healthy)</strong></div>` : ''}</div>
-  <div class="grid2"><div><label class="lab" for="wa-v">Waist (${inU ? 'inches' : 'cm'})</label><input class="input" id="wa-v" inputmode="decimal"></div><div><label class="lab" for="wa-d">Date</label><input class="input" type="date" id="wa-d" value="${t}" max="${t}"></div></div><button class="btn primary" data-a="waist-add">Save waist</button>
+  <div class="grid2"><div><label class="lab" for="wa-v">Waist (${inU ? 'inches' : 'cm'})</label><input class="input" id="wa-v" inputmode="decimal"></div><div><label class="lab" for="wa-d">Date</label>${dateField('wa-d', t, `max="${t}"`)}</div></div><button class="btn primary" data-a="waist-add">Save waist</button>
   ${lineChart(wa.slice(-20).map(w => ({ date: w.date, v: n1(inU ? w.cm / CM_IN : w.cm) })), inU ? 'in' : 'cm', goal && !quiet() ? n1(inU ? goal / CM_IN : goal) : null)}</section>
   <section class="card stack"><h2>Weight</h2><p class="muted small">First thing in the morning, after the toilet, before food. The weekly average is what matters.</p>
-  <div class="facts"><div class="fact"><span>This week's average</span><strong>${a7 != null ? a7 + ' kg' : '-'}</strong></div><div class="fact"><span>Week before</span><strong>${a14 != null ? a14 + ' kg' : '-'}</strong></div>${p.goalWeight && !quiet() ? `<div class="fact"><span>Goal</span><strong>${p.goalWeight} kg</strong></div>` : ''}</div>
-  <div class="grid2"><div><label class="lab" for="sc-kg">Weight (kg)</label><input class="input" id="sc-kg" inputmode="decimal"></div><div><label class="lab" for="sc-d">Date</label><input class="input" type="date" id="sc-d" value="${t}" max="${t}"></div></div>
+  <div class="facts"><div class="fact"><span>This week's average</span><strong>${wShow(a7)}</strong></div><div class="fact"><span>Week before</span><strong>${wShow(a14)}</strong></div>${p.goalWeight && !quiet() ? `<div class="fact"><span>Goal</span><strong>${wShow(p.goalWeight)}</strong></div>` : ''}</div>
+  ${p.weightUnit === 'st' ? `${weightFields('sc-kg', null, 'Weight')}<div><label class="lab" for="sc-d">Date</label>${dateField('sc-d', t, `max="${t}"`)}</div>` : `<div class="grid2">${weightFields('sc-kg', null, 'Weight')}<div><label class="lab" for="sc-d">Date</label>${dateField('sc-d', t, `max="${t}"`)}</div></div>`}
   <details class="fold"><summary class="small">More scale readings</summary><div class="grid2">${SCALE.slice(1).map(s => `<div><label class="lab" for="sc-${s[0]}">${s[1]}${s[2] ? ' (' + s[2] + ')' : ''}</label><input class="input" id="sc-${s[0]}" inputmode="decimal"></div>`).join('')}</div><p class="tiny" style="margin-top:8px">Bathroom scales can be several points out on body fat. Use the waist and photos as the truer guide.</p></details>
   <button class="btn primary" data-a="scale-add">Save weight</button>
-  ${lineChart(ws.slice(-30).map(w => ({ date: w.date, v: +w.kg })), 'kg', !quiet() && p.goalWeight || null)}</section>
+  ${weightChart(ws, !quiet() && p.goalWeight ? p.goalWeight : null)}</section>
   <section class="card stack" id="sleep-card"><h2>Sleep</h2><p class="muted small">Forgot the timer? Enter last night here.</p><div class="grid2"><div><label class="lab" for="sl-bed">Went to bed</label><input class="input" type="time" id="sl-bed" value="${esc(td.bedTime || '')}"></div><div><label class="lab" for="sl-woke">Woke</label><input class="input" type="time" id="sl-woke" value="${esc(td.wokeTime || '')}"></div></div><div><label class="lab" for="sl-h">Hours</label><input class="input" id="sl-h" inputmode="decimal" value="${td.sleep == null ? '' : td.sleep}"></div></section>
   ${mods().body ? '<button class="navrow" data-a="you" data-v="bp"><span>Blood pressure<small>Readings and a report for your doctor</small></span></button>' : ''}
   <section class="card stack"><h2>Progress photos</h2><p class="muted small">Every two weeks. Front and side, same light, same spot. Photos stay on this phone and go into your backup.</p>
@@ -1463,18 +1604,46 @@ function bodyHtml() {
 on('waist-add', () => { const cm = waistToCm($('#wa-v').value), d = $('#wa-d').value || todayKey(); if (!cm || cm < 40 || cm > 250) { toast('Enter your waist measurement.'); return; } S.waists = S.waists.filter(w => w.date !== d); S.waists.push({ date: d, cm }); save(); render(); toast('Waist saved.'); });
 on('scale-add', () => {
   const d = $('#sc-d').value || todayKey(), vals = {};
-  for (const [k, label, u, lo, hi] of SCALE) { const el = $('#sc-' + k); const v = num(el && el.value); if (v == null) continue; if (v < lo || v > hi) { toast(label + ': a number from ' + lo + ' to ' + hi + ', or leave it empty.'); return; } vals[k] = n1(v); }
+  for (const [k, label, u, lo, hi] of SCALE) { const el = $('#sc-' + k); const v = k === 'kg' ? readWeight('sc-kg') : num(el && el.value); if (v == null) continue; if (v < lo || v > hi) { toast(label + ': a number from ' + lo + ' to ' + hi + ', or leave it empty.'); return; } vals[k] = n1(v); }
   if (!Object.keys(vals).length) { toast('Enter your weight.'); return; }
   const old = S.weights.find(w => w.date === d) || {}; S.weights = S.weights.filter(w => w.date !== d); S.weights.push({ ...old, ...vals, date: d }); save(); render(); toast('Saved.');
 });
 on('photo-del', b => confirmSheet('Delete this photo?', 'It will be gone from this phone.', 'Delete', async () => { const id = b.dataset.id; S.photos = S.photos.filter(x => x.id !== id); save(); await pdel(id).catch(() => {}); render(); }, true));
+async function addPhoto(f) { try { const data = await downscale(f, 1400, 0.82); const blob = b64blob(data.split(',')[1], 'image/jpeg'); const id = uid(); await pput(id, { blob, mime: 'image/jpeg' }); S.photos.push({ id, date: todayKey() }); save(); return true; } catch (x) { toast('Couldn’t save that photo.'); return false; } }
+/* ---------- the weekly check-in: weight, waist, photo, in one go ---------- */
+function sundayOf(k) { const d = dateOf(k); return addDays(k, -d.getDay()); }
+function checkinDue() { const k = todayKey(); return mods().body && dateOf(k).getDay() === 0 && nowMins() >= mins(S.profile.wake || '06:00') && S.profile.checkinWeek !== sundayOf(k); }
+let CI = null;
+function checkinStep() {
+  const p = S.profile, lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop(), steps = ['weight', 'waist', 'photo', 'done'], k = steps[CI.i];
+  let body = '';
+  if (k === 'weight') body = `<h2>Weight</h2><p class="muted small">First thing in the morning, before food, if you can.</p>${weightFields('ci-kg', null, 'Weight')}`;
+  if (k === 'waist') body = `<h2>Waist</h2><p class="muted small">At the belly button, relaxed.${lw ? ' Last time: ' + waistShow(lw.cm) + '.' : ''}</p><div><label class="lab" for="ci-w">Waist (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="ci-w" inputmode="decimal"></div>`;
+  if (k === 'photo') body = `<h2>A photo</h2><p class="muted small">Front and side, same light, same spot. It stays on this phone.</p><div class="btns"><label class="btn primary filebtn">Take photo<input type="file" accept="image/*" capture="environment" data-ciphoto></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" data-ciphoto></label></div>${CI.photos ? `<p class="small">${CI.photos} photo${CI.photos === 1 ? '' : 's'} kept.</p>` : ''}`;
+  if (k === 'done') body = `<div class="stack" style="align-items:center;text-align:center;gap:14px;padding:16px 0"><span class="diya" aria-pressed="true" style="padding:0">${diyaSvg(64)}</span><h2>That’s the week noted</h2><p class="muted">${CI.saved.length ? esc(CI.saved.join(', ')) + ' saved.' : 'Nothing saved, and that’s fine.'} See it any time in You › Body.</p></div>`;
+  const last = k === 'done';
+  return `<div class="stack" style="gap:14px">${last ? '' : `<div class="dots" aria-hidden="true">${steps.slice(0, 3).map((_, j) => `<i class="${j <= CI.i ? 'on' : ''}"></i>`).join('')}</div><span class="tiny">${CI.i + 1} of 3</span>`}${body}
+  <div class="btns">${last ? '<button class="btn primary big" data-a="ci-close">Done</button>' : `<button class="btn primary" data-a="ci-next">${k === 'photo' ? 'Finish' : 'Continue'}</button><button class="btn" data-a="ci-skip">Skip</button>`}</div></div>`;
+}
+function showCheckin() { const el = openSheet(checkinStep(), { title: 'Weekly check-in', label: 'Weekly check-in', onClose: () => { CI = null; render(); } }); el.addEventListener('change', async e => { if (e.target.matches('[data-ciphoto]')) { const f = e.target.files && e.target.files[0]; if (f && await addPhoto(f)) { CI.photos = (CI.photos || 0) + 1; if (!CI.saved.includes('Photo')) CI.saved.push('Photo'); refreshCheckin(); } } }); }
+function refreshCheckin() { const b = $('.sheet .sheet-body'); if (!b || !CI) return; b.innerHTML = checkinStep(); const h = b.querySelector('h2'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
+on('checkin', () => { CI = { i: 0, saved: [], photos: 0 }; S.profile.checkinWeek = sundayOf(todayKey()); save(); showCheckin(); });
+on('checkin-skip', () => { S.profile.checkinWeek = sundayOf(todayKey()); save(); render(); });
+on('ci-skip', () => { CI.i++; refreshCheckin(); });
+on('ci-next', () => {
+  const k = ['weight', 'waist', 'photo'][CI.i], t = todayKey();
+  if (k === 'weight') { const kg = readWeight('ci-kg'); if (kg != null) { if (kg < 20 || kg > 400) { toast('Enter your weight, or skip.'); return; } const old = S.weights.find(w => w.date === t) || {}; S.weights = S.weights.filter(w => w.date !== t); S.weights.push({ ...old, kg: n1(kg), date: t }); CI.saved.push('Weight'); save(); } }
+  if (k === 'waist') { const v = ($('#ci-w') || {}).value; if (v) { const cm = waistToCm(v); if (!cm || cm < 40 || cm > 250) { toast('Enter your waist, or skip.'); return; } S.waists = S.waists.filter(w => w.date !== t); S.waists.push({ date: t, cm }); CI.saved.push('Waist'); save(); } }
+  CI.i++; refreshCheckin();
+});
+on('ci-close', () => closeSheet());
 R.youAfter = function (main) {
   $$('img[data-psrc]', main).forEach(async im => { const ph = S.photos.find(x => x.id === im.dataset.psrc); if (ph) { const u = await photoSrc(ph); if (u) im.src = u; } });
   main.onchange = async e => {
     const el = e.target;
     if (el.matches('[data-photo]')) {
       const f = el.files && el.files[0]; if (!f) return;
-      try { const data = await downscale(f, 1400, 0.82); const blob = b64blob(data.split(',')[1], 'image/jpeg'); const id = uid(); await pput(id, { blob, mime: 'image/jpeg' }); S.photos.push({ id, date: todayKey() }); save(); render(); toast('Photo saved on this phone.'); } catch (x) { toast('Couldn’t save that photo.'); }
+      if (await addPhoto(f)) { render(); toast('Photo saved on this phone.'); }
       return;
     }
     if (el.id === 'ph-remind') { S.photoReminder.on = el.checked; save(); return; }
@@ -1484,6 +1653,7 @@ R.youAfter = function (main) {
       else { td[el.id === 'sl-bed' ? 'bedTime' : 'wokeTime'] = el.value; if (td.bedTime && td.wokeTime) { let dm = mins(td.wokeTime) - mins(td.bedTime); if (dm <= 0) dm += 1440; td.sleep = n1(dm / 60); const h = $('#sl-h'); if (h) h.value = td.sleep; } }
       save(); toast('Sleep saved.'); return;
     }
+    if (el.dataset.wgoal) { const kg = readWeight('t-gw'); if (kg != null && (kg < 20 || kg > 400)) { toast('Enter a weight goal, or leave it empty.'); return; } S.profile.goalWeight = kg || null; save(); toast('Saved.'); return; }
     if (el.dataset.set) { setProfile(el); return; }
     if (el.id === 'gs-link') { const v = el.value.trim(); if (v && !/(open\.spotify\.com\/|spotify:)/.test(v)) { toast('Paste a Spotify link, or leave it empty.'); return; } if (v && v !== GS_DEFAULT) S.profile.gsSpotify = v; else delete S.profile.gsSpotify; save(); toast('Saved.'); return; }
     if (el.id === 'restore-file') { restoreFile(el.files && el.files[0]); el.value = ''; }
@@ -1493,13 +1663,13 @@ R.youAfter = function (main) {
 /* ---------- blood pressure ---------- */
 let bpPeriod = new Date().getHours() < 12 ? 'Morning' : 'Evening';
 on('bp-period', b => { bpPeriod = b.dataset.p; render(); });
-on('bp-add', () => { const sys = parseInt($('#bp-sys').value, 10), dia = parseInt($('#bp-dia').value, 10), pulse = parseInt($('#bp-pulse').value, 10), at = $('#bp-at').value; if (!at || !(sys >= 50 && sys <= 300) || !(dia >= 30 && dia <= 200) || !(pulse >= 25 && pulse <= 250)) { toast('Enter the top number, bottom number and pulse.'); return; } S.bloodPressures.push({ id: uid(), at: new Date(at).toISOString(), period: bpPeriod, sys, dia, pulse, note: $('#bp-note').value.trim() }); save(); render(); toast('Reading saved.'); });
+on('bp-add', () => { const sys = parseInt($('#bp-sys').value, 10), dia = parseInt($('#bp-dia').value, 10), pulse = parseInt($('#bp-pulse').value, 10), at = ($('#bp-d').value && $('#bp-t').value) ? $('#bp-d').value + 'T' + $('#bp-t').value : ''; if (!at || !(sys >= 50 && sys <= 300) || !(dia >= 30 && dia <= 200) || !(pulse >= 25 && pulse <= 250)) { toast('Enter the top number, bottom number and pulse.'); return; } S.bloodPressures.push({ id: uid(), at: new Date(at).toISOString(), period: bpPeriod, sys, dia, pulse, note: $('#bp-note').value.trim() }); save(); render(); toast('Reading saved.'); });
 on('bp-del', b => { const ix = S.bloodPressures.findIndex(x => x.id === b.dataset.id); const gone = S.bloodPressures.splice(ix, 1)[0]; save(); render(); undoBar('Reading removed.', () => { S.bloodPressures.splice(ix, 0, gone); save(); render(); }); });
 function bpMean(a) { return a.length ? { sys: n0(a.reduce((n, x) => n + x.sys, 0) / a.length), dia: n0(a.reduce((n, x) => n + x.dia, 0) / a.length), pulse: n0(a.reduce((n, x) => n + x.pulse, 0) / a.length) } : null; }
 on('bp-print', () => {
   const from = $('#bp-from').value, to = $('#bp-to').value, a = new Date(from + 'T00:00:00'), b = new Date(to + 'T23:59:59');
   const rows = S.bloodPressures.filter(x => { const d = new Date(x.at); return d >= a && d <= b; }).sort((x, y) => new Date(x.at) - new Date(y.at)), m = bpMean(rows);
-  $('#bp-report').innerHTML = `<h1 style="font-size:24px">Blood pressure diary</h1><p>${a.toLocaleDateString('en-GB')} to ${b.toLocaleDateString('en-GB')} · ${rows.length} readings · average ${m ? m.sys + '/' + m.dia + ' mmHg, pulse ' + m.pulse : '-'}</p><table class="t"><thead><tr><th>Date</th><th>Time</th><th>Morning / evening</th><th>mmHg</th><th>Pulse</th><th>Notes</th></tr></thead><tbody>${rows.map(x => `<tr><td>${new Date(x.at).toLocaleDateString('en-GB')}</td><td>${fmtTime(x.at)}</td><td>${esc(x.period)}</td><td>${x.sys}/${x.dia}</td><td>${x.pulse}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table><p>Format follows the British Heart Foundation home blood pressure diary. Medication changes are the doctor's call.</p>`;
+  $('#bp-report').innerHTML = `<h1 style="font-size:24px">Blood pressure diary</h1><p>${fmtD(a)} to ${fmtD(b)} · ${rows.length} readings · average ${m ? m.sys + '/' + m.dia + ' mmHg, pulse ' + m.pulse : '-'}</p><table class="t"><thead><tr><th>Date</th><th>Time</th><th>Morning / evening</th><th>mmHg</th><th>Pulse</th><th>Notes</th></tr></thead><tbody>${rows.map(x => `<tr><td>${fmtD(x.at)}</td><td>${fmtTime(x.at)}</td><td>${esc(x.period)}</td><td>${x.sys}/${x.dia}</td><td>${x.pulse}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table><p>Format follows the British Heart Foundation home blood pressure diary. Medication changes are the doctor's call.</p>`;
   window.print();
 });
 function bpHtml() {
@@ -1508,14 +1678,14 @@ function bpHtml() {
   const ln = new Date(), stamp = new Date(ln.getTime() - ln.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   return `<div class="stack">${backBar('Body', 'you-up')}<h1>Blood pressure</h1>
   <p class="muted small">For a 7-day diary: morning (6 am–noon) and evening (6 pm–midnight), two readings a couple of minutes apart. Sit calmly, back supported, feet flat, arm resting on a table. <a href="https://www.bhf.org.uk/-/media/files/information-and-support/publications/living-with-a-heart-condition/bhf_bp_diary_1224.pdf" target="_blank" rel="noopener">BHF guidance</a></p>
-  <section class="card stack"><div><label class="lab" for="bp-at">When</label><input class="input" type="datetime-local" id="bp-at" value="${stamp}"></div>
+  <section class="card stack"><div class="grid2"><div><label class="lab" for="bp-d">Date</label>${dateField('bp-d', todayKey(), `max="${todayKey()}"`)}</div><div><label class="lab" for="bp-t">Time</label><input class="input" type="time" id="bp-t" value="${stamp.slice(11, 16)}"></div></div>
   <div class="chips">${['Morning', 'Evening'].map(x => `<button class="chip" data-a="bp-period" data-p="${x}" aria-pressed="${bpPeriod === x}">${x}</button>`).join('')}</div>
   <div class="grid3"><div><label class="lab" for="bp-sys">Top</label><input class="input" id="bp-sys" inputmode="numeric" placeholder="120"></div><div><label class="lab" for="bp-dia">Bottom</label><input class="input" id="bp-dia" inputmode="numeric" placeholder="80"></div><div><label class="lab" for="bp-pulse">Pulse</label><input class="input" id="bp-pulse" inputmode="numeric" placeholder="60"></div></div>
   <div><label class="lab" for="bp-note">Anything to note (optional)</label><input class="input" id="bp-note" placeholder="e.g. headache, after resting"></div>
   <button class="btn primary" data-a="bp-add">Save reading</button></section>
   <section class="card"><div class="facts"><div class="fact"><span>Last 7 days</span><strong>${w ? w.sys + '/' + w.dia + ' · pulse ' + w.pulse : '-'}</strong></div><div class="fact"><span>Last 30 days</span><strong>${m ? m.sys + '/' + m.dia + ' · pulse ' + m.pulse : '-'}</strong></div></div></section>
-  <details class="fold"><summary>Report for your doctor</summary><div class="stack"><div class="grid2"><div><label class="lab" for="bp-from">From</label><input class="input" type="date" id="bp-from" value="${addDays(todayKey(), -6)}"></div><div><label class="lab" for="bp-to">To</label><input class="input" type="date" id="bp-to" value="${todayKey()}"></div></div><button class="btn" data-a="bp-print">Print or save as PDF</button></div></details>
-  <h3>Readings</h3>${bp.length ? `<table class="t"><thead><tr><th>Date</th><th>mmHg</th><th>Pulse</th><th></th></tr></thead><tbody>${bp.slice(0, 40).map(x => `<tr><td>${new Date(x.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${fmtTime(x.at)}</td><td><strong>${x.sys}/${x.dia}</strong></td><td>${x.pulse}</td><td><button class="link" data-a="bp-del" data-id="${x.id}" aria-label="Remove reading">Remove</button></td></tr>`).join('')}</tbody></table>` : '<p class="tiny">No readings yet.</p>'}
+  <details class="fold"><summary>Report for your doctor</summary><div class="stack"><div class="grid2"><div><label class="lab" for="bp-from">From</label>${dateField('bp-from', addDays(todayKey(), -6))}</div><div><label class="lab" for="bp-to">To</label>${dateField('bp-to', todayKey())}</div></div><button class="btn" data-a="bp-print">Print or save as PDF</button></div></details>
+  <h3>Readings</h3>${bp.length ? `<table class="t"><thead><tr><th>Date</th><th>mmHg</th><th>Pulse</th><th></th></tr></thead><tbody>${bp.slice(0, 40).map(x => `<tr><td>${fmtD(x.at)} ${fmtTime(x.at)}</td><td><strong>${x.sys}/${x.dia}</strong></td><td>${x.pulse}</td><td><button class="link" data-a="bp-del" data-id="${x.id}" aria-label="Remove reading">Remove</button></td></tr>`).join('')}</tbody></table>` : '<p class="tiny">No readings yet.</p>'}
   <p class="tiny">A plain record for you and your doctor. Changes to tablets are your doctor's call.</p></div>`;
 }
 
@@ -1534,9 +1704,9 @@ function targetsHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Targets and goal</h1>
   <section class="card stack"><h2>Each day</h2><div class="grid2">${field('t-k', 'Calories', 'kcalTarget', p.kcalTarget, 'num', 'data-int="1"')}${field('t-p', 'Protein (g)', 'proteinTarget', p.proteinTarget, 'num', 'data-int="1"')}${field('t-w', 'Water (glasses)', 'waterTarget', p.waterTarget, 'num', 'data-int="1"')}${field('t-s', 'Steps', 'stepsTarget', p.stepsTarget, 'num', 'data-int="1"')}</div>
   ${sug ? `<p class="tiny">From your details, a gentle loss is about ${big(sug.kcal)} calories and ${sug.protein} g protein a day.</p>` : ''}</section>
-  <section class="card stack"><h2>Goal</h2><div class="grid2"><div><label class="lab" for="t-wg">Waist goal (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="t-wg" data-set="waistGoalCm" data-kind="waist" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div>${field('t-gw', 'Weight goal (kg)', 'goalWeight', p.goalWeight, 'num')}</div>
+  <section class="card stack"><h2>Goal</h2><div class="grid2"><div><label class="lab" for="t-wg">Waist goal (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="t-wg" data-set="waistGoalCm" data-kind="waist" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div></div>${weightFields('t-gw', p.goalWeight, 'Weight goal', 'data-wgoal="1"')}
   ${p.heightCm ? `<p class="tiny">Half your height is a healthy waist: ${waistShow(p.heightCm / 2)}.</p>` : ''}
-  <div><span class="lab">Measure the waist in</span><div class="chips">${[['in', 'Inches'], ['cm', 'Centimetres']].map(u => `<button class="chip" data-a="waist-unit" data-u="${u[0]}" aria-pressed="${(p.waistUnit || 'in') === u[0]}">${u[1]}</button>`).join('')}</div></div></section>
+  <button class="link" data-a="you" data-v="units" style="align-self:flex-start">Units: ${p.weightUnit === 'st' ? 'stones and pounds' : 'kilograms'}, waist in ${p.waistUnit === 'cm' ? 'centimetres' : 'inches'}</button></section>
   <section class="card stack"><h2>Training</h2><div class="chips">${[[2, '2 days a week'], [3, '3 days'], [4, '3 days + an easy day']].map(x => `<button class="chip" data-a="train-days" data-n="${x[0]}" aria-pressed="${+p.trainingDays === x[0]}">${x[1]}</button>`).join('')}</div>
   <label class="check"><input type="checkbox" data-set="bpSafe" ${p.bpSafe ? 'checked' : ''}>Show the blood pressure notes</label>
   <div><span class="lab">Rest between sets</span><div class="chips">${[90, 120, 180].map(s => `<button class="chip" data-a="rest-sec" data-s="${s}" aria-pressed="${+p.restSec === s}">${s === 90 ? '1½ min' : s / 60 + ' min'}</button>`).join('')}</div></div></section></div>`;
@@ -1549,6 +1719,7 @@ function rhythmHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Your day</h1><p class="muted small">These times decide what Today shows, and when.</p>
   <section class="card stack"><div class="grid2">${field('r-w', 'Wake', 'wake', p.wake, 'text', 'type="time"')}${field('r-b', 'Bed', 'bed', p.bed, 'text', 'type="time"')}${field('r-f', 'First food', 'foodFrom', p.foodFrom, 'text', 'type="time"')}${field('r-t', 'Last food', 'foodTo', p.foodTo, 'text', 'type="time"')}</div></section>
   <section class="card stack"><h2>A silent day</h2><p class="muted small">One day a week with nothing to log. The week counts it at your usual calories.</p><div class="chips">${[[-1, 'None'], [0, 'Sun'], [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat']].map(x => `<button class="chip" data-a="silent-day" data-d="${x[0]}" aria-pressed="${+p.silentWeekday === x[0]}">${x[1]}</button>`).join('')}</div></section>
+  <section class="card stack"><h2>Food</h2><label class="check"><input type="checkbox" data-set="vegetarian" ${p.vegetarian ? 'checked' : ''}>Vegetarian</label><label class="check"><input type="checkbox" data-set="eggFree" ${p.eggFree ? 'checked' : ''}>No eggs</label></section>
   <section class="card stack"><h2>Before eating</h2><label class="check"><input type="checkbox" data-set="breathBeforeMeals" ${p.breathBeforeMeals ? 'checked' : ''}>Ask “What’s asking for food?” once per meal</label></section></div>`;
 }
 on('silent-day', b => { S.profile.silentWeekday = +b.dataset.d; save(); render(); });
@@ -1586,12 +1757,24 @@ async function backupObject() {
   return out;
 }
 async function downloadBackup() { const o = await backupObject(); S.lastBackup = new Date().toISOString(); saveNow(); download('prakash-backup-' + todayKey() + '.json', new Blob([JSON.stringify(o)], { type: 'application/json' })); return o; }
+/* hand the finished backup over: Share (Files, iCloud, Drive, email) where the phone can, or a download */
+let backupReady = null;
+function canShareFile(f) { try { return !!(navigator.canShare && navigator.canShare({ files: [f] })); } catch (e) { return false; } }
+function offerBackup(name, blob, note) {
+  const file = new File([blob], name, { type: blob.type || 'application/json' }); backupReady = { name, blob, file };
+  const share = canShareFile(file);
+  openSheet(`<div class="stack"><h2>Your backup is ready</h2><p class="muted small">${esc(note || '')}${share ? 'Save it to Files, iCloud Drive or Google Drive so it’s safe if this phone is lost.' : 'It will go to your Downloads.'}</p>
+  ${share ? '<button class="btn primary big" data-a="bk-share">Save or send…</button><button class="btn" data-a="bk-dl">Download instead</button>' : '<button class="btn primary big" data-a="bk-dl">Download</button>'}</div>`, { title: 'Backup', label: 'Backup ready' });
+}
+function backupDone() { S.lastBackup = new Date().toISOString(); saveNow(); closeSheet(); render(); }
+on('bk-share', async () => { if (!backupReady) return; try { await navigator.share({ files: [backupReady.file], title: backupReady.name }); backupDone(); toast('Backup saved.'); } catch (e) { if (e && e.name === 'AbortError') return; toast('Sharing didn’t work. Use Download instead.'); } });
+on('bk-dl', () => { if (!backupReady) return; download(backupReady.name, backupReady.blob); backupDone(); toast('Backup downloaded.'); });
 async function cryptKey(pass, salt) { const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 310000 }, km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
 const b64u = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(s); };
 const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-on('backup-plain', async () => { try { const o = await downloadBackup(); toast('Backup downloaded' + (o.backup.photos ? ', with ' + o.backup.photos + ' photos' : '') + '.'); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
+on('backup-plain', async () => { try { const o = await backupObject(); offerBackup('prakash-backup-' + todayKey() + '.json', new Blob([JSON.stringify(o)], { type: 'application/json' }), o.backup.photos ? 'It includes ' + o.backup.photos + ' photos. ' : ''); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
 on('backup-enc', () => { openSheet(`<div class="stack"><p class="muted small">At least 8 characters. Write it down: it can't be recovered.</p><div><label class="lab" for="pp1">Passphrase</label><input class="input" type="password" id="pp1" autocomplete="new-password"></div><div><label class="lab" for="pp2">Same again</label><input class="input" type="password" id="pp2" autocomplete="new-password"></div><button class="btn primary" data-a="backup-enc-go">Make encrypted backup</button></div>`, { title: 'Encrypted backup' }); });
-on('backup-enc-go', async () => { const a = $('#pp1').value, b = $('#pp2').value; if (a.length < 8) { toast('Use at least 8 characters.'); return; } if (a !== b) { toast('The two passphrases are different.'); return; } closeSheet(true); try { const o = await backupObject(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await cryptKey(a, salt), c = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(o)))); download('prakash-backup-' + todayKey() + '.prakash', new Blob([JSON.stringify({ format: 'prakash-encrypted', version: 1, kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: b64u(salt), iv: b64u(iv), ciphertext: b64u(c) })], { type: 'application/octet-stream' })); S.lastBackup = new Date().toISOString(); saveNow(); toast('Encrypted backup downloaded.'); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
+on('backup-enc-go', async () => { const a = $('#pp1').value, b = $('#pp2').value; if (a.length < 8) { toast('Use at least 8 characters.'); return; } if (a !== b) { toast('The two passphrases are different.'); return; } closeSheet(true); try { const o = await backupObject(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await cryptKey(a, salt), c = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(o)))); offerBackup('prakash-backup-' + todayKey() + '.prakash', new Blob([JSON.stringify({ format: 'prakash-encrypted', version: 1, kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: b64u(salt), iv: b64u(iv), ciphertext: b64u(c) })], { type: 'application/octet-stream' }), 'Encrypted with your passphrase. '); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
 let restoreCandidate = null;
 function restoreFile(f) {
   if (!f) return; const r = new FileReader();
@@ -1615,7 +1798,7 @@ on('restore-go', async () => {
 });
 function backupHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Backup and restore</h1><p class="muted small">Everything lives on this phone. Download a backup every week or two, and always before changing phones or clearing the browser.</p>
-  <div class="stack"><button class="btn primary big" data-a="backup-plain">Download a backup</button><button class="btn" data-a="backup-enc">Download an encrypted backup</button><label class="btn filebtn">Restore from a backup file<input type="file" id="restore-file" accept=".json,.prakash,application/json,application/octet-stream"></label></div>
+  <div class="stack"><button class="btn primary big" data-a="backup-plain">Back up now</button><button class="btn" data-a="backup-enc">Download an encrypted backup</button><label class="btn filebtn">Restore from a backup file<input type="file" id="restore-file" accept=".json,.prakash,application/json,application/octet-stream"></label></div>
   <p class="tiny">Backups include photos and voice notes, but never your Gemini key.</p>
   <section class="card stack" style="border-color:var(--danger-line)"><h2>Start fresh</h2><p class="muted small">Downloads a backup first, then clears your logs, photos and journal. Your settings stay.</p><button class="btn danger" data-a="fresh">Download a backup and start fresh</button></section></div>`;
 }
@@ -1630,10 +1813,10 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
   <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
-  <li>Quiet mode, at the top of You: hides every target, so Prakash shows only what happened.</li><li>You is down to five places, with a gentle note when a backup is due.</li><li>A thirty-second tour after setup, and again any time from Settings.</li><li>My dishes: make your own dish from its ingredients, say how many portions it makes, and it’s one tap to log after that.</li><li>Practice has four parts: Sit (meditation, the Stop, the anger pause, the bell), Pray, Listen and Write (journal and gratitude).</li><li>Open a talk, come back, and one tap lights its lamp.</li><li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
+  <li>Larger text: one switch in You, or on the first screen of setup.</li><li>The screen stays on while you sit or train.</li><li>Quiet for today, at the foot of Today: targets hidden until midnight.</li><li>Same as yesterday: one tap repeats a meal on Today.</li><li>A weekly check-in on Sundays: weight, waist and a photo in one go.</li><li>The weight chart follows the 7-day average, with single mornings faint behind it.</li><li>Backups can be saved straight to Files, iCloud or Google Drive.</li><li>Food searches you’ve made still work with no signal.</li><li>If a talk’s site won’t open inside Prakash, tell it once and that site opens in your browser from then on.</li><li>On this day: a year on, Write shows what you wrote.</li><li>Setup is three steps. Your day’s times and the extras wait in You, when you want them.</li><li>Talks have their real names and a line on each. They open inside Prakash, and the next one waits under Continue.</li><li>When the Stop comes, it holds Today for a moment.</li><li>Dates read the British way: 24 Sep 2026.</li><li>Units, asked once: kilograms or stones and pounds, inches or centimetres.</li><li>Reading has moved to Write.</li><li>Quiet mode, at the top of You: hides every target, so Prakash shows only what happened.</li><li>The thirty-second tour lives in Settings.</li><li>My dishes: make your own dish from its ingredients, say how many portions it makes, and it’s one tap to log after that.</li><li>Practice has four parts: Sit (meditation, the Stop, the anger pause, the bell), Pray, Listen and Write (journal and gratitude).</li><li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
@@ -1645,30 +1828,25 @@ function suggestTargets() {
   return { kcal: Math.round((maint - 550) / 50) * 50, protein: Math.round(1.8 * kg / 5) * 5, maint: Math.round(maint / 50) * 50 };
 }
 let setupStep = 0, welcomeChoice = 'body', cameFromOld = false;
-function setupSteps() { const s = []; if (S.needsWelcome) s.push('welcome-back'); else s.push('welcome'); s.push('sections', 'about', 'day', 'targets', 'connect'); return s; }
+function setupSteps() { const s = []; if (S.needsWelcome) s.push('welcome-back'); else s.push('welcome'); s.push('about', 'targets'); return s; }
 function showSetup(step) {
   if (step != null) setupStep = step;
   const el = $('#setup'), box = $('.in', el), steps = setupSteps(), k = steps[Math.min(setupStep, steps.length - 1)], p = S.profile;
   const kg = latestKg(), lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop();
   let body = '';
-  if (k === 'welcome') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Prakash</h1><p class="tiny" style="margin-top:-8px">Light</p><p class="journal-q">A quiet mirror for your day: food, movement, rest and practice. Nothing here scores you.</p><p class="muted">A few questions, about a minute. You can change every answer later in You.</p>`;
+  if (k === 'welcome') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Prakash</h1><p class="tiny" style="margin-top:-8px">Light</p><p class="journal-q">A quiet mirror for your day: food, movement, rest and practice. Nothing here scores you.</p><p class="muted">A few questions, about a minute. You can change every answer later in You.</p><button class="choice" data-a="big-text" aria-pressed="${!!p.bigText}"><span><strong>Larger text</strong><small>Bigger words and roomier buttons</small></span><span class="tiny">${p.bigText ? 'On' : 'Off'}</span></button>`;
   if (k === 'welcome-back') body = `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(72)}</span><h1>Welcome back</h1><p class="muted">Prakash has been made simpler. First, download a backup of what's on this phone, just in case.</p><button class="btn" data-a="su-backup">Download a backup</button><p style="margin-top:6px">What should Prakash keep?</p><div class="stack" style="gap:8px">${[['body', 'Keep my body history, clear food logs', 'Weight, waist, blood pressure, photos, workouts and journal stay'], ['all', 'Keep everything', 'All logs stay as they are'], ['fresh', 'Start completely fresh', 'Clears everything except these settings']].map(c => `<button class="choice" data-a="su-keep" data-c="${c[0]}" aria-pressed="${welcomeChoice === c[0]}"><span><strong>${c[1]}</strong><small>${c[2]}</small></span></button>`).join('')}</div>`;
-  if (k === 'sections') body = `<h2>What would you like to see?</h2><p class="muted">Hide anything you won't use. It can be shown again later.</p><div class="stack" style="gap:8px">${[['food', 'Food', 'Meals, water and the week'], ['train', 'Training', 'Workouts and walks'], ['body', 'Body', 'Weight, waist, photos, blood pressure'], ['mind', 'Meditation and journal', 'Sit and write'], ['spiritual', 'Prayers and talks', 'Pray, listen']].map(x => `<button class="choice" data-a="su-mod" data-m="${x[0]}" aria-pressed="${!!p.modules[x[0]]}"><span><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="tiny">${p.modules[x[0]] ? 'Shown' : 'Hidden'}</span></button>`).join('')}</div>`;
   if (k === 'about') body = `<h2>About you</h2><p class="muted">Used only to suggest targets. It stays on this phone.</p>
   <div class="chips">${[['man', 'Man'], ['woman', 'Woman'], ['', 'Rather not say']].map(x => `<button class="chip" data-a="su-sex" data-s="${x[0]}" aria-pressed="${(p.sex || '') === x[0]}">${x[1]}</button>`).join('')}</div>
-  <div><label class="lab" for="su-dob">Date of birth</label><input class="input" type="date" id="su-dob" value="${p.dob || ''}" max="${todayKey()}"></div>
+  <div><label class="lab" for="su-dob">Date of birth</label>${dateField('su-dob', p.dob || '', `max="${todayKey()}"`)}</div>
   <div><label class="lab" for="su-h">Height</label><input class="input" id="su-h" value="${p.heightCm ? (p.heightCm >= 150 && p.waistUnit !== 'cm' ? Math.floor(p.heightCm / 2.54 / 12) + "'" + Math.round(p.heightCm / 2.54 % 12) + '"' : p.heightCm + 'cm') : ''}" placeholder="5'7&quot; or 170cm"></div>
-  <div class="grid2"><div><label class="lab" for="su-kg">Weight (kg)</label><input class="input" id="su-kg" inputmode="decimal" value="${kg || ''}"></div><div><label class="lab" for="su-w">Waist (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="su-w" inputmode="decimal" value="${lw ? n1(p.waistUnit === 'cm' ? lw.cm : lw.cm / CM_IN) : ''}" placeholder="at the belly button"></div></div>
-  <div class="grid2"><div><label class="lab" for="su-gw">Weight goal (kg, optional)</label><input class="input" id="su-gw" inputmode="decimal" value="${p.goalWeight || ''}"></div><div><label class="lab" for="su-gwa">Waist goal (optional)</label><input class="input" id="su-gwa" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div></div>
+  ${unitChips('su-unit')}
+  ${weightFields('su-kg', kg, 'Weight')}
+  <div class="grid2"><div><label class="lab" for="su-w">Waist (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="su-w" inputmode="decimal" value="${lw ? n1(p.waistUnit === 'cm' ? lw.cm : lw.cm / CM_IN) : ''}" placeholder="at the belly button"></div><div><label class="lab" for="su-gwa">Waist goal (optional)</label><input class="input" id="su-gwa" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div></div>
+  ${weightFields('su-gw', p.goalWeight, 'Weight goal (optional)')}
   <p class="tiny">A healthy waist is under half your height.</p>`;
-  if (k === 'day') body = `<h2>Your day</h2><p class="muted">So Today can show the right thing at the right time.</p><div class="grid2"><div><label class="lab" for="su-wake">Wake</label><input class="input" type="time" id="su-wake" value="${p.wake}"></div><div><label class="lab" for="su-bed">Bed</label><input class="input" type="time" id="su-bed" value="${p.bed}"></div><div><label class="lab" for="su-ff">First food</label><input class="input" type="time" id="su-ff" value="${p.foodFrom}"></div><div><label class="lab" for="su-ft">Last food</label><input class="input" type="time" id="su-ft" value="${p.foodTo}"></div></div>
-  ${p.modules.train ? `<div><span class="lab">Strength training</span><div class="chips">${[[2, '2 days a week'], [3, '3 days'], [4, '3 days + an easy day']].map(x => `<button class="chip" data-a="su-days" data-n="${x[0]}" aria-pressed="${+p.trainingDays === x[0]}">${x[1]}</button>`).join('')}</div></div><label class="check"><input type="checkbox" id="su-bp" ${p.bpSafe ? 'checked' : ''}>I'm watching my blood pressure</label>` : ''}
-  ${p.modules.food ? `<label class="check"><input type="checkbox" id="su-veg" ${p.vegetarian ? 'checked' : ''}>Vegetarian</label><label class="check"><input type="checkbox" id="su-egg" ${p.eggFree ? 'checked' : ''}>No eggs</label>` : ''}`;
   if (k === 'targets') { const sg = suggestTargets(); body = `<h2>Your daily targets</h2><p class="muted">${sg ? `Suggested from your answers: about ${big(sg.maint)} calories keeps you steady, so ${big(sg.kcal)} gives a gentle loss. Change anything.` : 'Change anything you like.'}</p>
-  <div class="grid2"><div><label class="lab" for="su-k">Calories</label><input class="input" id="su-k" inputmode="numeric" value="${sg && !cameFromOld && !p.onboardedV ? sg.kcal : p.kcalTarget}"></div><div><label class="lab" for="su-p">Protein (g)</label><input class="input" id="su-p" inputmode="numeric" value="${sg && !cameFromOld && !p.onboardedV ? sg.protein : p.proteinTarget}"></div><div><label class="lab" for="su-wa">Water (glasses)</label><input class="input" id="su-wa" inputmode="numeric" value="${p.waterTarget}"></div><div><label class="lab" for="su-st">Steps</label><input class="input" id="su-st" inputmode="numeric" value="${p.stepsTarget}"></div></div>${sg && (cameFromOld || p.onboardedV) ? `<p class="tiny">Suggested: ${big(sg.kcal)} calories, ${sg.protein} g protein.</p>` : ''}`; }
-  if (k === 'connect') body = `<h2>Two optional extras</h2><section class="card stack"><h3>Gemini fills in dishes from a photo</h3><p class="muted small">Free, with a key from Google. You can do this now or later in You › Connect Gemini.</p><button class="btn" data-a="su-gemini">Connect Gemini later</button></section>
-  ${'Notification' in window && Notification.permission === 'default' ? `<section class="card stack"><h3>Quiet notifications</h3><p class="muted small">For the Stop: a silent reminder to pause, a few times a day. No sound, no buzz.</p><button class="btn" data-a="su-notify">Allow quiet notifications</button></section>` : ''}
-  <p class="muted">That's it. On Today, tap + Add on a meal to log food.</p>`;
+  <div class="grid2"><div><label class="lab" for="su-k">Calories</label><input class="input" id="su-k" inputmode="numeric" value="${sg && !cameFromOld && !p.onboardedV ? sg.kcal : p.kcalTarget}"></div><div><label class="lab" for="su-p">Protein (g)</label><input class="input" id="su-p" inputmode="numeric" value="${sg && !cameFromOld && !p.onboardedV ? sg.protein : p.proteinTarget}"></div><div><label class="lab" for="su-wa">Water (glasses)</label><input class="input" id="su-wa" inputmode="numeric" value="${p.waterTarget}"></div><div><label class="lab" for="su-st">Steps</label><input class="input" id="su-st" inputmode="numeric" value="${p.stepsTarget}"></div></div>${sg && (cameFromOld || p.onboardedV) ? `<p class="tiny">Suggested: ${big(sg.kcal)} calories, ${sg.protein} g protein.</p>` : ''}<p class="muted">That's it. On Today, tap + Add on a meal to log food. Your day's times and the extras wait in You.</p>`; }
   box.innerHTML = `<div class="dots" aria-hidden="true">${steps.map((_, i) => `<i class="${i <= setupStep ? 'on' : ''}"></i>`).join('')}</div><span class="tiny">${setupStep + 1} of ${steps.length}</span>${body}
   <div class="btns" style="margin-top:8px">${setupStep ? '<button class="btn" data-a="su-back">Back</button>' : ''}<button class="btn primary" data-a="su-next">${setupStep === steps.length - 1 ? 'Start' : 'Continue'}</button></div>${k === 'welcome-back' ? '' : '<button class="btn ghost" data-a="su-skip">Skip for now</button>'}`;
   el.classList.add('open'); el.scrollTop = 0;
@@ -1676,25 +1854,21 @@ function showSetup(step) {
 }
 on('su-keep', b => { welcomeChoice = b.dataset.c; showSetup(); });
 on('su-backup', async () => { try { await downloadBackup(); toast('Backup downloaded.'); } catch (e) { toast('The backup couldn’t be made.'); } });
-on('su-mod', b => { const m = S.profile.modules; m[b.dataset.m] = !m[b.dataset.m]; save(); showSetup(); });
 on('su-sex', b => { S.profile.sex = b.dataset.s; save(); showSetup(); });
-on('su-days', b => { S.profile.trainingDays = +b.dataset.n; save(); showSetup(); });
-on('su-gemini', () => { finishSetup(); go('you', 'gemini'); });
-on('su-notify', () => { if ('Notification' in window) Notification.requestPermission().then(() => showSetup()); });
+on('su-unit', b => { if (setupSteps()[setupStep] === 'about') collectStep(true); S.profile[b.dataset.k] = b.dataset.u; save(); showSetup(); });
 on('su-back', () => { collectStep(); setupStep = Math.max(0, setupStep - 1); showSetup(); });
 on('su-skip', () => finishSetup());
 on('setup-again', () => { setupStep = 0; showSetup(); });
-function collectStep() {
+function collectStep(quietly) {
   const steps = setupSteps(), k = steps[setupStep], p = S.profile, v = id => ($('#' + id) || {}).value;
   if (k === 'about') {
     const dob = v('su-dob'); if (dob) p.dob = dob;
-    const h = v('su-h'); if (h) { const cm = parseHeight(h); if (!cm) { toast('Height as 5\'7" or 170cm.'); return false; } p.heightCm = cm; }
-    const kg = num(v('su-kg')); if (kg && kg > 20 && kg < 400 && kg !== latestKg()) { S.weights = S.weights.filter(w => w.date !== todayKey()); S.weights.push({ date: todayKey(), kg: n1(kg) }); }
+    const h = v('su-h'); if (h) { const cm = parseHeight(h); if (!cm) { if (!quietly) toast('Height as 5\'7" or 170cm.'); return false; } p.heightCm = cm; }
+    const kg = readWeight('su-kg'); if (kg && kg > 20 && kg < 400 && Math.abs(kg - (latestKg() || 0)) > 0.3) { S.weights = S.weights.filter(w => w.date !== todayKey()); S.weights.push({ date: todayKey(), kg: n1(kg) }); }
     const w = waistToCm(v('su-w')); const lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop(); if (w && w > 40 && (!lw || Math.abs(lw.cm - w) > 0.05)) { S.waists = S.waists.filter(x => x.date !== todayKey()); S.waists.push({ date: todayKey(), cm: w }); }
-    const gw = num(v('su-gw')); p.goalWeight = gw || null;
+    const gw = readWeight('su-gw'); if (!gw || !p.goalWeight || Math.abs(gw - p.goalWeight) > 0.3) p.goalWeight = gw || null;
     const gwa = waistToCm(v('su-gwa')); p.waistGoalCm = gwa || (p.heightCm && !p.waistGoalCm ? n1(p.heightCm / 2) : p.waistGoalCm || null);
   }
-  if (k === 'day') { ['wake', 'bed'].forEach(x => { const t = v('su-' + x); if (t) p[x] = t; }); if (v('su-ff')) p.foodFrom = v('su-ff'); if (v('su-ft')) p.foodTo = v('su-ft'); const bp = $('#su-bp'); if (bp) p.bpSafe = bp.checked; const veg = $('#su-veg'); if (veg) p.vegetarian = veg.checked; const egg = $('#su-egg'); if (egg) p.eggFree = egg.checked; }
   if (k === 'targets') [['kcalTarget', 'su-k'], ['proteinTarget', 'su-p'], ['waterTarget', 'su-wa'], ['stepsTarget', 'su-st']].forEach(([f, id]) => { const n = parseInt(v(id), 10); if (n > 0) p[f] = n; });
   save(); return true;
 }
@@ -1705,12 +1879,12 @@ on('su-next', async () => {
     if (welcomeChoice === 'body') { Object.values(S.days).forEach(d => { d.foods = []; d.closed = false; d.silent = false; }); S.events = []; }
     if (welcomeChoice === 'fresh') await freshStart();
     delete S.needsWelcome; cameFromOld = true; saveNow();
-    setupStep = setupSteps().indexOf('sections'); showSetup(); return;
+    setupStep = setupSteps().indexOf('about'); showSetup(); return;
   }
   if (setupStep >= steps.length - 1) { finishSetup(); return; }
   setupStep++; showSetup();
 });
-function finishSetup() { const p = S.profile; if (!p.startedOn) p.startedOn = todayKey(); p.setupDone = true; p.onboardedV = 1; delete S.needsWelcome; saveNow(); $('#setup').classList.remove('open'); setupStep = 0; go('today'); if (!p.tourDone) setTimeout(() => showTour(0), 250); }
+function finishSetup() { const p = S.profile; if (!p.startedOn) p.startedOn = todayKey(); p.setupDone = true; p.onboardedV = 1; delete S.needsWelcome; saveNow(); $('#setup').classList.remove('open'); setupStep = 0; go('today'); }
 
 /* ---------- the tour: thirty seconds, three cards ---------- */
 const TOUR = [
@@ -1730,6 +1904,10 @@ on('tour-next', () => showTour(tourStep + 1));
 on('tour-done', () => { S.profile.tourDone = true; save(); closeSheet(); });
 /* ================= BOOT ================= */
 S = load();
+applyTextSize();
+/* after an update: one quiet line, once */
+if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) setTimeout(() => toast('Prakash has been updated. What’s new is in You › About Prakash.', 6000), 1500);
+if (S.seenVersion !== VERSION) { S.seenVersion = VERSION; save(); }
 window.__pkHoldReload = () => !!draft || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open');
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
 render();
