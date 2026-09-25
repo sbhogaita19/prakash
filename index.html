@@ -249,7 +249,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -1608,7 +1608,16 @@ function practiceNav() { const v = practiceViews(); return `<nav class="seg" ari
 /* ---------- Sit ---------- */
 let focusHidden = false;
 function gsLink() { return S.profile.gsSpotify || GS_DEFAULT; }
-function openSpotify() { const url = gsLink(); const m = /(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(album|playlist|track|artist)[\/:]([A-Za-z0-9]+)/.exec(url); let href = url; if (m && /Android/i.test(navigator.userAgent)) href = 'intent://' + m[1] + '/' + m[2] + '#Intent;scheme=spotify;package=com.spotify.music;S.browser_fallback_url=' + encodeURIComponent('https://open.spotify.com/' + m[1] + '/' + m[2]) + ';end'; const a = document.createElement('a'); a.href = href; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+/* Gauri Shankar in Spotify. The app page stays open underneath, so the timer keeps running.
+   Android: straight into the Spotify app (web player if it isn't installed).
+   iPhone and elsewhere: the open.spotify.com link in a new window; iOS hands it to the Spotify app when it's installed. */
+function openSpotify() {
+  const url = gsLink(), m = /(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(album|playlist|track|artist)[\/:]([A-Za-z0-9]+)/.exec(url);
+  const web = m ? 'https://open.spotify.com/' + m[1] + '/' + m[2] : url;
+  if (m && /Android/i.test(navigator.userAgent)) { location.href = 'intent://' + m[1] + '/' + m[2] + '#Intent;scheme=spotify;package=com.spotify.music;S.browser_fallback_url=' + encodeURIComponent(web) + ';end'; return; }
+  const w = window.open(web, '_blank', 'noopener');
+  if (!w) { const a = document.createElement('a'); a.href = web; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+}
 on('med-start', b => { S.meditationTimer.startedAt = new Date().toISOString(); S.meditationTimer.kind = b.dataset.k; focusHidden = false; save(); render(); if (b.dataset.k === 'gs') openSpotify(); });
 on('med-music', () => openSpotify());
 on('med-hide', () => { focusHidden = true; render(); });
@@ -1620,7 +1629,7 @@ function sitHtml() {
   const recent = S.meditations.filter(m => m.id).slice(-5).reverse();
   if (running && !focusHidden) return `<div class="focus-mode" role="dialog" aria-label="Meditation"><div class="big" id="med-time">00:00</div><p class="line">The hour needs nothing from you. Sit, breathe, and let what is be seen.</p><button class="btn primary" data-a="med-stop" style="min-width:220px">Stop and keep the time</button>${S.meditationTimer.kind === 'gs' ? '<button class="btn" data-a="med-music" style="min-width:220px">Open the music again</button>' : ''}<button class="stop-leave" data-a="med-hide">Leave this screen · the timer keeps going</button></div>`;
   return `${running ? `<button class="card now" data-a="med-show" style="text-align:left;cursor:pointer"><span class="eyebrow">Meditating</span><div class="timer" id="med-time" style="font-size:40px;text-align:left">00:00</div><span class="tiny">Tap to return</span></button>` : `
-  <section class="card stack"><h2>Gauri Shankar</h2><p class="muted small">One hour, four stages. Opens the music in Spotify and starts the timer.</p><button class="btn primary big" data-a="med-start" data-k="gs">Begin Gauri Shankar</button><button class="btn" data-a="med-start" data-k="plain">Just sit, with a timer</button></section>`}
+  <section class="card stack"><h2>Gauri Shankar</h2><p class="muted small">One hour, four stages. Opens the music in Spotify and starts the timer.</p><button class="btn primary big" data-a="med-start" data-k="gs">Begin Gauri Shankar</button><button class="link" data-a="med-start" data-k="plain" style="align-self:center">Or just sit, with a timer</button></section>`}
   <section class="card stack" style="gap:8px" aria-label="Between two breaths"><span class="eyebrow">Between two breaths</span><p class="prayer-text" style="font-size:19px">The breath goes out, the breath comes in. Between the two there is a turn, a pause. Let the attention rest there.</p><p class="tiny">After the first contemplation of the Vijñāna Bhairava.</p></section>
   <details class="fold"><summary>The four stages</summary><div class="stack">${GS_STAGES.map(s => `<div><strong>${esc(s[0])}</strong><p class="small muted" style="margin-top:4px">${esc(s[1])}</p></div>`).join('')}${S.profile.bpSafe ? '<div class="warnbox"><p class="tiny">With blood pressure, keep the breath-holds in the first stage short and easy. Stillness, not strain.</p></div>' : ''}<p class="tiny">Instructions from <a href="https://oshoworld.com/poona-gourishankar-meditation" target="_blank" rel="noopener">Osho World</a>.</p></div></details>
   ${recent.length ? `<h3>Recent</h3><ul class="list">${recent.map(m => `<li class="li"><div class="t"><strong>${m.minutes} min</strong><span>${fmtDay(m.date)}${m.kind === 'plain' ? ' · sitting' : ''}</span></div><button class="link" data-a="med-del" data-id="${m.id}" aria-label="Remove this meditation">Remove</button></li>`).join('')}</ul>` : ''}
@@ -1840,10 +1849,11 @@ on('stop-preview', () => showStop());
 on('stop-notify', () => { if ('Notification' in window) Notification.requestPermission().then(() => render()); });
 on('anger', () => showAnger(0));
 on('bell-ring', () => { T().bell.push(new Date().toISOString()); save(); bell(660, 1.2); render(); });
-function gratitudeHtml() { const d = day(todayKey()); return `<section class="card stack"><h2>Gratitude</h2><p class="muted small">Three lines before bed. Small things count the most.</p>${[0, 1, 2].map(i => `<input class="input" data-grat="${i}" value="${esc(d.gratitude[i] || '')}" placeholder="${i + 1}." aria-label="Gratitude ${i + 1}">`).join('')}</section>`; }
+const GRAT_PROMPTS = ['Someone you love', 'Something you’re grateful for', 'Something beautiful you saw'];
+function gratitudeHtml() { const d = day(todayKey()); return `<section class="card stack"><h2>Gratitude</h2><p class="muted small">Three lines before bed. Small things count the most.</p>${[0, 1, 2].map(i => `<input class="input" data-grat="${i}" value="${esc(d.gratitude[i] || '')}" placeholder="${GRAT_PROMPTS[i]}" aria-label="${GRAT_PROMPTS[i]}">`).join('')}</section>`; }
 function rememberHtml() {
   const r = S.remember, d = day(todayKey()), np = 'Notification' in window ? Notification.permission : 'none';
-  return `<h2 style="margin-top:10px">Through the day</h2><section class="card stack"><h2>The Stop</h2><p class="muted small">A few unpredictable signals a day, sometimes none, never on the hour. When one appears, stop for a moment, just as you are.</p>
+  return `<details class="fold through"><summary><span>Through the day<span class="tiny" style="display:block;font-weight:400;margin-top:2px">The Stop, the anger pause, the bell</span></span></summary><div class="stack" style="margin-top:10px"><section class="card stack"><h2>The Stop</h2><p class="muted small">A few unpredictable signals a day, sometimes none, never on the hour. When one appears, stop for a moment, just as you are.</p>
   <label class="check"><input type="checkbox" data-a="stop-toggle" ${r.on !== false ? 'checked' : ''}>Signals on</label>
   <details class="fold"><summary class="small">Hours and how it works</summary><div class="stack"><div class="grid2"><div><label class="lab" for="st-from">From</label><input class="input" type="time" id="st-from" value="${esc(r.from || '08:00')}"></div><div><label class="lab" for="st-to">Until</label><input class="input" type="time" id="st-to" value="${esc(r.to || '22:00')}"></div></div>
   <p class="tiny">Signals appear while Prakash is open, or the next time you open it.${np === 'granted' ? ' With the app in the background, one arrives as a silent notification.' : ''}</p><p class="tiny">A reminder can itself become mechanical. When this one does, change it or turn it off.</p></div></details>
@@ -1853,7 +1863,7 @@ function rememberHtml() {
   <details class="fold"><summary class="small">Wait before replying</summary><div class="stack"><p class="small muted">Osho retells Gurdjieff's advice to wait twenty-four hours before replying in anger.</p><label class="lab" for="st-wait">Your own note (optional)</label><input class="input" id="st-wait" value="${esc(r.waitNote || '')}" placeholder="Sleep on it before sending."></div></details></section>
   <section class="card stack"><h2>Bell of mindfulness</h2><p class="muted small">Ring it when you notice yourself speaking. Today's rings go at midnight.</p><button class="btn big" data-a="bell-ring">Ring the bell</button>${T().bell.length ? `<p class="tiny">Today: ${T().bell.map(fmtTime).join(' · ')}</p>` : ''}</section>
 
-  <details class="card fold"><summary>Self-remembering, briefly</summary><div class="stack small"><p>Most of the day, attention pours outward into whatever is in front of us. Self-remembering divides it: one arrow stays with what is seen, one arrow returns to the one seeing.</p><p>It comes in moments, not as a state. Noticing that it was lost is itself a moment of remembering.</p><p>The practice is self-observation without judgement: watching what is here the way a mirror shows a face.</p><p class="tiny">This app can be a signal, never a teacher. The work is yours.</p></div></details>`;
+  <details class="card fold"><summary>Self-remembering, briefly</summary><div class="stack small"><p>Most of the day, attention pours outward into whatever is in front of us. Self-remembering divides it: one arrow stays with what is seen, one arrow returns to the one seeing.</p><p>It comes in moments, not as a state. Noticing that it was lost is itself a moment of remembering.</p><p>The practice is self-observation without judgement: watching what is here the way a mirror shows a face.</p><p class="tiny">This app can be a signal, never a teacher. The work is yours.</p></div></details></div></details>`;
 }
 
 R.practice = function () {
@@ -2203,7 +2213,7 @@ async function freshStart() {
 }
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
-  <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you: what you ate, how you moved, when you sat. It doesn’t judge, count up or speak first. The seeing is yours.</p></section>
+  <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you: what you ate, how you moved, when you sat. It doesn’t judge, count up or speak first. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
   <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>One box for food: type or say what you had. One food shows your matches; a whole meal, tap Next and see it before it’s added.</li><li>Show it: a photo of your plate, a barcode or a nutrition label.</li><li>Nothing is added unseen, and every number can be changed. Portions in one tap: ½, 1, 1½, 2.</li><li>A dish photo stays with that meal in the diary, on this phone only.</li><li>How your targets were worked out, in plain words, from Goals or the Food page.</li><li>Listen has a Kashmir Shaivism chapter: Osho’s Book of Secrets, five of the Shiva Sutras, and Swami Lakshmanjoo’s recorded teaching.</li><li>Sit has one contemplation to rest with: between two breaths. Write asks, if you like, what surprised you today.</li><li>The lamp’s flame breathes, very slowly. About explains why Prakash is a mirror.</li><li>Larger text, Quiet for today, Same as yesterday and the Sunday check-in are all still where they were.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
