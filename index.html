@@ -39,8 +39,8 @@ p{margin:0}
 .between{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .muted{color:var(--ink2)}
 .small{font-size:15px}
-.tiny{font-size:14px;color:var(--ink2)}
-.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mint);font-weight:600}
+.tiny{font-size:15px;color:var(--ink2)}
+.eyebrow{font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--mint);font-weight:600}
 .card{background:var(--card);border:1px solid var(--hair);border-radius:18px;padding:16px}
 .card.now{background:var(--now);border-color:var(--now-line)}
 .card.flat{padding:4px 16px}
@@ -85,7 +85,7 @@ select.input{appearance:none;-webkit-appearance:none}
 .navrow{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:60px;background:none;border:0;border-bottom:1px solid var(--hair2);padding:0;text-align:left;cursor:pointer;font-size:17px}
 .navrow:after{content:'›';font-size:24px;color:var(--ink3)}
 .navrow span{display:flex;flex-direction:column}
-.navrow small{font-size:14px;color:var(--ink2)}
+.navrow small{font-size:15px;color:var(--ink2)}
 .facts{display:flex;flex-direction:column}
 .fact{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair2)}
 .fact:last-child{border-bottom:0}
@@ -100,10 +100,25 @@ details.fold[open]>summary:after{transform:rotate(90deg)}
 .hint{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--now);border:1px solid var(--now-line);border-radius:14px;padding:10px 12px 10px 14px;font-size:15px;line-height:1.4}
 .hint .link{flex:none;padding:6px 4px}
 html.big-text{zoom:1.18}
+html.big-text .seg button{font-size:13px}
 html.big-text .rings3-svg{width:min(38vw,150px)}
 html.big-text .rings3-top{gap:14px}
 html.big-text .rings3-keys .rs{white-space:nowrap}
 .wchart .day{opacity:.35}
+.dr-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dr-main{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dr-main .input{font-size:20px;font-weight:600}
+.dr-more .dr-nums{margin-top:8px}
+.showit{display:flex;align-items:center;gap:14px;text-align:left;cursor:pointer;padding:14px 16px;width:100%;font:inherit;color:var(--ink)}
+.showit strong{font-size:18px}
+@keyframes spanda{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.045);opacity:.9}}
+.diya[aria-pressed=true] svg .fl{transform-box:fill-box;transform-origin:50% 100%;animation:spanda 4.8s ease-in-out infinite}
+.diya[aria-pressed=true] svg .fl + .fl{animation-delay:.3s}
+@media (prefers-reduced-motion:reduce){.diya svg .fl{animation:none!important}}
+.dr-nums label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.dr-nums span{font-size:15px;color:var(--ink2);text-align:center}
+.dr-nums .input{padding:10px 4px;text-align:center;font-size:17px;min-height:48px}
+.food-thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;flex:none;background:var(--card2)}
 .okbox{background:var(--now);border:1px solid var(--now-line);border-radius:14px;padding:12px 14px}
 /* top */
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -112,7 +127,7 @@ html.big-text .rings3-keys .rs{white-space:nowrap}
 .backbar{display:flex;align-items:center;gap:6px;min-height:44px;margin-bottom:4px}
 /* nav */
 nav.tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,640px);z-index:20;background:rgba(20,25,23,.97);border-top:1px solid var(--hair);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom)}
-nav.tabs button{border:0;background:none;color:var(--ink2);min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;cursor:pointer}
+nav.tabs button{border:0;background:none;color:var(--ink2);min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:15px;cursor:pointer}
 nav.tabs button[aria-current=true]{color:#7fd2ae;font-weight:600}
 nav.tabs svg{width:24px;height:24px}
 /* lamp */
@@ -133,23 +148,23 @@ nav.tabs svg{width:24px;height:24px}
 .rings3-top{display:flex;align-items:center;gap:18px}
 .rings3-svg{width:min(52vw,200px);height:auto;flex:0 0 auto}
 .rings3-keys{display:flex;flex-direction:column;gap:10px;min-width:0}
-.rings3-keys .rk{font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+.rings3-keys .rk{font-size:15px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
 .rings3-keys .rv{font-size:24px;font-weight:700;line-height:1.1}
-.rings3-keys .rs{font-size:13px;color:var(--ink2)}
-.rings3-keys .rstep{display:block;min-height:36px;padding:0;font-size:14px;text-align:left;white-space:nowrap}
+.rings3-keys .rs{font-size:15px;color:var(--ink2)}
+.rings3-keys .rstep{display:block;min-height:36px;padding:0;font-size:15px;text-align:left;white-space:nowrap}
 .rings3-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid var(--hair2);padding-top:14px}
 .rings3-facts button{min-height:62px;border-radius:14px;border:1px solid var(--hair);background:var(--raise);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:4px}
-.rings3-facts strong{font-size:16px}.rings3-facts span{font-size:12px;color:var(--ink2);text-align:center}
+.rings3-facts strong{font-size:16px}.rings3-facts span{font-size:15px;color:var(--ink2);text-align:center}
 /* food */
 .meal{background:var(--card);border:1px solid var(--hair);border-radius:18px;padding:6px 16px 8px}
 .meal-head{display:flex;justify-content:space-between;align-items:center;min-height:52px}
 .meal-head strong{font-size:18px}
 .food-row{display:flex;align-items:center;gap:10px;min-height:56px;border-top:1px solid var(--hair2);width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;padding:6px 0;cursor:pointer}
 .food-row .t{flex:1;display:flex;flex-direction:column;min-width:0}
-.food-row .t span{font-size:14px;color:var(--ink2)}
+.food-row .t span{font-size:15px;color:var(--ink2)}
 .food-row .k{font-size:15px;color:var(--ink2);white-space:nowrap}
 .week-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;background:var(--card);border-radius:16px;padding:6px}
-.day-pill{border:0;background:transparent;border-radius:12px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--ink2);font-size:12px}
+.day-pill{border:0;background:transparent;border-radius:12px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--ink2);font-size:15px}
 .day-pill b{font-size:16px;color:var(--ink);font-weight:500;width:30px;height:30px;display:grid;place-items:center;border-radius:15px}
 .day-pill i{width:5px;height:5px;border-radius:3px;background:transparent}
 .day-pill i.dot{background:var(--mint)}
@@ -188,7 +203,7 @@ nav.tabs svg{width:24px;height:24px}
 .talk{display:flex;align-items:center;gap:8px;min-height:60px;border-top:1px solid var(--hair2);touch-action:pan-y;transition:background .2s}
 .talk .name{flex:1;min-width:0;font-size:16px;color:var(--ink);text-decoration:none;min-height:48px;display:flex;align-items:center}
 .talk button.talk-open{text-align:left;background:none;border:0;padding:8px 0;font:inherit;text-align:left;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;cursor:pointer}
-.talk button.talk-open small{font-size:13px;color:var(--ink3);line-height:1.35}
+.talk button.talk-open small{font-size:15px;color:var(--ink3);line-height:1.35}
 button.card.continue{width:100%;font:inherit;color:var(--ink);text-align:left;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}
 .reader-frame{width:100%;height:62vh;border:0;border-radius:14px;background:var(--card2)}
 .themes{margin:0 0 12px 56px;padding:12px 14px;border-radius:14px;background:var(--card2);border:1px solid var(--hair)}
@@ -196,7 +211,7 @@ button.card.continue{width:100%;font:inherit;color:var(--ink);text-align:left;di
 .prayer-text{font-family:var(--serif);font-size:19px;line-height:1.6;white-space:pre-line;color:#e6ebe8}
 .journal-q{font-family:var(--serif);font-size:20px;line-height:1.5}
 .quote{font-family:var(--serif);font-size:19px;line-height:1.5;color:#dfe5e2}
-.quote span{display:block;font-family:var(--sans);font-size:14px;color:var(--ink2);margin-top:6px}
+.quote span{display:block;font-family:var(--sans);font-size:15px;color:var(--ink2);margin-top:6px}
 .timer{font-family:var(--serif);font-size:56px;text-align:center}
 table.t{width:100%;border-collapse:collapse;font-size:15px}
 table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-align:left}
@@ -212,7 +227,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 .dots{display:flex;gap:6px}.dots i{height:4px;flex:1;border-radius:4px;background:#3a4440}.dots i.on{background:var(--green)}
 .choice{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:64px;padding:12px 14px;border:1px solid var(--hair);border-radius:14px;background:var(--card);text-align:left;cursor:pointer}
 .choice[aria-pressed=true]{border-color:#73a89a;background:#1f3a31}
-.choice small{display:block;color:var(--ink2);font-size:14px}
+.choice small{display:block;color:var(--ink2);font-size:15px}
 :focus-visible{outline:2px solid #9fe6c4;outline-offset:2px}
 [tabindex="-1"]:focus{outline:none}
 @media print{body{background:#fff!important;color:#000!important}.wrap>*,nav.tabs,#setup{display:none!important}.wrap>.bp-report,.bp-report{display:block!important;color:#000}.bp-report *{color:#000!important;background:#fff!important}.bp-report table.t td,.bp-report table.t th{border-color:#999}}
@@ -234,7 +249,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.2.6';
+const VERSION = '1.4.0';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -442,6 +457,7 @@ function render() {
   main.oninput = null; main.onchange = null;
   main.innerHTML = R[tab]();
   if (R[tab + 'After']) R[tab + 'After'](main);
+  if (typeof fillMealPhotos === 'function') fillMealPhotos(main);
   syncWake();
 }
 function go(t, v) { if (v) view[t] = v; tab = t; render(); window.scrollTo(0, 0); }
@@ -450,7 +466,7 @@ let tickers = [];
 function ticker(fn, ms) { fn(); tickers.push(setInterval(fn, ms || 1000)); }
 function clearTickers() { tickers.forEach(clearInterval); tickers = []; }
 function backBar(label, action) { return `<div class="backbar"><button class="link" data-a="${action}">‹ ${esc(label)}</button></div>`; }
-const TALKS=[["LOVE","Begin where separation softens.",[["The Path of Love",[["The Path of Love 01","https://oshoworld.com/the-path-of-love-01"],["The Path of Love 02","https://oshoworld.com/the-path-of-love-02"],["The Path of Love 03","https://oshoworld.com/the-path-of-love-03"],["The Path of Love 04","https://oshoworld.com/the-path-of-love-04"],["The Path of Love 05","https://oshoworld.com/the-path-of-love-05"],["The Path of Love 06","https://oshoworld.com/the-path-of-love-06"],["The Path of Love 07","https://oshoworld.com/the-path-of-love-07"],["The Path of Love 08","https://oshoworld.com/the-path-of-love-08"],["The Path of Love 09","https://oshoworld.com/the-path-of-love-09"],["The Path of Love 10","https://oshoworld.com/the-path-of-love-10"]]],["Love in Hindi",[["प्रेम नदी के तीरा 02 · Prem Nadi Ke Teera 02","https://oshoworld.com/prem-nadi-ke-teera-02"],["रहिमन धागा प्रेम का 02 · Rahiman Dhaga Prem Ka 02","https://oshoworld.com/rahiman-dhaga-prem-ka-02"]]],["Sufi and engaged love",[["Sufi · Sufis: People of the Path, Vol 1 01","https://oshoworld.com/sufis-people-of-the-path-vol-1-01"],["Thich Nhat Hanh · Understanding is Love’s other name","https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video"]]]]],["WITNESSING WHAT IS","Nothing to improve. See what is already here.",[["Ashtavakra, Zarathustra and direct seeing",[["Zarathustra is not a thinker but a seer Osho","https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786"],["The Three Metamorphoses Nietzsche","https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01"],["The Night Song Osho on Zarathustra #23","https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23"],["Pure witnessing, just watching Osho on Ashtavakra","https://www.osho.com/read/osho/osho-on-topics/ashtavakra"],["Ashtavakra: the purest expression of truth Mahageeta Vol 1 #1","https://osholive.com/the-mahageeta-vol-1/discourse-1"],["Ashtavakra Maha Geeta 01 Hindi · Osho World","https://oshoworld.com/maha-geeta-by-osho-01-91"]]],["The Tree of Knowledge",[["Tao The Pathless Path (Vol 2) 01","https://oshoworld.com/tao-the-pathless-path-vol-2-01/"]]],["Zen and self-enquiry",[["Bodhidharma · The Greatest Zen Master 01","https://oshoworld.com/bodhidharma-the-greatest-zen-master-01"],["Zen · Walking in Zen, Sitting in Zen 01","https://oshoworld.com/walking-in-zen-sitting-in-zen-01"],["Ramana Maharshi · Self-enquiry instructions","https://www.gururamana.org/Teachings/instructions"],["J. Krishnamurti · The observer and the observed are the same","https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/"]]]]],["AWARENESS","The light in which every experience appears.",[["Philosophia Perennis, Vol 1",[["Philosophia Perennis Vol 1 01","https://oshoworld.com/philosophia-perennis-vol-1-01"],["Philosophia Perennis Vol 1 02","https://oshoworld.com/philosophia-perennis-vol-1-02"],["Philosophia Perennis Vol 1 03","https://oshoworld.com/philosophia-perennis-vol-1-03"],["Philosophia Perennis Vol 1 04","https://oshoworld.com/philosophia-perennis-vol-1-04"],["Philosophia Perennis Vol 1 05","https://oshoworld.com/philosophia-perennis-vol-1-05"],["Philosophia Perennis Vol 1 06","https://oshoworld.com/philosophia-perennis-vol-1-06"],["Philosophia Perennis Vol 1 07","https://oshoworld.com/philosophia-perennis-vol-1-07"],["Philosophia Perennis Vol 1 08","https://oshoworld.com/philosophia-perennis-vol-1-08"],["Philosophia Perennis Vol 1 09","https://oshoworld.com/philosophia-perennis-vol-1-09"],["Philosophia Perennis Vol 1 10","https://oshoworld.com/philosophia-perennis-vol-1-10"]]],["Stillness and alchemy",[["Be Still and Know 01","https://oshoworld.com/be-still-and-know-01"],["Be Still and Know 10","https://oshoworld.com/be-still-and-know-10"],["The Ultimate Alchemy (Vol 2) 11","https://oshoworld.com/the-ultimate-alchemy-vol-2-11/"]]],["Alan Watts: companion listening",[["Human Consciousness 01 · Ecological Awareness","https://www.organism.earth/library/document/ecological-awareness"],["Human Consciousness 03 · Nature of Consciousness","https://drive.google.com/file/d/10xmNAfryyjWKDl3-iAWTGq10XhyBkwpP/view?usp=drivesdk"],["The Self 05 · World as Self","https://drive.google.com/file/d/1iYsKln1P8H2vesFTbnw6qEUWSpk-XCJS/view?usp=drivesdk"],["Myth & Religion 01 · Images of God","https://drive.google.com/file/d/1VoyuDNzhrvf1qRTWRzXCQXOuOVV5s_xs/view?usp=drivesdk"],["Taoism 04 · Way Beyond Seeking","https://drive.google.com/file/d/1sv8M3WNVALesYWA2-u--6Vj3H8tBNNk_/view?usp=drivesdk"],["Zen & Meditation 03 · Meditation","https://drive.google.com/file/d/1x4BiDb7sJrBYL061cFTA-nORAyTHtCoA/view?usp=drivesdk"],["Zen & Meditation 06 · Why Not Now?","https://drive.google.com/file/d/1db1WNOErNvzke30Wpx0TIbXRx13jXhuj/view?usp=drivesdk"],["The Universe 01 · Individual and the World","https://drive.google.com/file/d/1w-4skxk4X74m2MeWLtCWGl2M7nY_2XX0/view?usp=drivesdk"]]],["Five doors into awareness",[["Lao Tzu · Tao Upanishad 01 (Hindi)","https://oshoworld.com/tao-upanishad-01"],["Buddha · This Very Body the Buddha 01","https://oshoworld.com/this-very-body-the-buddha-01"]]]]]];
+const TALKS=[["LOVE","Begin where separation softens.",[["The Path of Love",[["The Path of Love 01","https://oshoworld.com/the-path-of-love-01"],["The Path of Love 02","https://oshoworld.com/the-path-of-love-02"],["The Path of Love 03","https://oshoworld.com/the-path-of-love-03"],["The Path of Love 04","https://oshoworld.com/the-path-of-love-04"],["The Path of Love 05","https://oshoworld.com/the-path-of-love-05"],["The Path of Love 06","https://oshoworld.com/the-path-of-love-06"],["The Path of Love 07","https://oshoworld.com/the-path-of-love-07"],["The Path of Love 08","https://oshoworld.com/the-path-of-love-08"],["The Path of Love 09","https://oshoworld.com/the-path-of-love-09"],["The Path of Love 10","https://oshoworld.com/the-path-of-love-10"]]],["Love in Hindi",[["प्रेम नदी के तीरा 02 · Prem Nadi Ke Teera 02","https://oshoworld.com/prem-nadi-ke-teera-02"],["रहिमन धागा प्रेम का 02 · Rahiman Dhaga Prem Ka 02","https://oshoworld.com/rahiman-dhaga-prem-ka-02"]]],["Sufi and engaged love",[["Sufi · Sufis: People of the Path, Vol 1 01","https://oshoworld.com/sufis-people-of-the-path-vol-1-01"],["Thich Nhat Hanh · Understanding is Love’s other name","https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video"]]]]],["WITNESSING WHAT IS","Nothing to improve. See what is already here.",[["Ashtavakra, Zarathustra and direct seeing",[["Zarathustra is not a thinker but a seer Osho","https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786"],["The Three Metamorphoses Nietzsche","https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01"],["The Night Song Osho on Zarathustra #23","https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23"],["Pure witnessing, just watching Osho on Ashtavakra","https://www.osho.com/read/osho/osho-on-topics/ashtavakra"],["Ashtavakra: the purest expression of truth Mahageeta Vol 1 #1","https://osholive.com/the-mahageeta-vol-1/discourse-1"],["Ashtavakra Maha Geeta 01 Hindi · Osho World","https://oshoworld.com/maha-geeta-by-osho-01-91"]]],["The Tree of Knowledge",[["Tao The Pathless Path (Vol 2) 01","https://oshoworld.com/tao-the-pathless-path-vol-2-01/"]]],["Zen and self-enquiry",[["Bodhidharma · The Greatest Zen Master 01","https://oshoworld.com/bodhidharma-the-greatest-zen-master-01"],["Zen · Walking in Zen, Sitting in Zen 01","https://oshoworld.com/walking-in-zen-sitting-in-zen-01"],["Ramana Maharshi · Self-enquiry instructions","https://www.gururamana.org/Teachings/instructions"],["J. Krishnamurti · The observer and the observed are the same","https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/"]]]]],["AWARENESS","The light in which every experience appears.",[["Philosophia Perennis, Vol 1",[["Philosophia Perennis Vol 1 01","https://oshoworld.com/philosophia-perennis-vol-1-01"],["Philosophia Perennis Vol 1 02","https://oshoworld.com/philosophia-perennis-vol-1-02"],["Philosophia Perennis Vol 1 03","https://oshoworld.com/philosophia-perennis-vol-1-03"],["Philosophia Perennis Vol 1 04","https://oshoworld.com/philosophia-perennis-vol-1-04"],["Philosophia Perennis Vol 1 05","https://oshoworld.com/philosophia-perennis-vol-1-05"],["Philosophia Perennis Vol 1 06","https://oshoworld.com/philosophia-perennis-vol-1-06"],["Philosophia Perennis Vol 1 07","https://oshoworld.com/philosophia-perennis-vol-1-07"],["Philosophia Perennis Vol 1 08","https://oshoworld.com/philosophia-perennis-vol-1-08"],["Philosophia Perennis Vol 1 09","https://oshoworld.com/philosophia-perennis-vol-1-09"],["Philosophia Perennis Vol 1 10","https://oshoworld.com/philosophia-perennis-vol-1-10"]]],["Stillness and alchemy",[["Be Still and Know 01","https://oshoworld.com/be-still-and-know-01"],["Be Still and Know 10","https://oshoworld.com/be-still-and-know-10"],["The Ultimate Alchemy (Vol 2) 11","https://oshoworld.com/the-ultimate-alchemy-vol-2-11/"]]],["Alan Watts: companion listening",[["Human Consciousness 01 · Ecological Awareness","https://www.organism.earth/library/document/ecological-awareness"],["Human Consciousness 03 · Nature of Consciousness","https://drive.google.com/file/d/10xmNAfryyjWKDl3-iAWTGq10XhyBkwpP/view?usp=drivesdk"],["The Self 05 · World as Self","https://drive.google.com/file/d/1iYsKln1P8H2vesFTbnw6qEUWSpk-XCJS/view?usp=drivesdk"],["Myth & Religion 01 · Images of God","https://drive.google.com/file/d/1VoyuDNzhrvf1qRTWRzXCQXOuOVV5s_xs/view?usp=drivesdk"],["Taoism 04 · Way Beyond Seeking","https://drive.google.com/file/d/1sv8M3WNVALesYWA2-u--6Vj3H8tBNNk_/view?usp=drivesdk"],["Zen & Meditation 03 · Meditation","https://drive.google.com/file/d/1x4BiDb7sJrBYL061cFTA-nORAyTHtCoA/view?usp=drivesdk"],["Zen & Meditation 06 · Why Not Now?","https://drive.google.com/file/d/1db1WNOErNvzke30Wpx0TIbXRx13jXhuj/view?usp=drivesdk"],["The Universe 01 · Individual and the World","https://drive.google.com/file/d/1w-4skxk4X74m2MeWLtCWGl2M7nY_2XX0/view?usp=drivesdk"]]],["Five doors into awareness",[["Lao Tzu · Tao Upanishad 01 (Hindi)","https://oshoworld.com/tao-upanishad-01"],["Buddha · This Very Body the Buddha 01","https://oshoworld.com/this-very-body-the-buddha-01"]]]]],["KASHMIR SHAIVISM", "Light, and the light knowing itself.", [["The Book of Secrets", [["Vigyan Bhairav Tantra Vol 1 01", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-01"], ["Vigyan Bhairav Tantra Vol 1 02", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-02"], ["Vigyan Bhairav Tantra Vol 1 03", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-03"], ["Vigyan Bhairav Tantra Vol 1 04", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-04"], ["Vigyan Bhairav Tantra Vol 1 05", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-05"], ["Vigyan Bhairav Tantra Vol 1 06", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-06"], ["Vigyan Bhairav Tantra Vol 1 07", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-07"], ["Vigyan Bhairav Tantra Vol 1 08", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-08"], ["Vigyan Bhairav Tantra Vol 1 09", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-09"], ["Vigyan Bhairav Tantra Vol 1 10", "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-10"]]], ["Shiva Sutras", [["Shiva Sutra Vimarshini (1912)", "https://archive.org/details/dli.ernet.242144"]]], ["Swami Lakshmanjoo", [["Lakshmanjoo Academy on YouTube", "https://www.youtube.com/channel/UCKYC_hMs3JRWaM_dfi_BnxA"], ["Shiva Sutras audio (free download)", "https://www.lakshmanjooacademy.org/universal-shaiva-fellowship"]]]]]];
 /* ---------- fixed content ---------- */
 // name, kcal/100, protein/100, fat/100, carbs/100, serving grams, serving name, fibre/100
 const BASICS = [
@@ -599,8 +615,8 @@ function nowCard() {
     if (!d.morningChai) return { eyebrow: 'Morning', title: 'Morning chai', body: 'One cup, taken slowly.', btns: [['Have my chai', 'chai', 'primary']] };
   }
   const lunch = Math.round((mins(p.foodFrom) + mins(p.foodTo)) / 2 / 15) * 15, dinnerAt = mins(p.foodTo) - 45;
-  if (mods().food && m >= lunch - 30 && m < lunch + 90 && !mealLogged('lunch')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Log lunch', 'add-meal-lunch', 'primary']]) : { eyebrow: 'Now', title: 'Lunch', body: 'Nothing logged yet.', btns: [['Log lunch', 'add-meal-lunch', 'primary']] };
-  if (mods().food && m >= dinnerAt - 45 && m < dinnerAt + 90 && !mealLogged('dinner')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Log dinner', 'add-meal-dinner', 'primary']]) : { eyebrow: 'Now', title: 'Dinner', body: 'Nothing logged yet.', btns: [['Log dinner', 'add-meal-dinner', 'primary']] };
+  if (mods().food && m >= lunch - 30 && m < lunch + 90 && !mealLogged('lunch')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Add lunch', 'add-meal-lunch', 'primary']]) : { eyebrow: 'Now', title: 'Lunch', body: 'Nothing added yet.', btns: [['Add lunch', 'add-meal-lunch', 'primary']] };
+  if (mods().food && m >= dinnerAt - 45 && m < dinnerAt + 90 && !mealLogged('dinner')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Add dinner', 'add-meal-dinner', 'primary']]) : { eyebrow: 'Now', title: 'Dinner', body: 'Nothing added yet.', btns: [['Add dinner', 'add-meal-dinner', 'primary']] };
   if (mods().train && !trainedToday && m >= wake && m < mins('20:00')) {
     const rot = rotation(), next = nextDayId();
     const gap = lastWo ? (dateOf(k) - dateOf(lastWo.date)) / 864e5 : 9;
@@ -727,7 +743,7 @@ const fmtQ = q => String(Math.round(q * 10) / 10);
 function defaultAmt(c) { if (c.per === 'portion') return { qty: 1, unit: 'portion' }; if (c.serveGrams) return { qty: 1, unit: 'serving' }; return { qty: 100, unit: 'g' }; }
 function factor(c, qty, unit) { if (c.per === 'portion') return qty; const g = unit === 'serving' ? qty * (c.serveGrams || 100) : qty; return g / 100; }
 function amountLabel(c, qty, unit) {
-  if (c.per === 'portion') return (qty === 1 ? '' : fmtQ(qty) + ' × ') + (c.portionLabel || 'portion');
+  if (c.per === 'portion') { const l = c.portionLabel || 'portion'; return qty === 1 ? (/^[\d½]/.test(l) ? l : '1 ' + l) : fmtQ(qty) + ' × ' + l.replace(/^1\s+(?=[a-z])/i, ''); }
   if (unit === 'serving') return (qty === 1 ? '1 ' : fmtQ(qty) + ' × ') + (c.serveLabel || 'serving');
   return fmtQ(qty) + ' g';
 }
@@ -765,11 +781,11 @@ function foodDayHtml() {
   return `<div class="stack">
   <h1>Food</h1>
   ${weekStrip(k)}
-  <section class="card"><div class="between"><div><span class="tiny">${k === t ? 'Today' : fmtDay(k)}</span><div class="big-num">${big(tot.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div></div><div style="text-align:right">${quiet() ? '' : `<strong>${left >= 0 ? big(left) + ' left' : big(-left) + ' over'}</strong>`}<div class="tiny">${n0(tot.protein)}${quiet() ? '' : ' of ' + p.proteinTarget} g protein</div></div></div></section>
+  <section class="card"><div class="between"><div><span class="tiny">${k === t ? 'Today' : fmtDay(k)}</span><div class="big-num">${big(tot.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div></div><div style="text-align:right">${quiet() ? '' : `<strong>${left >= 0 ? big(left) + ' left' : big(-left) + ' over'}</strong>`}<div class="tiny">${n0(tot.protein)}${quiet() ? '' : ' of ' + p.proteinTarget} g protein</div></div></div><button class="link" data-a="how" style="padding:8px 0 0;font-size:15px">How the target was worked out</button></section>
   ${status}
   ${silent ? '' : MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); const y = peekDay(addDays(k, -1)); const hadY = y && mealFoods(y, sl).length && !fs.length;
     return `<section class="meal" aria-label="${nm}"><div class="meal-head"><strong>${nm}${fs.length ? ` <span class="tiny" style="font-weight:400">${big(kc)} cal</span>` : ''}</strong><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>
-    ${fs.map(f => `<button class="food-row" data-a="food-item" data-id="${f.id}"><span class="t"><strong style="font-weight:500">${esc(f.name)}</strong><span>${esc(f.amount || '')}${f.amount ? ' · ' : ''}${n0(f.protein)} g protein${f.trigger ? ' · ' + esc(f.trigger) : ''}</span></span><span class="k">${big(f.kcal)}</span></button>`).join('')}
+    ${fs.map(f => `<button class="food-row" data-a="food-item" data-id="${f.id}">${f.photoId ? `<img class="food-thumb" data-mealphoto="${esc(f.photoId)}" alt="">` : ''}<span class="t"><strong style="font-weight:500">${esc(f.name)}</strong><span>${esc(f.amount || '')}${f.amount ? ' · ' : ''}${n0(f.protein)} g protein${f.trigger ? ' · ' + esc(f.trigger) : ''}</span></span><span class="k">${big(f.kcal)}</span></button>`).join('')}
     ${hadY ? `<button class="link" data-a="repeat-meal" data-slot="${sl}" data-k="${k}" style="padding:0 0 6px">Same as yesterday</button>` : ''}</section>`; }).join('')}
   <div class="btns">${!silent && real ? (d.closed ? `<button class="btn" data-a="day-open">Day closed · reopen</button>` : `<button class="btn" data-a="day-close">That's everything for ${k === t ? 'today' : 'this day'}</button>`) : ''}${!silent && !real ? `<button class="btn" data-a="silent-on">Make it a silent day</button>` : ''}</div>
   <button class="navrow" data-a="food-week"><span>See the whole week<small>Calories across the week, and what's coming up</small></span></button>
@@ -806,7 +822,9 @@ function addItemsNow() {
 }
 function addRow(it, i, src) { const c = it.c, am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c), v = calc(c, am.qty, am.unit); return `<li class="li"><button class="t" data-a="add-pick" data-src="${src}" data-i="${i}"><strong>${esc(c.name)}</strong><span>${it.tag ? esc(it.tag) + ' · ' : ''}${esc(amountLabel(c, am.qty, am.unit))} · ${shortMacro(v)}</span></button><button class="round" data-a="add-quick" data-src="${src}" data-i="${i}" aria-label="Add ${esc(c.name)}">+</button></li>`; }
 function addResultsHtml() {
-  const a = ADD, q = a.q.trim(); a._items = addItemsNow();
+  const a = ADD, q = a.q.trim();
+  if (q && looksLikeSentence(q)) { a._items = []; return `<p class="small muted" style="padding:10px 0">Tap <strong>Next</strong> to see these one by one before anything is added.</p>`; }
+  a._items = addItemsNow();
   const emptyMsg = { recent: 'Foods you add appear here, ready to add again with one tap.', fav: 'Tap any food you have logged, then “Add to favourites”.', dish: 'Your own recipes live here. Make one from its ingredients, or photo a dish and tick “Save as my dish”.', basics: '' }[a.list];
   return `${!q && a.list === 'dish' ? '<button class="btn" data-a="rec-new" style="width:100%;margin-bottom:6px">Make a new dish from its ingredients</button>' : ''}<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('') || (q ? '<p class="tiny" style="padding:8px 0">Nothing saved by that name.</p>' : `<p class="tiny" style="padding:12px 0">${emptyMsg}</p>`)}</ul>
   ${q ? `${a.online ? `<h3 style="margin:10px 0 4px">Online results</h3><ul class="list">${a.online.map((c, i) => addRow({ c, tag: c.brand || 'Open Food Facts' }, i, 'o')).join('')}</ul>` : ''}${a.onlineMsg ? `<p class="tiny" style="margin:6px 0">${esc(a.onlineMsg)}</p>` : ''}${a.online ? '' : `<button class="btn" data-a="add-online" style="width:100%;margin-top:8px">Search online for “${esc(q)}”</button>`}` : ''}`;
@@ -820,17 +838,25 @@ function addRender() {
     h = addTop('Add to ' + nm) + `<div class="stack">
     ${a.breath ? `<div><p class="journal-q" style="font-size:19px">One slow breath. What's asking for food?</p><div class="chips" style="margin-top:8px">${REASONS.map(r => `<button class="chip" data-a="add-reason" data-r="${r}" aria-pressed="${a.reason === r}">${r}</button>`).join('')}</div></div>` : ''}
     ${a.added.length ? `<div class="okbox small">Added to ${nm}: ${esc(a.added.join(', '))}</div>` : ''}
-    <div class="searchbar"><label><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb8b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="add-q" type="search" enterkeyhint="search" placeholder="Search foods and dishes" value="${esc(a.q)}" aria-label="Search foods and dishes" autocomplete="off"></label><button class="iconbtn" data-a="add-scan" aria-label="Scan a barcode"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M11 8v8M14 8v8M17 8v8"/></svg></button></div>
-    <button class="card now" data-a="add-photo" style="display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;padding:12px 14px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9fd6be" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span><strong>Photo or describe a dish</strong><span class="tiny" style="display:block">${S.profile.geminiKey ? 'Gemini fills in the numbers' : 'Enter the numbers, or connect Gemini to fill them in'}</span></span></button>
+    ${sayHtml()}
+    <button class="card showit" data-a="show-it"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9fd6be" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span><strong>Show it</strong><span class="tiny" style="display:block">A photo of your plate, a barcode or a label</span></span></button>
     <div class="seg${emptyTabs ? '' : ' hidden'}" id="add-tabs" role="tablist" aria-label="Food lists">${[['recent', 'Recent'], ['fav', 'Favourites'], ['dish', 'My dishes'], ['basics', 'Basics']].map(x => `<button role="tab" id="add-tab-${x[0]}" aria-controls="add-res" data-a="add-list" data-l="${x[0]}" aria-selected="${a.list === x[0]}" tabindex="${a.list === x[0] ? 0 : -1}">${x[1]}</button>`).join('')}</div>
     <div id="add-res"${emptyTabs ? ` role="tabpanel" aria-labelledby="add-tab-${a.list}"` : ''}>${addResultsHtml()}</div>
     <p class="tiny">Tap + to add straight away. Tap a name to change the amount.</p></div>`;
+  } else if (a.mode === 'show') {
+    h = addTop('Show it', 'add-back') + `<div class="stack">
+    <button class="card showit" data-a="add-photo"><span aria-hidden="true" style="font-size:30px">🍛</span><span><strong>A plate of food</strong><span class="tiny" style="display:block">${S.profile.geminiKey ? 'Gemini works out what’s on it' : 'Photo it, then ask any AI or enter the numbers'}</span></span></button>
+    <button class="card showit" data-a="add-scan"><span aria-hidden="true" style="font-size:30px">▥</span><span><strong>A barcode</strong><span class="tiny" style="display:block">Looks the packet up in Open Food Facts</span></span></button>
+    ${S.profile.geminiKey ? `<label class="card showit filebtn" style="cursor:pointer"><span aria-hidden="true" style="font-size:30px">🏷</span><span><strong>A nutrition label</strong><span class="tiny" style="display:block">Gemini reads the numbers off the packet</span></span><input type="file" accept="image/*" capture="environment" data-label></label>` : ''}
+    ${a.labelBusy ? `<p class="small">${esc(a.labelBusy)}</p>` : ''}${a.scanMsg && !a.notFound ? `<p class="small">${esc(a.scanMsg)}</p>` : ''}
+    <p class="tiny">Nothing is added until you’ve seen it.</p></div>`;
   } else if (a.mode === 'amount') {
     const c = a.cand, v = calc(c, a.qty, a.unit), step = a.unit === 'g' ? 10 : 0.5;
     h = addTop(c.name, 'add-back') + `<div class="stack">
     <section class="card"><div class="big-num">${big(v.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div><p class="muted small" style="margin-top:4px">${n1(v.protein)} g protein · ${n1(v.fat)} g fat · ${n1(v.carbs)} g carbs · ${n1(v.fibre)} g fibre</p></section>
     ${c.per === '100g' && c.serveGrams ? `<div class="seg"><button data-a="add-unit" data-u="serving" aria-selected="${a.unit === 'serving'}">By ${esc(c.serveLabel || 'serving')}</button><button data-a="add-unit" data-u="g" aria-selected="${a.unit === 'g'}">By grams</button></div>` : ''}
     <div class="between"><span>${a.unit === 'g' ? 'Grams' : a.unit === 'serving' ? 'How many (' + esc(c.serveLabel || 'serving') + ')' : 'How many (' + esc(c.portionLabel || 'portion') + ')'}</span><span class="stepper"><button class="step" data-a="add-step" data-d="-${step}" aria-label="Less">−</button><input class="input val" id="add-qty" inputmode="decimal" value="${fmtQ(a.qty)}" aria-label="Amount" style="width:84px"><button class="step" data-a="add-step" data-d="${step}" aria-label="More">+</button></span></div>
+    ${a.unit !== 'g' ? `<div class="chips" role="group" aria-label="Portion">${DR_CHIPS.map(q => `<button class="chip" data-a="add-chip" data-q="${q}" aria-pressed="${a.qty === q}" aria-label="${fmtQ(q)} × ${esc(a.unit === 'serving' ? (c.serveLabel || 'serving') : (c.portionLabel || 'portion'))}">${qLabel(q)}</button>`).join('')}</div>` : ''}
     <button class="btn primary big" data-a="add-commit">Add to ${esc(nm)}</button>
     ${c.recipe ? '<button class="btn" data-a="rec-edit">Change the recipe</button>' : ''}
     ${c.per === '100g' ? `<p class="tiny">${esc(c.src === 'Basic' ? 'Typical values' : 'From the packet label via Open Food Facts')}, per 100 g: ${n0(c.k)} cal, ${n1(c.p)} g protein.</p>` : ''}</div>`;
@@ -838,18 +864,22 @@ function addRender() {
     h = addTop('Scan a barcode', 'add-back') + `<div class="stack"><video id="scan-cam" autoplay playsinline muted style="width:100%;border-radius:14px;background:#000;min-height:220px"></video>
     <p class="tiny">Hold the barcode steady in the frame. It's picked up by itself.</p>
     <div class="searchbar"><label><input id="scan-code" inputmode="numeric" placeholder="Or type the barcode number" aria-label="Barcode number"></label><button class="btn" data-a="scan-lookup">Look up</button></div>
-    ${a.scanMsg ? `<p class="small">${esc(a.scanMsg)}</p>` : ''}</div>`;
+    ${a.scanMsg ? `<p class="small">${esc(a.scanMsg)}</p>` : ''}${labelOfferHtml()}</div>`;
   } else if (a.mode === 'photo') {
     h = addTop('Add to ' + nm, 'add-back') + estimateHtml();
+  } else if (a.mode === 'draft') {
+    h = addTop('Add to ' + nm, 'draft-back') + draftHtml();
   } else if (a.mode === 'recipe') {
     h = addTop(a.rec.id ? 'Change recipe' : 'New dish', 'add-back') + recipeHtml();
   }
   const b = sheetBody(h); if (!b) return;
   const qi = $('#add-q', b);
-  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; clearTimeout(a._t); a._t = setTimeout(refreshAddResults, 120); }; qi.onkeydown = e => { if (e.key === 'Enter' && a.q.trim()) { e.preventDefault(); A['add-online'](); } }; }
+  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; clearTimeout(a._t); a._t = setTimeout(refreshAddResults, 120); }; qi.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && a.q.trim()) { e.preventDefault(); A['say-go'](); } }; }
   const qq = $('#add-qty', b); if (qq) qq.oninput = e => { const v = num(e.target.value); if (v != null && v > 0) { a.qty = v; const s = $('.big-num', b); const val = calc(a.cand, a.qty, a.unit); if (s) s.firstChild.nodeValue = big(val.kcal) + ' '; } };
   if (a.mode === 'scan') startScan();
   if (a.mode === 'photo') bindEstimate(b);
+  if (a.mode === 'draft') bindDraft(b);
+
   if (a.mode === 'recipe') bindRecipe(b);
 }
 function refreshAddResults() { const r = $('#add-res'); if (!r || !ADD || ADD.mode !== 'list') return addRender(); r.innerHTML = addResultsHtml(); const tabs = $('#add-tabs'), on = !ADD.q.trim(); if (tabs) tabs.classList.toggle('hidden', !on); if (on) { r.setAttribute('role', 'tabpanel'); r.setAttribute('aria-labelledby', 'add-tab-' + ADD.list); } else { r.removeAttribute('role'); r.removeAttribute('aria-labelledby'); } }
@@ -862,10 +892,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') j = (i + 1) % tabs.length; else if (e.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length; else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = tabs.length - 1;
   if (j == null) return; e.preventDefault(); tabs[j].focus(); tabs[j].click();
 });
-on('add-back', () => { stopScan(); ADD.mode = 'list'; addRender(); });
-on('add-pick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; ADD.cand = c; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); ADD.qty = am.qty; ADD.unit = am.unit; ADD.mode = 'amount'; addRender(); });
-on('add-quick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); commitFood(c, am.qty, am.unit); });
+on('add-back', () => { stopScan(); ADD.mode = ['scan', 'photo'].includes(ADD.mode) && ADD.fromShow ? 'show' : 'list'; addRender(); });
+on('show-it', () => { ADD.mode = 'show'; ADD.fromShow = true; ADD.scanMsg = ''; ADD.notFound = ''; ADD.labelBusy = ''; addRender(); });
+on('add-pick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; if (b.dataset.src === 'o') { openDraft([draftItem(c, { src: c.brand || 'Open Food Facts' })], 'list'); return; } ADD.cand = c; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); ADD.qty = am.qty; ADD.unit = am.unit; ADD.mode = 'amount'; addRender(); });
+on('add-quick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; if (b.dataset.src === 'o') { openDraft([draftItem(c, { src: c.brand || 'Open Food Facts' })], 'list'); return; } const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); commitFood(c, am.qty, am.unit); });
 on('add-unit', b => { const c = ADD.cand; ADD.unit = b.dataset.u; ADD.qty = ADD.unit === 'g' ? (c.serveGrams || 100) : 1; addRender(); });
+on('add-chip', b => { ADD.qty = +b.dataset.q; addRender(); });
 on('add-step', b => { const d = +b.dataset.d; ADD.qty = Math.max(Math.abs(d), n1(ADD.qty + d)); addRender(); });
 on('add-commit', () => { const q = num(($('#add-qty') || {}).value); if (q && q > 0) ADD.qty = q; commitFood(ADD.cand, ADD.qty, ADD.unit); });
 function commitFood(c, qty, unit) {
@@ -924,7 +956,7 @@ async function startScan() {
   scanTimer = setInterval(async () => { try { const c = await det.detect(v); if (c && c[0] && c[0].rawValue) { const code = c[0].rawValue; stopScan(); lookupBarcode(code); } } catch (e) {} }, 350);
 }
 function stopScan() { if (scanTimer) clearInterval(scanTimer); scanTimer = null; if (scanStream) scanStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); scanStream = null; }
-on('add-scan', () => { ADD.mode = 'scan'; ADD.scanMsg = ''; addRender(); });
+on('add-scan', () => { ADD.mode = 'scan'; ADD.scanMsg = ''; ADD.notFound = ''; ADD.labelBusy = ''; addRender(); });
 on('scan-lookup', () => lookupBarcode(($('#scan-code') || {}).value));
 async function lookupBarcode(code) {
   const a = ADD; code = String(code || '').replace(/\D/g, ''); if (!code) { toast('Type the barcode number first.'); return; }
@@ -934,9 +966,9 @@ async function lookupBarcode(code) {
     const c = j && j.status === 1 && j.product ? offCand(j.product) : null;
     if (c) offCachePut('#' + code, [c]);
     if (ADD !== a) return;
-    if (!c) { a.scanMsg = 'No nutrition values found for ' + code + '. Search by name, or photo it.'; addRender(); return; }
-    a.cand = c; const am = defaultAmt(c); a.qty = am.qty; a.unit = am.unit; a.mode = 'amount'; addRender();
-  } catch (e) { const kept = offCacheGet()['#' + code]; if (kept && ADD === a) { a.cand = kept.c[0]; const am = defaultAmt(a.cand); a.qty = am.qty; a.unit = am.unit; a.mode = 'amount'; addRender(); return; } a.scanMsg = 'Barcode look-up needs the internet. Try again when online.'; addRender(); }
+    if (!c) { const kept = offCacheGet()['#' + code]; if (kept) { openDraft([draftItem(kept.c[0], { src: kept.c[0].src || 'Saved from before' })], 'list'); return; } a.notFound = code; a.scanMsg = 'Open Food Facts doesn’t have ' + code + ' yet.'; addRender(); return; }
+    openDraft([draftItem(c, { src: c.brand || 'Open Food Facts' })], 'list');
+  } catch (e) { const kept = offCacheGet()['#' + code]; if (kept && ADD === a) { openDraft([draftItem(kept.c[0], { src: kept.c[0].src || 'Saved from before' })], 'list'); return; } a.scanMsg = 'Barcode look-up needs the internet. Try again when online.'; addRender(); }
 }
 
 /* ---------- photo / describe a dish, with Gemini ---------- */
@@ -1019,14 +1051,14 @@ on('ai-use', () => {
   e.ings = r.ings.map(i => ({ name: i.name, grams: n0(i.grams), oil: /oil|ghee|butter/i.test(i.name), r: { k: i.k / i.grams, p: i.p / i.grams, f: i.f / i.grams, c: i.c / i.grams, b: i.b / i.grams } }));
   e.portion = r.portion || '1 portion'; e.assumptions = ''; e.servings = 1; e.manualNums = false; e.other = true; e.err = '';
   if (!(e.name || '').trim()) e.name = r.dish || 'Dish';
-  addRender();
+  estToDraft(e, 'Estimate from another AI');
 });
 on('est-g', b => { const i = ADD.est.ings[+b.dataset.i]; i.grams = Math.max(0, i.grams + (+b.dataset.d)); addRender(); });
 on('est-serv', b => { const e = ADD.est; e.servings = Math.max(0.5, e.servings + (+b.dataset.d)); addRender(); });
 on('est-manual', () => {
   const e = ADD.est, k = num($('#m-k').value); if (!k) { toast('Add the calories at least.'); return; }
   const g = 100; e.ings = [{ name: e.name || 'Dish', grams: g, oil: false, r: { k: k / g, p: (num($('#m-p').value) || 0) / g, f: (num($('#m-f').value) || 0) / g, c: (num($('#m-c').value) || 0) / g, b: (num($('#m-b').value) || 0) / g } }];
-  e.portion = '1 portion'; e.servings = 1; e.manualNums = true; addRender();
+  e.portion = '1 portion'; e.servings = 1; e.manualNums = true; estToDraft(e, 'Entered by you', true);
 });
 on('est-add', () => {
   const e = ADD.est, name0 = (e.name || 'Dish').trim(), name = name0.charAt(0).toUpperCase() + name0.slice(1); const per = estTotals({ ...e, servings: 1 });
@@ -1050,6 +1082,7 @@ Break it into its main ingredients with realistic grams for ONE portion as descr
     e.ings = j.ingredients.filter(i => i && +i.grams > 0).map(i => { const g = +i.grams; return { name: String(i.name), grams: n0(g), oil: !!i.isAddedFat || /oil|ghee|butter/i.test(i.name), r: { k: (+i.kcal || 0) / g, p: (+i.protein || 0) / g, f: (+i.fat || 0) / g, c: (+i.carbs || 0) / g, b: (+i.fibre || 0) / g } }; });
     e.portion = j.portion || '1 portion'; e.assumptions = j.assumptions || ''; e.servings = 1; e.manualNums = false; e.other = false;
     if (!e.name.trim()) e.name = j.dish || 'Dish';
+    estToDraft(e, 'Gemini estimate');
   } catch (err) { e.err = geminiErr(err); }
   e.loading = false; e.wait = ''; if (ADD && ADD.est === e) addRender();
 });
@@ -1062,13 +1095,14 @@ function itemRender() {
   const d = day(ITEM.k), f = d.foods.find(x => x.id === ITEM.id); if (!f) { closeSheet(); return; }
   const c = candFromEntry(f), v = calc(c, ITEM.qty, c.per === 'portion' ? 'portion' : ITEM.unit), step = ITEM.unit === 'g' ? 10 : 0.5;
   const fav = S.foodFavourites.some(x => x.name === f.name);
-  sheetBody(`<div class="stack"><div><h2>${esc(f.name)}</h2><p class="muted small">${esc(MEAL_NAME[f.slot || 'snack'])} · ${fmtDay(ITEM.k)}${f.source ? ' · ' + esc(f.source) : ''}</p></div>
+  sheetBody(`<div class="stack">${f.photoId ? `<img data-mealphoto="${esc(f.photoId)}" alt="Your plate" style="width:100%;max-height:280px;object-fit:cover;border-radius:14px">` : ''}<div><h2>${esc(f.name)}</h2><p class="muted small">${esc(MEAL_NAME[f.slot || 'snack'])} · ${fmtDay(ITEM.k)}${f.source ? ' · ' + esc(f.source) : ''}</p></div>
   <section class="card"><div class="big-num">${big(v.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div><p class="small muted">${v.protein} g protein · ${v.fat} g fat · ${v.carbs} g carbs · ${v.fibre} g fibre</p></section>
   <div class="between"><span>${esc(amountLabel(c, ITEM.qty, c.per === 'portion' ? 'portion' : ITEM.unit))}</span><span class="stepper"><button class="step" data-a="item-step" data-d="-${step}" aria-label="Less">−</button><button class="step" data-a="item-step" data-d="${step}" aria-label="More">+</button></span></div>
   <button class="btn primary" data-a="item-save">Save amount</button>
   <div><span class="lab">Move to</span><div class="chips">${MEALS.map(([sl, nm]) => `<button class="chip" data-a="item-move" data-slot="${sl}" aria-pressed="${(f.slot || 'snack') === sl}">${nm}</button>`).join('')}<button class="chip" data-a="item-tomorrow">Tomorrow</button></div></div>
   <div class="btns"><button class="btn" data-a="item-fav">${fav ? 'Remove from favourites' : 'Add to favourites'}</button><button class="btn" data-a="item-dish">Save as my dish</button></div>
   <button class="btn danger" data-a="item-remove">Remove</button></div>`);
+  fillMealPhotos($('.sheet'));
 }
 on('item-step', b => { ITEM.qty = Math.max(Math.abs(+b.dataset.d), n1(ITEM.qty + (+b.dataset.d))); itemRender(); });
 on('item-save', () => { const d = day(ITEM.k), f = d.foods.find(x => x.id === ITEM.id); const c = candFromEntry(f); delete c._qty; delete c._unit; const u = c.per === 'portion' ? 'portion' : ITEM.unit; Object.assign(f, calc(c, ITEM.qty, u), { amount: amountLabel(c, ITEM.qty, u), base: c, qty: ITEM.qty, unit: u }); save(); closeSheet(); toast('Amount saved.'); });
@@ -1205,6 +1239,261 @@ on('rec-save', b => {
   save(); ADD.rec = null;
   if (b.dataset.add) { commitFood(dish, 1, 'portion'); } else { ADD.list = 'dish'; ADD.mode = 'list'; addRender(); toast(name + ' saved in My dishes.'); }
 });
+/* ================= DRAFTS: nothing is logged unseen =================
+   Sentences, photo estimates, online results, barcodes and labels all land here first:
+   a short list with every number editable, portion chips, at most one plain question, and one "Log it". */
+const DR_FIELDS = [['k', 'cal'], ['p', 'protein'], ['c', 'carbs'], ['f', 'fat'], ['b', 'fibre']];
+const DR_CHIPS = [0.5, 1, 1.5, 2];
+const unitName = u => String(u || 'portion').replace(/^1\s+(?=[a-z])/i, '');
+const qLabel = q => q === 0.5 ? '½' : q === 1.5 ? '1½' : q === 2.5 ? '2½' : fmtQ(q);
+function perFromCand(c) {
+  if (c.per === 'portion') return { per: { k: +c.k || 0, p: +c.p || 0, c: +c.c || 0, f: +c.f || 0, b: +c.b || 0 }, unit: c.portionLabel || 'portion' };
+  const x = c.serveGrams ? c.serveGrams / 100 : 1;
+  return { per: { k: (+c.k || 0) * x, p: (+c.p || 0) * x, c: (+c.c || 0) * x, f: (+c.f || 0) * x, b: (+c.b || 0) * x }, unit: c.serveGrams ? (c.serveLabel || 'serving (' + c.serveGrams + ' g)') : '100 g' };
+}
+// how many of the item's own unit: a stated count wins, then what was eaten last time, then one
+function qtyFromCand(c, stated) {
+  if (stated != null) return stated;
+  if (c._qty != null) { if (c.per === 'portion' || c._unit === 'serving') return c._qty; if (c._unit === 'g') return n1(c._qty / (c.serveGrams || 100)); }
+  return 1;
+}
+function draftItem(c, o) {
+  o = o || {}; const { per, unit } = perFromCand(c), clean = { ...c }; delete clean._qty; delete clean._unit;
+  return { id: uid(), name: c.name, per, unit, qty: qtyFromCand(c, o.qty), src: o.src || c.src || '', said: o.said || '', countAsk: !!o.countAsk, oilG: o.oilG || 0, oilNow: o.oilG || 0, cand: clean };
+}
+function emptyItem(name, said, note) { return { id: uid(), name: name || '', per: { k: 0, p: 0, c: 0, f: 0, b: 0 }, unit: 'portion', qty: 1, src: '', said: said || '', empty: true, note: note || 'Not in your foods yet. Enter the numbers, or remove it.' }; }
+const drVal = (it, k) => (it.per[k] || 0) * it.qty;
+function drTotals(items) { const t = { k: 0, p: 0 }; items.forEach(it => { if (!it.pending) { t.k += drVal(it, 'k'); t.p += drVal(it, 'p'); } }); return t; }
+function openDraft(items, back, extra) { const a = ADD; a.draft = Object.assign({ items, back: back || 'list', loading: 0, msg: '', q: null, qDone: false }, extra || {}); pickQuestion(a.draft); a.mode = 'draft'; addRender(); }
+
+/* ---------- one optional question, only when the answer changes the numbers a lot ---------- */
+const COUNTABLE = /\b(roti|chapati|chapatti|phulka|paratha|puri|poori|naan|idli|dosa|egg|biscuit|slice|samosa|pakora|bhaji|cookie)s?\b/i;
+function pickQuestion(d) {
+  if (d.qDone || d.q) return;
+  const c = d.items.find(it => it.countAsk && !it.pending && !it.empty);
+  if (c) { const noun = (c.said.replace(/^[\d\s.½]+/, '').trim() || c.name).replace(/s$/i, ''); d.q = { kind: 'count', id: c.id, text: 'How many ' + noun.toLowerCase() + 's?', opts: [1, 2, 3, 4].map(n => [String(n), n]) }; return; }
+  const o = d.items.find(it => !it.pending && ((it.oilG > 0) || (it.ings && it.ings.some(g => g.oil))));
+  if (o) d.q = { kind: 'oil', id: o.id, text: 'How much oil or ghee went into the ' + (o.said || o.name).split(',')[0].trim().toLowerCase() + '?', opts: [['A little', 0.5], ['The usual', 1], ['Quite a lot', 1.75]] };
+}
+function answerQuestion(v) {
+  const d = ADD.draft, q = d.q; if (!q) return; const it = d.items.find(x => x.id === q.id); d.q = null; d.qDone = true; if (!it) return;
+  if (q.kind === 'count') { it.qty = v; it.countAsk = false; }
+  if (q.kind === 'oil') {
+    if (it.ings) { it.ings.forEach(g => { if (g.oil) { g.base = g.base != null ? g.base : g.grams; g.grams = n0(g.base * v); } }); ingsToPer(it); }
+    else { const want = it.oilG * v, diff = want - it.oilNow; it.oilNow = want; it.per.k += diff * 9 / it.qty; it.per.f += diff / it.qty; }
+  }
+}
+
+/* ---------- the draft screen ---------- */
+function draftHtml() {
+  const d = ADD.draft, t = drTotals(d.items), nm = MEAL_NAME[ADD.slot].replace('Snacks', 'snacks').toLowerCase();
+  const rows = d.items.map((it, i) => {
+    if (it.pending) return `<section class="card stack dr-item" style="gap:6px"><strong>${esc(it.said || it.name)}</strong><p class="small muted">${d.msg ? esc(d.msg) : 'Gemini is working this one out…'}</p></section>`;
+    const chips = DR_CHIPS.includes(it.qty) ? DR_CHIPS : [...DR_CHIPS, it.qty].sort((x, y) => x - y);
+    return `<section class="card stack dr-item" style="gap:10px" aria-label="${esc(it.name || 'Item')}">
+    <div class="between" style="align-items:flex-start;gap:10px">${it.empty ? `<div style="flex:1"><label class="lab" for="dr-n-${i}">Name</label><input class="input" id="dr-n-${i}" data-drn="${i}" value="${esc(it.name)}"></div>` : `<div style="flex:1;min-width:0"><strong style="font-size:18px">${esc(it.name)}</strong>${it.src || it.said ? `<span class="tiny" style="display:block">${esc(it.src)}${it.src && it.said ? ' · ' : ''}${it.said ? 'you said “' + esc(it.said) + '”' : ''}</span>` : ''}</div>`}<button class="link" data-a="dr-remove" data-i="${i}" aria-label="Remove ${esc(it.name || 'this item')}" style="flex:none">Remove</button></div>
+    ${it.note ? `<p class="small muted">${esc(it.note)}</p>` : ''}
+    ${it.photoUrl ? `<img src="${it.photoUrl}" alt="Your plate" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px">` : ''}
+    <div><span class="lab">How much · ${esc(fmtQ(it.qty))} × ${esc(unitName(it.unit))}</span><div class="chips" role="group" aria-label="Portion">${chips.map(q => `<button class="chip" data-a="dr-qty" data-i="${i}" data-q="${q}" aria-pressed="${it.qty === q}" aria-label="${fmtQ(q)} × ${esc(unitName(it.unit))}">${qLabel(q)}</button>`).join('')}</div></div>
+    ${(() => { const box = ([k, l]) => `<label><span>${l}</span><input class="input" inputmode="decimal" data-dr="${i}:${k}" value="${k === 'k' ? n0(drVal(it, k)) : n1(drVal(it, k))}" aria-label="${l}${k === 'k' ? 'ories' : ' in grams'} for ${esc(it.name || 'this item')}"></label>`; return `<div class="dr-nums dr-main">${DR_FIELDS.slice(0, 2).map(box).join('')}</div><details class="fold dr-more"${it.empty ? ' open' : ''}><summary class="small">More numbers</summary><div class="dr-nums">${DR_FIELDS.slice(2).map(box).join('')}</div></details>`; })()}
+    ${it.ings && !it.ingsOff ? `<details class="fold"><summary class="small">What’s in it, per portion</summary><div>${it.ings.map((g, j) => { const step = g.oil ? 5 : 10; return `<div class="between" style="min-height:52px;border-bottom:1px solid var(--hair2)"><span style="flex:1">${esc(g.name)}${g.oil ? ' <span class="tiny">(oil or ghee)</span>' : ''}</span><span class="stepper"><button class="step" data-a="dr-g" data-i="${i}" data-j="${j}" data-d="-${step}" aria-label="Less ${esc(g.name)}">−</button><span class="val">${n0(g.grams)} g</span><button class="step" data-a="dr-g" data-i="${i}" data-j="${j}" data-d="${step}" aria-label="More ${esc(g.name)}">+</button></span></div>`; }).join('')}</div></details>` : ''}
+    ${it.dishable ? `<label class="check"><input type="checkbox" data-drdish="${i}" ${it.saveDish ? 'checked' : ''}>Save as my dish for next time</label>` : ''}</section>`;
+  }).join('');
+  const q = d.q ? `<section class="card now stack" style="gap:10px" aria-label="One question"><p style="font-size:18px">${esc(d.q.text)}</p><div class="chips">${d.q.opts.map(o => `<button class="chip" data-a="dr-answer" data-v="${o[1]}">${esc(o[0])}</button>`).join('')}</div><button class="link" data-a="dr-log" style="align-self:flex-start;padding:0">Add now</button></section>` : '';
+  const ready = d.items.some(it => !it.pending);
+  return `<div class="stack">
+  ${q}
+  ${rows || '<p class="small muted">Nothing left to log.</p>'}
+  ${d.msg && !d.items.some(it => it.pending) ? `<p class="small muted">${esc(d.msg)}</p>` : ''}
+  ${ready ? `<p id="dr-total" class="small" style="text-align:right">${totalLine(t)}</p><button class="btn primary big" data-a="dr-log">Add to ${esc(nm)}</button><p class="tiny">Tap any number to change it.</p>` : ''}</div>`;
+}
+const totalLine = t => 'Together: <strong>' + big(t.k) + ' calories</strong> · ' + n0(t.p) + ' g protein';
+function bindDraft(b) {
+  const d = ADD.draft;
+  $$('[data-dr]', b).forEach(el => el.oninput = () => { const [i, k] = el.dataset.dr.split(':'), it = d.items[+i], v = num(el.value); if (v == null || v < 0 || !it.qty) return; it.per[k] = v / it.qty; if (it.ings) it.ingsOff = true; if (it.empty && k === 'k' && v > 0) it.note = ''; const tl = $('#dr-total', b); if (tl) tl.innerHTML = totalLine(drTotals(d.items)); });
+  $$('[data-drn]', b).forEach(el => el.oninput = () => { d.items[+el.dataset.drn].name = el.value; });
+  $$('[data-drdish]', b).forEach(el => el.onchange = () => { d.items[+el.dataset.drdish].saveDish = el.checked; });
+}
+function ingsToPer(it) { const p = { k: 0, p: 0, c: 0, f: 0, b: 0 }; it.ings.forEach(g => { p.k += g.r.k * g.grams; p.p += g.r.p * g.grams; p.f += g.r.f * g.grams; p.c += g.r.c * g.grams; p.b += g.r.b * g.grams; }); it.per = p; }
+on('dr-qty', b => { const it = ADD.draft.items[+b.dataset.i]; it.qty = +b.dataset.q; if (ADD.draft.q && ADD.draft.q.id === it.id && ADD.draft.q.kind === 'count') { ADD.draft.q = null; ADD.draft.qDone = true; } addRender(); });
+on('dr-g', b => { const it = ADD.draft.items[+b.dataset.i], g = it.ings[+b.dataset.j]; g.grams = Math.max(0, g.grams + (+b.dataset.d)); g.base = g.grams; ingsToPer(it); addRender(); });
+on('dr-remove', b => { const d = ADD.draft; const it = d.items.splice(+b.dataset.i, 1)[0]; if (d.q && it && d.q.id === it.id) d.q = null; if (!d.items.length) { ADD.mode = d.back; ADD.draft = null; } addRender(); });
+on('dr-answer', b => { answerQuestion(+b.dataset.v); addRender(); });
+on('draft-back', () => { const d = ADD.draft; ADD.mode = d ? d.back : 'list'; ADD.draft = null; addRender(); });
+on('dr-log', async () => {
+  const a = ADD, d = a.draft; if (!d) return; $$('[data-dr]').forEach(el => el.oninput && el.oninput());
+  const day0 = day(a.k), done = [], left = [];
+  for (const it of d.items) {
+    if (it.pending) continue;
+    const name = (it.name || '').trim(); if (!name || !(drVal(it, 'k') > 0)) { left.push(name || 'an item'); continue; }
+    const base = { name: name.charAt(0).toUpperCase() + name.slice(1), per: 'portion', k: n1(it.per.k), p: n1(it.per.p), f: n1(it.per.f), c: n1(it.per.c), b: n1(it.per.b), portionLabel: it.unit, src: it.src || 'Entered by you' };
+    const e = makeEntry(base, it.qty, 'portion', a.slot, a.reason ? { trigger: a.reason } : null);
+    e.amount = it.qty === 1 ? (/^[\d½]/.test(it.unit) ? it.unit : '1 ' + it.unit) : fmtQ(it.qty) + ' × ' + unitName(it.unit);
+    if (it.photo) { try { const data = await downscale(it.photo, 1200, 0.8), id = 'meal-' + uid(); await pput(id, { blob: b64blob(data.split(',')[1], 'image/jpeg'), mime: 'image/jpeg' }); e.photoId = id; } catch (x) {} }
+    if (it.saveDish) { const dish = { ...base, id: uid(), portionLabel: it.unit, src: 'My dish', ingredients: (it.ings || []).map(g => ({ name: g.name, grams: g.grams })) }; const ex = S.dishes.findIndex(x => x.name.toLowerCase() === base.name.toLowerCase()); if (ex >= 0) S.dishes[ex] = dish; else S.dishes.push(dish); }
+    day0.foods.push(e); done.push(e);
+  }
+  if (!done.length) { toast('Add the calories for at least one item.'); return; }
+  day0.silent = false; save();
+  if (d.photoUrl) URL.revokeObjectURL(d.photoUrl); d.items.forEach(it => { if (it.photoUrl) URL.revokeObjectURL(it.photoUrl); });
+  a.added.push(...done.map(e => e.name)); a.draft = null; a.est = null; a.q = ''; a.online = null; a.onlineMsg = ''; a.mode = 'list'; addRender(); render();
+  const ids = new Set(done.map(e => e.id));
+  undoBar((done.length === 1 ? done[0].name + ' added.' : done.length + ' foods added.') + (left.length ? ' Left out, no calories: ' + left.join(', ') + '.' : ''), () => { day0.foods = day0.foods.filter(f => !ids.has(f.id)); a.added = a.added.filter(n => !done.some(e => e.name === n)); save(); addRender(); render(); }, 6000);
+});
+
+/* ---------- say what you ate ---------- */
+const NUMWORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, half: 0.5, couple: 2, '½': 0.5 };
+const UNITWORDS = /^(bowls?|plates?|cups?|glass(es)?|mugs?|katoris?|pieces?|slices?|spoons?|tablespoons?|teaspoons?|tbsp|tsp|handfuls?|portions?|servings?|packets?|pots?|small|medium|large|big)\b\s*(of\s+)?/i;
+const ALIAS = { chapati: ['roti', 'phulka', 'chapatti'], roti: ['chapati', 'phulka', 'chapatti'], chapatti: ['chapati', 'roti'], phulka: ['roti', 'chapati'], dal: ['daal', 'dhal', 'lentil'], daal: ['dal', 'dhal'], dhal: ['dal', 'daal'], sabzi: ['sabji', 'subzi', 'sabjee'], sabji: ['sabzi', 'subzi'], subzi: ['sabzi', 'sabji'], bhindi: ['okra'], okra: ['bhindi'], chai: ['tea'], tea: ['chai'], dahi: ['yogurt', 'yoghurt', 'curd'], curd: ['dahi', 'yogurt', 'yoghurt'], yogurt: ['dahi', 'yoghurt', 'curd'], yoghurt: ['yogurt', 'dahi', 'curd'], chawal: ['rice'], aloo: ['potato'], potato: ['aloo'], paneer: ['cottage cheese'] };
+const STOP = new Set(['of', 'some', 'the', 'my', 'little', 'bit', 'with', 'and', 'fresh', 'homemade', 'home', 'made', 'cup', 'bowl', 'plate', 'glass']);
+function sing(w) { if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y'; if (w.length > 4 && /(sses|ches|shes|oes)$/.test(w)) return w.slice(0, -2); if (w.length > 3 && /s$/.test(w) && !/(ss|us)$/.test(w)) return w.slice(0, -1); return w; }
+function toks(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w && !STOP.has(w)).map(sing); }
+function parseSentence(txt) {
+  return String(txt || '').split(/\s*(?:,|;|\n|\+|&|\band\b|\bwith\b|\bplus\b)\s*/i).map(s => s.trim()).filter(Boolean).map(raw => {
+    let s = raw.replace(/^(i\s+(had|ate)|had|ate)\s+/i, ''), qty = null, m;
+    if ((m = s.match(/^(\d+(?:\.\d+)?|\d\/\d|½)\s*(?:x\s*)?/i))) { qty = m[1] === '½' ? 0.5 : m[1].includes('/') ? (+m[1][0] / +m[1][2]) : +m[1]; s = s.slice(m[0].length); }
+    else if ((m = s.match(/^(half\s+an?|a\s+half|a\s+couple\s+of|an?|one|two|three|four|five|six|seven|eight|half|couple(?:\s+of)?)\s+/i))) { const w = m[1].toLowerCase(); qty = /half/.test(w) ? 0.5 : /couple/.test(w) ? 2 : NUMWORDS[w]; s = s.slice(m[0].length); }
+    let unit = null; if ((m = s.match(UNITWORDS))) { unit = m[1].toLowerCase(); s = s.slice(m[0].length); }
+    return { raw, qty, unit, name: s.trim() || raw };
+  }).filter(p => toks(p.name).length);
+}
+function matchScore(qt, name) {
+  const ct = toks(name); if (!ct.length) return 0;
+  const hit = w => ct.includes(w) || (ALIAS[w] || []).some(x => toks(x).every(y => ct.includes(y))) || (w.length >= 4 && ct.some(c => c.startsWith(w)));
+  if (!qt.every(hit)) return 0;
+  return (qt.length === ct.length ? 100 : 80) - Math.min(30, (ct.length - qt.length) * 5);
+}
+// your own dishes first, then what you've had before (most recent first), then the built-in staples
+function matchLocal(name) {
+  const qt = toks(name); if (!qt.length) return null;
+  const groups = [[S.dishes, x => x, 'My dish'], [historyFoods(), candFromEntry, 'From your meals'], [BASICS, x => x, 'Basic']];
+  for (const [list, toC, tag] of groups) { let best = null, bs = 0; for (const x of list) { const s = matchScore(qt, x.name); if (s > bs) { bs = s; best = x; } } if (best) return { c: toC(best), tag }; }
+  return null;
+}
+const SAY_SCHEMA = { type: 'OBJECT', properties: { items: { type: 'ARRAY', items: { type: 'OBJECT', properties: { said: { type: 'STRING' }, name: { type: 'STRING' }, qty: { type: 'NUMBER' }, unit: { type: 'STRING' }, kcal: { type: 'NUMBER' }, protein: { type: 'NUMBER' }, carbs: { type: 'NUMBER' }, fat: { type: 'NUMBER' }, fibre: { type: 'NUMBER' }, addedFatGrams: { type: 'NUMBER' } }, required: ['said', 'name', 'qty', 'unit', 'kcal', 'protein', 'carbs', 'fat'] } } }, required: ['items'] };
+on('say-go', () => {
+  const a = ADD, txt = (($('#add-q') || {}).value || a.q || '').trim(); if (!txt) { toast('Type or say what you ate.'); return; }
+  const parts = parseSentence(txt); if (!parts.length) { toast('Type or say what you ate.'); return; }
+  const items = [], unmatched = [];
+  parts.forEach(p => {
+    const m = matchLocal(p.name), countAsk = p.qty == null && COUNTABLE.test(p.name);
+    if (m) items.push(draftItem(m.c, { qty: p.qty, src: m.tag, said: p.raw, countAsk }));
+    else { const it = emptyItem(p.name, p.raw); it.pending = true; it.part = p; items.push(it); unmatched.push(it); }
+  });
+  openDraft(items, 'list');
+  if (!unmatched.length) return;
+  const settle = msg => { unmatched.forEach(it => { it.pending = false; }); a.draft && (a.draft.msg = msg || ''); pickQuestion(a.draft); if (ADD === a && a.mode === 'draft') addRender(); };
+  if (!S.profile.geminiKey || navigator.onLine === false) { settle(''); return; }
+  const p = S.profile, list = unmatched.map((it, i) => `${i + 1}. "${it.part.raw}"`).join('\n');
+  gemini([{ text: `Estimate nutrition for foods one person ate${p.vegetarian ? ' (they are vegetarian' + (p.eggFree ? ', no eggs' : '') + ')' : ''}. They cook at home in the UK, often Indian dishes.
+For each phrase below give: said (the phrase exactly), a short plain English name, qty and unit for the amount described (if no amount is given, assume one typical home portion: qty 1 and a unit like bowl, plate, piece or cup), and kcal, protein, carbs, fat and fibre for that WHOLE amount. addedFatGrams is the oil, ghee or butter used in cooking that amount (0 if none).
+${list}` }], { schema: SAY_SCHEMA, onWait: () => { if (a.draft) { a.draft.msg = 'Google is busy. Trying again…'; if (ADD === a && a.mode === 'draft') addRender(); } } }).then(txt => {
+    const j = JSON.parse(txt), got = j.items || [];
+    unmatched.forEach((it, i) => {
+      const g = got.find(x => (x.said || '').trim().toLowerCase() === it.part.raw.toLowerCase()) || got[i]; if (!g || !(+g.qty > 0)) return;
+      const q = +g.qty; Object.assign(it, { name: g.name || it.name, qty: q, unit: g.unit || 'portion', per: { k: (+g.kcal || 0) / q, p: (+g.protein || 0) / q, c: (+g.carbs || 0) / q, f: (+g.fat || 0) / q, b: (+g.fibre || 0) / q }, src: 'Gemini estimate', empty: false, note: '', oilG: +g.addedFatGrams || 0, oilNow: +g.addedFatGrams || 0, countAsk: it.part.qty == null && COUNTABLE.test(it.part.name) });
+    });
+    settle('');
+  }).catch(e => settle(geminiErr(e) + ' Enter the numbers for anything not found.'));
+});
+/* the device's own speech-to-text */
+let sayRec = null;
+function micSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+on('say-mic', b => {
+  if (sayRec) { try { sayRec.stop(); } catch (e) {} return; }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R) return;
+  const r = new R(); sayRec = r; r.lang = 'en-GB'; r.interimResults = true; r.continuous = false;
+  const box = $('#add-q'), before = box ? box.value.trim() : '';
+  b.setAttribute('aria-pressed', 'true'); b.querySelector('span').textContent = 'Listening…';
+  r.onresult = ev => { let s = ''; for (const res of ev.results) s += res[0].transcript; if (box) { box.value = (before ? before + ', ' : '') + s.trim(); ADD.q = box.value; ADD.online = null; ADD.onlineMsg = ''; refreshAddResults(); } };
+  r.onerror = ev => { if (ev.error === 'not-allowed') toast('The microphone wasn’t allowed. You can type instead.'); else if (ev.error === 'network') toast('Speaking needs the internet on this phone. You can type instead.'); };
+  r.onend = () => { sayRec = null; const btn = $('[data-a=say-mic]'); if (btn) { btn.setAttribute('aria-pressed', 'false'); btn.querySelector('span').textContent = 'Speak'; } };
+  try { r.start(); } catch (e) { sayRec = null; }
+});
+function looksLikeSentence(q) { return parseSentence(q).length > 1 || /^\s*(\d|½|(a|an|one|two|three|four|half)\s)/i.test(q); }
+function sayHtml() {
+  const a = ADD;
+  return `<section class="card stack" style="gap:10px"><label for="add-q" style="font-size:18px;font-weight:600">Say or type what you had</label>
+  <textarea class="input" id="add-q" rows="2" enterkeyhint="next" placeholder="e.g. 2 chapatis, dal, chai" autocomplete="off" aria-describedby="add-q-help">${esc(a.q || '')}</textarea>
+  <span id="add-q-help" class="tiny">Type one food to see your matches. For a whole meal, tap Next.</span>
+  <div class="btns">${micSupported() ? `<button class="btn" data-a="say-mic" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Speak</span></button>` : ''}<button class="btn primary" data-a="say-go">Next</button></div></section>`;
+}
+
+/* ---------- a photographed nutrition label ---------- */
+const LABEL_SCHEMA = { type: 'OBJECT', properties: { readable: { type: 'BOOLEAN' }, name: { type: 'STRING' }, brand: { type: 'STRING' }, kcal100: { type: 'NUMBER' }, protein100: { type: 'NUMBER' }, carbs100: { type: 'NUMBER' }, fat100: { type: 'NUMBER' }, fibre100: { type: 'NUMBER' }, servingGrams: { type: 'NUMBER' }, servingLabel: { type: 'STRING' } }, required: ['readable'] };
+async function readLabel(file) {
+  const a = ADD, code = a.notFound || '';
+  a.labelBusy = 'Reading the label…'; addRender();
+  try {
+    const data = await downscale(file, 1400, 0.85);
+    const txt = await gemini([{ text: 'Read the nutrition label in this photo. Give the values per 100 g (or per 100 ml). If the label only shows values per serving, convert them to per 100 g using the serving size. Give the product name if it is visible, and the serving size in grams if shown. If the label cannot be read clearly, set readable to false.' }, { inline_data: { mime_type: 'image/jpeg', data: data.split(',')[1] } }], { schema: LABEL_SCHEMA, onWait: () => { a.labelBusy = 'Google is busy. Trying again…'; if (ADD === a) addRender(); } });
+    const j = JSON.parse(txt); if (ADD !== a) return;
+    if (!j.readable || !(+j.kcal100 > 0)) { a.labelBusy = ''; a.scanMsg = 'The label couldn’t be read. Try a closer, flatter photo, or enter it yourself.'; addRender(); return; }
+    const c = { name: (j.name || 'Packet food').trim(), brand: j.brand || '', per: '100g', k: +j.kcal100, p: +j.protein100 || 0, f: +j.fat100 || 0, c: +j.carbs100 || 0, b: +j.fibre100 || 0, src: 'From the label' };
+    if (+j.servingGrams > 0) { c.serveGrams = +j.servingGrams; c.serveLabel = j.servingLabel ? 'serving (' + j.servingLabel + ')' : 'serving (' + j.servingGrams + ' g)'; }
+    if (code) offCachePut('#' + code, [c]);
+    a.labelBusy = ''; stopScan(); openDraft([draftItem(c, { src: 'Read from the label' })], 'list');
+  } catch (e) { if (ADD === a) { a.labelBusy = ''; a.scanMsg = geminiErr(e); addRender(); } }
+}
+on('label-self', () => { stopScan(); openDraft([emptyItem('', '', 'Enter what the label says for the amount you had.')], 'list'); });
+function labelOfferHtml() {
+  const a = ADD; if (!a.notFound) return '';
+  return `<section class="card stack" style="gap:10px"><strong>Photograph the label</strong><p class="small muted">${S.profile.geminiKey ? 'Gemini reads the numbers off the packet. You check them before anything is logged.' : 'Connect Gemini in You › Settings to read labels from a photo.'}</p>
+  ${a.labelBusy ? `<p class="small">${esc(a.labelBusy)}</p>` : S.profile.geminiKey ? `<div class="btns"><label class="btn primary filebtn">Take a photo<input type="file" accept="image/*" capture="environment" data-label></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" data-label></label></div>` : ''}
+  <button class="link" data-a="label-self" style="align-self:flex-start;padding:0">Enter it yourself</button></section>`;
+}
+document.addEventListener('change', e => { if (e.target.matches && e.target.matches('[data-label]') && ADD) { const f = e.target.files && e.target.files[0]; if (f) readLabel(f); } });
+
+/* ---------- meal photos, kept with the diary entry on this phone ---------- */
+const mealUrls = {};
+async function mealPhotoUrl(id) { if (mealUrls[id]) return mealUrls[id]; const r = await pget(id).catch(() => null); if (!r || !r.blob) return ''; return (mealUrls[id] = URL.createObjectURL(r.blob)); }
+function fillMealPhotos(root) { $$('img[data-mealphoto]', root || document).forEach(async im => { const u = await mealPhotoUrl(im.dataset.mealphoto); if (u) im.src = u; else im.remove(); }); }
+// photos whose diary entry is gone (after the undo has passed) are cleared from the phone
+async function tidyMealPhotos() {
+  try {
+    const used = new Set(); Object.values(S.days).forEach(d => (d.foods || []).forEach(f => { if (f.photoId) used.add(f.photoId); }));
+    const db = await pdb(); const keys = await new Promise(res => { const q = db.transaction('photos').objectStore('photos').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
+    for (const k of keys) if (String(k).startsWith('meal-') && !used.has(k)) await pdel(k).catch(() => {});
+  } catch (e) {}
+}
+setTimeout(tidyMealPhotos, 8000);
+
+/* ---------- how the targets were worked out ---------- */
+function howHtml() {
+  const p = S.profile, kg = latestKg(), age = ageOf(p.dob), sg = suggestTargets(), w = [...S.weights].filter(x => +x.kg > 0).sort((a, b) => a.date < b.date ? -1 : 1).pop();
+  const miss = [!kg && 'weight', !p.heightCm && 'height', !age && 'date of birth'].filter(Boolean);
+  const row = (l, v) => `<div class="between" style="min-height:40px;border-bottom:1px solid var(--hair2);gap:12px"><span>${l}</span><strong style="text-align:right">${v}</strong></div>`;
+  let cal = '';
+  if (sg) {
+    const s = p.sex === 'man' ? 5 : p.sex === 'woman' ? -161 : -78, bmr = 10 * kg + 6.25 * p.heightCm - 5 * age + s, maint = bmr * 1.45, raw = maint - 550;
+    cal = `<p class="small muted">Worked out with the Mifflin–St Jeor formula, the one most dietitians start from.</p>
+    <h3 style="margin-top:6px">1. Energy at rest</h3>
+    ${row('10 × weight ' + n1(kg) + ' kg', big(10 * kg))}${row('+ 6.25 × height ' + n0(p.heightCm) + ' cm', '+ ' + big(6.25 * p.heightCm))}${row('− 5 × age ' + age, '− ' + big(5 * age))}${row(p.sex === 'man' ? '+ 5 (for a man)' : p.sex === 'woman' ? '− 161 (for a woman)' : '− 78 (halfway, as sex isn’t given)', (s > 0 ? '+ ' : '− ') + Math.abs(s))}${row('At rest', big(bmr) + ' calories')}
+    <h3 style="margin-top:10px">2. An ordinary day</h3>
+    ${row(big(bmr) + ' × 1.45 for light everyday movement', big(maint) + ' calories')}<p class="small muted">About this many keeps weight steady. Workouts and steps aren’t added on top.</p>
+    <h3 style="margin-top:10px">3. A gentle loss</h3>
+    ${row(big(maint) + ' − 550', big(raw))}${row('Rounded to the nearest 50', big(sg.kcal) + ' calories')}
+    <p class="small muted">550 a day adds up to about half a kilo a week.</p>`;
+  } else cal = `<p class="small muted">The working needs ${miss.join(', ').replace(/, ([^,]*)$/, ' and $1')}, which ${miss.length > 1 ? 'aren’t' : 'isn’t'} filled in, so the calories are the starting number or the one you chose.</p>`;
+  const setDiff = sg && Math.abs(p.kcalTarget - sg.kcal) >= 25;
+  return `<div class="stack">${backBar('Back', 'how-back')}<h1>How your targets were worked out</h1>
+  <section class="card stack" style="gap:8px"><h2>Calories · ${big(p.kcalTarget)} a day</h2>
+  ${kg ? `<p class="small muted">Using your weight of ${n1(kg)} kg${p.weightUnit === 'st' ? ' (' + wShow(kg) + ')' : ''}${w ? ', from ' + fmtDate(w.date) : ''}${age ? ', age ' + age : ''}${p.heightCm ? ' and height ' + n0(p.heightCm) + ' cm' : ''}.</p>` : ''}
+  ${cal}${setDiff ? `<p class="small">Your target is set to ${big(p.kcalTarget)}, not the ${big(sg.kcal)} worked out here: it was chosen in setup or in Goals.</p>` : ''}</section>
+  <section class="card stack" style="gap:8px"><h2>Protein · ${p.proteinTarget} g a day</h2>
+  ${kg ? `${row('1.8 g × ' + n1(kg) + ' kg', n0(1.8 * kg) + ' g')}${row('Rounded to the nearest 5', (sg ? sg.protein : Math.round(1.8 * kg / 5) * 5) + ' g')}<p class="small muted">1.8 g for each kilo of body weight.</p>${sg && Math.abs(p.proteinTarget - sg.protein) >= 5 ? `<p class="small">Your target is set to ${p.proteinTarget} g: it was chosen in setup or in Goals.</p>` : ''}` : '<p class="small muted">The working needs your weight.</p>'}</section>
+  <section class="card stack" style="gap:8px"><h2>The rest</h2>${row('Water', p.waterTarget + ' glasses')}${row('Steps', big(p.stepsTarget))}${row('Still', '60 minutes')}<p class="small muted">These are plain starting numbers, not calculated. Water and steps can be changed in Goals; Still is a full hour of sitting across the day.</p></section>
+  <p class="tiny">All of this is worked out on this phone. You can change any target in You › Goals and your day.</p></div>`;
+}
+let howFrom = null;
+on('how', b => { howFrom = { tab, view: view[tab] }; go('you', 'how'); });
+on('how-back', () => { const f = howFrom; howFrom = null; if (f && f.tab !== 'you') go(f.tab, f.view); else go('you', f && f.view && f.view !== 'how' ? f.view : 'goals'); });
+/* a photo estimate (Gemini, another AI, or numbers typed in) becomes a one-item draft */
+function estToDraft(e, src, manual) {
+  const it = { id: uid(), name: (e.name || '').trim() || 'Dish', per: { k: 0, p: 0, c: 0, f: 0, b: 0 }, unit: e.portion || '1 portion', qty: 1, src, ings: manual ? null : (e.ings || []).map(g => ({ ...g, r: { ...g.r } })), dishable: true, saveDish: !!e.save, photo: e.file || null, photoUrl: e.url || '', note: e.assumptions || '' };
+  if (manual) { const g = e.ings[0]; it.per = { k: g.r.k * g.grams, p: g.r.p * g.grams, c: g.r.c * g.grams, f: g.r.f * g.grams, b: g.r.b * g.grams }; } else ingsToPer(it);
+  e.ings = null; e.loading = false; openDraft([it], 'photo');
+}
 /* ================= TRAIN ================= */
 let draft = null;
 try { const x = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (x && x.draft && Array.isArray(x.draft.ex)) draft = x.draft; } catch (e) {}
@@ -1332,6 +1621,7 @@ function sitHtml() {
   if (running && !focusHidden) return `<div class="focus-mode" role="dialog" aria-label="Meditation"><div class="big" id="med-time">00:00</div><p class="line">The hour needs nothing from you. Sit, breathe, and let what is be seen.</p><button class="btn primary" data-a="med-stop" style="min-width:220px">Stop and keep the time</button>${S.meditationTimer.kind === 'gs' ? '<button class="btn" data-a="med-music" style="min-width:220px">Open the music again</button>' : ''}<button class="stop-leave" data-a="med-hide">Leave this screen · the timer keeps going</button></div>`;
   return `${running ? `<button class="card now" data-a="med-show" style="text-align:left;cursor:pointer"><span class="eyebrow">Meditating</span><div class="timer" id="med-time" style="font-size:40px;text-align:left">00:00</div><span class="tiny">Tap to return</span></button>` : `
   <section class="card stack"><h2>Gauri Shankar</h2><p class="muted small">One hour, four stages. Opens the music in Spotify and starts the timer.</p><button class="btn primary big" data-a="med-start" data-k="gs">Begin Gauri Shankar</button><button class="btn" data-a="med-start" data-k="plain">Just sit, with a timer</button></section>`}
+  <section class="card stack" style="gap:8px" aria-label="Between two breaths"><span class="eyebrow">Between two breaths</span><p class="prayer-text" style="font-size:19px">The breath goes out, the breath comes in. Between the two there is a turn, a pause. Let the attention rest there.</p><p class="tiny">After the first contemplation of the Vijñāna Bhairava.</p></section>
   <details class="fold"><summary>The four stages</summary><div class="stack">${GS_STAGES.map(s => `<div><strong>${esc(s[0])}</strong><p class="small muted" style="margin-top:4px">${esc(s[1])}</p></div>`).join('')}${S.profile.bpSafe ? '<div class="warnbox"><p class="tiny">With blood pressure, keep the breath-holds in the first stage short and easy. Stillness, not strain.</p></div>' : ''}<p class="tiny">Instructions from <a href="https://oshoworld.com/poona-gourishankar-meditation" target="_blank" rel="noopener">Osho World</a>.</p></div></details>
   ${recent.length ? `<h3>Recent</h3><ul class="list">${recent.map(m => `<li class="li"><div class="t"><strong>${m.minutes} min</strong><span>${fmtDay(m.date)}${m.kind === 'plain' ? ' · sitting' : ''}</span></div><button class="link" data-a="med-del" data-id="${m.id}" aria-label="Remove this meditation">Remove</button></li>`).join('')}</ul>` : ''}
   ${rememberHtml()}`;
@@ -1352,7 +1642,7 @@ let listenCh = null, stayed = null; // stayed: {url, loading, err}
 const talkByUrl = {};
 TALKS.forEach((ch, ci) => ch[2].forEach((g, gi) => g[1].forEach((t, ti) => { talkByUrl[t[1]] = { ci, gi, ti, title: t[0], series: g[0] }; })));
 function shortTitle(series, title) { const norm = x => x.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); const a = norm(series), b = norm(title); if (a && b.startsWith(a) && b.length > a.length) { const rest = title.slice(title.length - (b.length - a.length)).trim(); const m = rest.match(/^(\d+)\s*(.*)$/); if (m) { let extra = m[2].trim(); if (extra && extra === extra.toUpperCase()) extra = extra.charAt(0) + extra.slice(1).toLowerCase(); return 'Talk ' + m[1] + (extra ? ' · ' + extra : ''); } } return title; }
-const TALK_META = {"https://oshoworld.com/the-path-of-love-01": ["Love Is the Master Key", "Discourse 1 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-02": ["So Far, So Good", "Discourse 2 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-03": ["And Home Is Not Far Away", "Discourse 3 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-04": ["Religion Is Individual Flowering", "Discourse 4 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-05": ["I Sing the Glory of Forms", "Discourse 5 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-06": ["The Inner Trinity", "Discourse 6 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-07": ["A Harmony of Love and Renunciation", "Discourse 7 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-08": ["God Still Hopes", "Discourse 8 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-09": ["Heaven Is All the Way to Heaven", "Discourse 9 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-10": ["Please Wake Up", "Discourse 10 · Osho on the songs of Kabir"], "https://oshoworld.com/philosophia-perennis-vol-1-01": ["The Greatest Luxury", "Discourse 1 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-02": ["Love Comes Faceless", "Discourse 2 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-03": ["Falling Upwards", "Discourse 3 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-04": ["I Mean Business!", "Discourse 4 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-05": ["Beep Beep!", "Discourse 5 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-06": ["Logos: Power: Necessity", "Discourse 6 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-07": ["Awareness: The Master Key", "Discourse 7 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-08": ["You Are Without Stain", "Discourse 8 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-09": ["Philosophia Perennis, discourse 9", "Discourse 9 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-10": ["Bliss Beyond All Duality", "Discourse 10 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/prem-nadi-ke-teera-02": ["Prem Nadi Ke Teera, discourse 2", "प्रेम नदी के तीरा · Osho in Hindi"], "https://oshoworld.com/rahiman-dhaga-prem-ka-02": ["Rahiman Dhaga Prem Ka, discourse 2", "रहिमन धागा प्रेम का · Osho in Hindi; the title is a line from Rahim"], "https://oshoworld.com/sufis-people-of-the-path-vol-1-01": ["A Rare Kind of Magic", "Sufis: The People of the Path · Osho on Sufi stories"], "https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video": ["Understanding Is Love’s Other Name", "Thich Nhat Hanh · a short teaching from Plum Village"], "https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786": ["Zarathustra Is Not a Thinker but a Seer", "Osho on Nietzsche’s Zarathustra · to read"], "https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01": ["The Three Metamorphoses", "Nietzsche’s camel, lion and child · the text itself"], "https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23": ["The Night Song", "Zarathustra: A God That Can Dance, discourse 23 · to read"], "https://www.osho.com/read/osho/osho-on-topics/ashtavakra": ["Pure Witnessing, Just Watching", "Osho on Ashtavakra · a short read"], "https://osholive.com/the-mahageeta-vol-1/discourse-1": ["Ashtavakra: The Purest Expression of Truth", "The Mahageeta, discourse 1 · Osho on the Ashtavakra Gita"], "https://oshoworld.com/maha-geeta-by-osho-01-91": ["Maha Geeta, discourse 1", "The Ashtavakra Gita · Osho in Hindi"], "https://oshoworld.com/tao-the-pathless-path-vol-2-01/": ["The Ultimate Synthesis", "Tao: The Pathless Path · Osho on the stories of Lieh Tzu"], "https://oshoworld.com/bodhidharma-the-greatest-zen-master-01": ["To Seek Nothing Is Bliss", "Bodhidharma · Osho on the sermons of the first Zen patriarch"], "https://oshoworld.com/walking-in-zen-sitting-in-zen-01": ["The Breath of the Soul", "Walking in Zen, Sitting in Zen · Osho answers questions"], "https://www.gururamana.org/Teachings/instructions": ["Self-Enquiry Instructions", "Ramana Maharshi · “Who am I?” in his own words"], "https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/": ["The Observer and the Observed Are the Same", "J. Krishnamurti · a short talk"], "https://oshoworld.com/be-still-and-know-01": ["Always on the Rocks", "Be Still and Know · Osho answers questions"], "https://oshoworld.com/be-still-and-know-10": ["Me, Enlightened?", "Be Still and Know · Osho answers questions"], "https://oshoworld.com/the-ultimate-alchemy-vol-2-11/": ["The Ultimate Alchemy, discourse 11", "Questions and answers · Osho on the Atma Pooja Upanishad"], "https://www.organism.earth/library/document/ecological-awareness": ["Ecological Awareness", "Alan Watts · a lecture, as text"], "https://oshoworld.com/tao-upanishad-01": ["Tao Upanishad, discourse 1", "Osho in Hindi on Lao Tzu"], "https://oshoworld.com/this-very-body-the-buddha-01": ["The Lion’s Roar", "This Very Body the Buddha · Osho on Hakuin’s Song of Meditation"]};
+const TALK_META = {"https://oshoworld.com/the-path-of-love-01": ["Love Is the Master Key", "Discourse 1 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-02": ["So Far, So Good", "Discourse 2 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-03": ["And Home Is Not Far Away", "Discourse 3 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-04": ["Religion Is Individual Flowering", "Discourse 4 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-05": ["I Sing the Glory of Forms", "Discourse 5 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-06": ["The Inner Trinity", "Discourse 6 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-07": ["A Harmony of Love and Renunciation", "Discourse 7 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-08": ["God Still Hopes", "Discourse 8 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-09": ["Heaven Is All the Way to Heaven", "Discourse 9 · Osho on the songs of Kabir"], "https://oshoworld.com/the-path-of-love-10": ["Please Wake Up", "Discourse 10 · Osho on the songs of Kabir"], "https://oshoworld.com/philosophia-perennis-vol-1-01": ["The Greatest Luxury", "Discourse 1 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-02": ["Love Comes Faceless", "Discourse 2 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-03": ["Falling Upwards", "Discourse 3 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-04": ["I Mean Business!", "Discourse 4 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-05": ["Beep Beep!", "Discourse 5 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-06": ["Logos: Power: Necessity", "Discourse 6 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-07": ["Awareness: The Master Key", "Discourse 7 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-08": ["You Are Without Stain", "Discourse 8 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-09": ["Philosophia Perennis, discourse 9", "Discourse 9 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/philosophia-perennis-vol-1-10": ["Bliss Beyond All Duality", "Discourse 10 · Osho on the Golden Verses of Pythagoras"], "https://oshoworld.com/prem-nadi-ke-teera-02": ["Prem Nadi Ke Teera, discourse 2", "प्रेम नदी के तीरा · Osho in Hindi"], "https://oshoworld.com/rahiman-dhaga-prem-ka-02": ["Rahiman Dhaga Prem Ka, discourse 2", "रहिमन धागा प्रेम का · Osho in Hindi; the title is a line from Rahim"], "https://oshoworld.com/sufis-people-of-the-path-vol-1-01": ["A Rare Kind of Magic", "Sufis: The People of the Path · Osho on Sufi stories"], "https://web.plumvillage.app/item/understanding-is-loves-other-name-or-thich-nhat-hanh-short-teaching-video": ["Understanding Is Love’s Other Name", "Thich Nhat Hanh · a short teaching from Plum Village"], "https://www.osho.com/osho-online-library/osho-talks/buddha-actors-superman-6a9d7910-6d4?p=28293f77d2a0db0fed2a8ccfb08ab786": ["Zarathustra Is Not a Thinker but a Seer", "Osho on Nietzsche’s Zarathustra · to read"], "https://www.gutenberg.org/files/1998/1998-h/1998-h.htm#chap01": ["The Three Metamorphoses", "Nietzsche’s camel, lion and child · the text itself"], "https://osholive.com/zarathustra-a-god-that-can-dance/discourse-23": ["The Night Song", "Zarathustra: A God That Can Dance, discourse 23 · to read"], "https://www.osho.com/read/osho/osho-on-topics/ashtavakra": ["Pure Witnessing, Just Watching", "Osho on Ashtavakra · a short read"], "https://osholive.com/the-mahageeta-vol-1/discourse-1": ["Ashtavakra: The Purest Expression of Truth", "The Mahageeta, discourse 1 · Osho on the Ashtavakra Gita"], "https://oshoworld.com/maha-geeta-by-osho-01-91": ["Maha Geeta, discourse 1", "The Ashtavakra Gita · Osho in Hindi"], "https://oshoworld.com/tao-the-pathless-path-vol-2-01/": ["The Ultimate Synthesis", "Tao: The Pathless Path · Osho on the stories of Lieh Tzu"], "https://oshoworld.com/bodhidharma-the-greatest-zen-master-01": ["To Seek Nothing Is Bliss", "Bodhidharma · Osho on the sermons of the first Zen patriarch"], "https://oshoworld.com/walking-in-zen-sitting-in-zen-01": ["The Breath of the Soul", "Walking in Zen, Sitting in Zen · Osho answers questions"], "https://www.gururamana.org/Teachings/instructions": ["Self-Enquiry Instructions", "Ramana Maharshi · “Who am I?” in his own words"], "https://kfoundation.org/media/the-observer-and-the-observed-are-the-same/": ["The Observer and the Observed Are the Same", "J. Krishnamurti · a short talk"], "https://oshoworld.com/be-still-and-know-01": ["Always on the Rocks", "Be Still and Know · Osho answers questions"], "https://oshoworld.com/be-still-and-know-10": ["Me, Enlightened?", "Be Still and Know · Osho answers questions"], "https://oshoworld.com/the-ultimate-alchemy-vol-2-11/": ["The Ultimate Alchemy, discourse 11", "Questions and answers · Osho on the Atma Pooja Upanishad"], "https://www.organism.earth/library/document/ecological-awareness": ["Ecological Awareness", "Alan Watts · a lecture, as text"], "https://oshoworld.com/tao-upanishad-01": ["Tao Upanishad, discourse 1", "Osho in Hindi on Lao Tzu"], "https://oshoworld.com/this-very-body-the-buddha-01": ["The Lion’s Roar", "This Very Body the Buddha · Osho on Hakuin’s Song of Meditation"],"https://oshoworld.com/vigyan-bhairav-tantra-vol-1-01": ["The World of Tantra", "Discourse 1 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-02": ["The Path of Yoga and the Path of Tantra", "Discourse 2 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-03": ["Breath: A Bridge to the Universe", "Discourse 3 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-04": ["The Deceptions of the Mind", "Discourse 4 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-05": ["Five Techniques of Attentiveness", "Discourse 5 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-06": ["Devices to Transcend Dreaming", "Discourse 6 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-07": ["Techniques to Put You at Ease", "Discourse 7 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-08": ["Total Acceptance and Non-Division", "Discourse 8 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-09": ["Techniques for Centering", "Discourse 9 · Vijñāna Bhairava"], "https://oshoworld.com/vigyan-bhairav-tantra-vol-1-10": ["Fulfilment Through Becoming Centered", "Discourse 10 · Vijñāna Bhairava"], "https://archive.org/details/dli.ernet.242144": ["Shiva Sutras, with Kṣemarāja’s commentary", "P. T. Srinivasa Iyengar’s 1912 translation · to read"], "https://www.youtube.com/channel/UCKYC_hMs3JRWaM_dfi_BnxA": ["Swami Lakshmanjoo on YouTube", "His recorded teaching, shared by the Lakshmanjoo Academy"], "https://www.lakshmanjooacademy.org/universal-shaiva-fellowship": ["The Shiva Sutras, in his own voice", "A free download from the Lakshmanjoo Academy; they ask for an email"]};
 function talkTitle(url) { const own = (S.talks.titles || {})[url]; if (own) return own; const m = TALK_META[url]; if (m) return m[0]; const i = talkByUrl[url]; if (!i) return ''; const t = i.title.split(' · '); return t.length > 1 && i.series.startsWith('Alan Watts') ? t[1] : shortTitle(i.series, i.title); }
 function talkDesc(url) { const m = TALK_META[url], i = talkByUrl[url]; if (m) return m[1]; if (i && i.series.startsWith('Alan Watts')) return 'Alan Watts · ' + i.title.split(' · ')[0] + ', recorded lecture'; return i ? i.series : ''; }
 function isTextPage(url) { return !/oshoworld\.com|drive\.google\.com/.test(url); }
@@ -1360,7 +1650,8 @@ function seriesState(g) { const h = g[1].filter(t => S.talks.heard[t[1]]).length
 /* the reader: talks open inside Prakash */
 let readerUrl = null;
 function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
-function opensOutside(u) { return !!(S.talks.external || {})[hostOf(u)]; }
+const OUTSIDE_ALWAYS = ['youtube.com', 'lakshmanjooacademy.org'];
+function opensOutside(u) { const h = hostOf(u); return OUTSIDE_ALWAYS.includes(h) || !!(S.talks.external || {})[h]; }
 function frameUrl(u) { const m = /drive\.google\.com\/file\/d\/([^/]+)/.exec(u); return m ? 'https://drive.google.com/file/d/' + m[1] + '/preview' : u; }
 function readerFoot() {
   const url = readerUrl, heard = !!S.talks.heard[url], th = S.talks.themes[url];
@@ -1371,7 +1662,7 @@ function readerFoot() {
 function openReader(url) {
   readerUrl = url; const off = navigator.onLine === false;
   const el = openSheet(`<div class="stack" style="gap:12px"><div><span class="eyebrow">${esc(talkDesc(url))}</span><h2 id="reader-title" style="margin-top:4px">${esc(talkTitle(url))}</h2></div>
-  ${off ? `<div class="card flat"><p class="small">You’re offline. The talk needs a connection; its lamp and your notes work as usual.</p></div>` : opensOutside(url) ? `<div class="card flat stack" style="gap:10px"><a class="btn primary big" href="${esc(url)}" target="_blank" rel="noopener">Open the talk</a><button class="link" data-a="talk-inside" style="align-self:flex-start;padding:0">Try inside Prakash again</button></div>` : `<iframe class="reader-frame" src="${esc(frameUrl(url))}" title="${esc(talkTitle(url))}" allow="autoplay; encrypted-media" referrerpolicy="no-referrer"></iframe><div class="between" style="gap:10px"><span class="tiny">Blank? Some sites won’t open inside apps.</span><button class="link" data-a="talk-outside" style="flex:none">Always use the browser for this site</button></div>`}
+  ${off ? `<div class="card flat"><p class="small">You’re offline. The talk needs a connection; its lamp and your notes work as usual.</p></div>` : opensOutside(url) ? `<div class="card flat stack" style="gap:10px"><a class="btn primary big" href="${esc(url)}" target="_blank" rel="noopener">Open the talk</a>${OUTSIDE_ALWAYS.includes(hostOf(url)) ? '' : '<button class="link" data-a="talk-inside" style="align-self:flex-start;padding:0">Try inside Prakash again</button>'}</div>` : `<iframe class="reader-frame" src="${esc(frameUrl(url))}" title="${esc(talkTitle(url))}" allow="autoplay; encrypted-media" referrerpolicy="no-referrer"></iframe><div class="between" style="gap:10px"><span class="tiny">Blank? Some sites won’t open inside apps.</span><button class="link" data-a="talk-outside" style="flex:none">Always use the browser for this site</button></div>`}
   <div class="stack" id="reader-foot" style="gap:10px">${readerFoot()}</div></div>`, { full: true, title: 'Talk', label: talkTitle(url), onClose: () => { readerUrl = null; if (stayed && !stayed.loading) stayed = null; render(); } });
   el.addEventListener('input', e => { if (e.target.id === 'stayed-text' && stayed) stayed.draft = e.target.value; });
 }
@@ -1440,10 +1731,14 @@ function onThisDay() {
   return `<section class="card stack" style="gap:8px"><span class="eyebrow">On this day · ${fmtD(e.created)}</span><p class="journal-q" style="font-size:18px;white-space:pre-wrap">${esc(cut)}</p></section>`;
 }
 function readingCard() { const rd = S.witness.readings[0]; return `<div class="card between"><span><span class="tiny" style="display:block">Reading</span><strong>${rd ? esc(rd.title) + ' · page ' + rd.page : 'No book yet'}</strong></span><button class="link" data-a="read-edit">${rd ? 'Update' : 'Add'}</button></div>`; }
+/* five of the Shiva Sutras, in the Sanskrit (c. 9th century) with plain English of our own */
+const SUTRAS = [['1.1', 'caitanyam ātmā', 'Awareness is the self.'], ['1.12', 'vismayo yoga-bhūmikāḥ', 'Wonder marks each stage of yoga.'], ['3.9', 'nartaka ātmā', 'The self is a dancer.'], ['3.10', 'raṅgo ’ntarātmā', 'The inner self is the stage.'], ['3.11', 'prekṣakāṇīndriyāṇi', 'The senses are the audience.']];
+function sutrasHtml() { return `<section class="card stack" style="gap:12px"><h3>Five of the Shiva Sutras</h3>${SUTRAS.map(x => `<div><p class="prayer-text" style="font-size:19px">${esc(x[2])}</p><p class="tiny"><i>${esc(x[1])}</i> · ${x[0]}</p></div>`).join('')}<p class="tiny">From Vasugupta’s Shiva Sutras, the root text of Kashmir Shaivism. The English here is plain wording, not a scholar’s translation.</p></section>`; }
+function chTitle(t) { return t === 'KASHMIR SHAIVISM' ? 'Kashmir Shaivism' : t.charAt(0) + t.slice(1).toLowerCase(); }
 function listenHtml() {
   if (listenCh != null) {
     const ch = TALKS[listenCh]; let i = 0;
-    return `${backBar('Listen', 'ch-back')}<h2>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}</h2><p class="muted small">${esc(ch[1])} Tap a talk to open it. Light its lamp when you've heard it.</p>
+    return `${backBar('Listen', 'ch-back')}<h2>${esc(chTitle(ch[0]))}</h2><p class="muted small">${esc(ch[1])} Tap a talk to open it. Light its lamp when you've heard it.</p>${ch[0] === 'KASHMIR SHAIVISM' ? sutrasHtml() : ''}
     ${ch[2].map(g => { const st = seriesState(g); return `<section class="card flat" style="padding-bottom:6px"><div class="between" style="min-height:56px"><h3>${esc(g[0])}</h3>${st.all ? `<span class="lampbtn" aria-pressed="true" style="width:36px;height:36px;border:0;background:none">${diyaSvg(28)}</span>` : ''}</div>
       ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++, title = talkTitle(url); return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(title)}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><button class="name talk-open" data-a="talk-open" data-url="${esc(url)}"><span>${esc(title)}</span><small>${heard ? 'Heard · ' : ''}${esc(talkDesc(url))}</small></button>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : ''}</div>${url === readerUrl ? '' : themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
   }
@@ -1453,7 +1748,7 @@ function listenHtml() {
   return `<section class="stack" style="gap:10px"><span class="eyebrow">Continue</span>
   ${cont.slice(0, 3).map(c => `<button class="card now continue" data-a="talk-open" data-url="${esc(c.st.next[1])}"><span><span class="tiny" style="display:block">${esc(c.g[0])} · next</span><strong>${esc(talkTitle(c.st.next[1]))}</strong><small class="tiny" style="display:block;margin-top:2px">${esc(talkDesc(c.st.next[1]))}</small></span><span aria-hidden="true" style="color:var(--ink3);font-size:24px">›</span></button>`).join('') || '<p class="tiny">Mark a talk as heard and the next one waits here.</p>'}</section>
   <h3 style="margin-top:6px">All talks</h3>
-  <div>${TALKS.map((ch, ci) => { const all = ch[2].reduce((a, g) => a + g[1].length, 0); return `<button class="navrow" data-a="ch-open" data-c="${ci}"><span>${esc(ch[0].charAt(0) + ch[0].slice(1).toLowerCase())}<small>${esc(ch[1])}</small></span></button>`; }).join('')}</div>`;
+  <div>${TALKS.map((ch, ci) => { const all = ch[2].reduce((a, g) => a + g[1].length, 0); return `<button class="navrow" data-a="ch-open" data-c="${ci}"><span>${esc(chTitle(ch[0]))}<small>${esc(ch[1])}</small></span></button>`; }).join('')}</div>`;
 }
 
 /* ---------- Write (journal) ---------- */
@@ -1462,7 +1757,7 @@ function wdb() { return new Promise((res, rej) => { const r = indexedDB.open('sa
 function wput(id, v) { return wdb().then(db => new Promise((res, rej) => { const tx = db.transaction('notes', 'readwrite'); tx.objectStore('notes').put(v, id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })); }
 function wget(id) { return wdb().then(db => new Promise((res, rej) => { const q = db.transaction('notes').objectStore('notes').get(id); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); })); }
 function wclear() { return wdb().then(db => new Promise(res => { const tx = db.transaction('notes', 'readwrite'); tx.objectStore('notes').clear(); tx.oncomplete = res; tx.onerror = res; })).catch(() => {}); }
-const JQ = [['direct', 'What is moving in you right now? Watch it like clouds passing: anger, fear, wanting. Don’t hold it, don’t push it away.'], ['story', 'Who is watching?'], ['nextStep', 'Stay with the one who is watching. Where does the ‘I’ rise from?']];
+const JQ = [['direct', 'What is moving in you right now? Watch it like clouds passing: anger, fear, wanting. Don’t hold it, don’t push it away.'], ['story', 'Who is watching?'], ['nextStep', 'Stay with the one who is watching. Where does the ‘I’ rise from?'], ['wonder', 'If you like: what surprised you today?']];
 on('j-mode', b => { journalMode = b.dataset.m; journalEdit = null; render(); window.scrollTo(0, 0); });
 on('j-edit', b => { journalEdit = S.witness.entries.find(e => e.id === b.dataset.id) || null; journalMode = 'write'; render(); });
 on('j-thread', b => { journalEdit = { tags: [b.dataset.t] }; journalMode = 'write'; render(); });
@@ -1476,7 +1771,7 @@ function journalCollect() { const o = { kind: ($('#j-kind') || {}).value || 'Fre
 on('j-save', async () => {
   const o = journalCollect(); if (!JQ.some(q => (o[q[0]] || '').trim()) && !voiceDraft) { toast('Nothing written yet.'); return; }
   const old = journalEdit && journalEdit.id ? journalEdit : {}, id = old.id || uid(), now = new Date().toISOString();
-  const entry = { ...old, id, created: old.created || now, updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), tags: o.tags };
+  const entry = { ...old, id, created: old.created || now, updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags };
   S.witness.entries = S.witness.entries.filter(x => x.id !== id); S.witness.entries.unshift(entry);
   if (voiceDraft) { await wput(id, { blob: voiceDraft, mime: voiceDraft.type }).catch(() => {}); entry.hasVoice = true; voiceDraft = null; }
   try { localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {}
@@ -1494,7 +1789,7 @@ function writeHtml() {
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">What surprised you · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
   <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
@@ -1607,8 +1902,9 @@ function youHome() {
     ['settings', 'Settings', 'What to show, units, Gemini, meditation music'],
     ['about', 'About Prakash', 'What’s new, and a note on privacy']
   ].filter(Boolean);
-  const notifAsk = 'Notification' in window && Notification.permission === 'default', geminiAsk = !p.geminiKey;
-  const extras = !p.extrasDismissed && (notifAsk || geminiAsk) ? `<section class="card stack" aria-labelledby="olt-h"><h2 id="olt-h">One last thing</h2>
+  const notifAsk = 'Notification' in window && Notification.permission === 'default', geminiAsk = !p.geminiKey, homeAsk = !isInstalled();
+  const extras = !p.extrasDismissed && (notifAsk || geminiAsk || homeAsk) ? `<section class="card stack" aria-labelledby="olt-h"><h2 id="olt-h">One last thing</h2>
+    ${homeAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Put Prakash on your Home Screen.</strong> It opens like an app, works offline, and the phone keeps its data safer.</p>${installPrompt ? '<button class="btn" data-a="install">Add to Home Screen</button>' : /iPhone|iPad|iPod/.test(navigator.userAgent) ? '<p class="small muted">In Safari, tap the Share button <span aria-hidden="true">(the square with an arrow)</span>, then <strong>Add to Home Screen</strong>.</p>' : '<p class="small muted">Open your browser’s menu <span aria-hidden="true">(⋮)</span> and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>'}</div>` : ''}
     ${geminiAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Gemini fills in dishes from a photo.</strong> Free, with a key from Google.</p><button class="btn" data-a="you" data-v="gemini">Connect Gemini</button></div>` : ''}
     ${notifAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Quiet notifications for the Stop.</strong> A silent reminder to pause, a few times a day. No sound, no buzz.</p><button class="btn" data-a="extras-notify">Allow quiet notifications</button></div>` : ''}
     <button class="btn ghost" data-a="extras-later">Not now</button></section>` : '';
@@ -1619,6 +1915,11 @@ function youHome() {
   <div>${rows.map(r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`).join('')}</div></div>`;
 }
 on('extras-notify', () => { if ('Notification' in window) Notification.requestPermission().then(() => render()); });
+let installPrompt = null;
+function isInstalled() { try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } }
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; if (tab === 'you') render(); });
+window.addEventListener('appinstalled', () => { installPrompt = null; if (tab === 'you') render(); });
+on('install', async () => { if (!installPrompt) return; installPrompt.prompt(); try { await installPrompt.userChoice; } catch (e) {} installPrompt = null; render(); });
 on('extras-later', () => { S.profile.extrasDismissed = true; save(); render(); });
 on('quiet', () => { S.profile.quiet = !S.profile.quiet; if (S.todayOnly) delete S.todayOnly.quiet; save(); render(); toast(S.profile.quiet ? 'Quiet mode on. Only what happened.' : 'Quiet mode off.'); });
 function settingsHtml() {
@@ -1634,7 +1935,7 @@ function settingsHtml() {
 function unitsHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Units</h1><p class="muted small">Used everywhere: Body, goals, charts and setup. What you've already saved is kept and shown in the new units.</p><section class="card stack">${unitChips('unit-set')}</section></div>`; }
 on('unit-set', b => { S.profile[b.dataset.k] = b.dataset.u; save(); render(); });
 function goalsHtml() { return targetsHtml().replace(/^<div class="stack">[\s\S]*?<\/h1>/, `<div class="stack">${backBar('You', 'you-home')}<h1>Goals and your day</h1>`).replace(/<\/div>$/, '') + rhythmHtml().replace(/^<div class="stack">[\s\S]*?<\/p>/, '<h2 style="margin-top:8px">Your day</h2><p class="muted small">These times decide what Today shows, and when.</p>'); }
-const YOU_PARENT = { units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
+const YOU_PARENT = { how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
 on('you-up', () => go('you', YOU_PARENT[view.you] || 'home'));
 /* ---------- body ---------- */
 function lineChart(pts, unit, goal) {
@@ -1791,7 +2092,7 @@ function targetsHtml() {
   const p = S.profile, sug = suggestTargets();
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Targets and goal</h1>
   <section class="card stack"><h2>Each day</h2><div class="grid2">${field('t-k', 'Calories', 'kcalTarget', p.kcalTarget, 'num', 'data-int="1"')}${field('t-p', 'Protein (g)', 'proteinTarget', p.proteinTarget, 'num', 'data-int="1"')}${field('t-w', 'Water (glasses)', 'waterTarget', p.waterTarget, 'num', 'data-int="1"')}${field('t-s', 'Steps', 'stepsTarget', p.stepsTarget, 'num', 'data-int="1"')}</div>
-  ${sug ? `<p class="tiny">From your details, a gentle loss is about ${big(sug.kcal)} calories and ${sug.protein} g protein a day.</p>` : ''}</section>
+  ${sug ? `<p class="tiny">From your details, a gentle loss is about ${big(sug.kcal)} calories and ${sug.protein} g protein a day.</p>` : ''}<button class="navrow" data-a="how"><span>How these were worked out<small>The calculation, in words and numbers</small></span></button></section>
   <section class="card stack"><h2>Goal</h2><div class="grid2"><div><label class="lab" for="t-wg">Waist goal (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="t-wg" data-set="waistGoalCm" data-kind="waist" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div></div>${weightFields('t-gw', p.goalWeight, 'Weight goal', 'data-wgoal="1"')}
   ${p.heightCm ? `<p class="tiny">Half your height is a healthy waist: ${waistShow(p.heightCm / 2)}.</p>` : ''}
   <button class="link" data-a="you" data-v="units" style="align-self:flex-start">Units: ${p.weightUnit === 'st' ? 'stones and pounds' : 'kilograms'}, waist in ${p.waistUnit === 'cm' ? 'centimetres' : 'inches'}</button></section>
@@ -1841,6 +2142,7 @@ async function backupObject() {
   let voices = 0, photos = 0;
   for (const e of out.witness.entries) { const a = await wget(e.id).catch(() => null); if (a && a.blob) { e.audio = { mimeType: a.blob.type || a.mime || 'audio/webm', base64: await blob64(a.blob) }; voices++; } }
   for (const p of out.photos) { if (p.dataUrl) { photos++; continue; } const r = await pget(p.id).catch(() => null); if (r && r.blob) { p.image = { mimeType: r.blob.type || 'image/jpeg', base64: await blob64(r.blob) }; photos++; } }
+  for (const d of Object.values(out.days || {})) for (const f of (d.foods || [])) { if (!f.photoId) continue; const r = await pget(f.photoId).catch(() => null); if (r && r.blob) { f.photoImage = { mimeType: r.blob.type || 'image/jpeg', base64: await blob64(r.blob) }; photos++; } }
   out.backup = { format: 'sadhana-v1', app: 'Prakash ' + VERSION, exported: new Date().toISOString(), voiceNotes: voices, photos };
   return out;
 }
@@ -1880,6 +2182,7 @@ function previewRestore(j) {
 on('restore-go', async () => {
   const j = restoreCandidate && restoreCandidate.j; if (!j) return;
   for (const e of ((j.witness || {}).entries || [])) { if (e.audio && e.audio.base64) { await wput(e.id, { blob: b64blob(e.audio.base64, e.audio.mimeType), mime: e.audio.mimeType }).catch(() => {}); e.hasVoice = true; } delete e.audio; }
+  for (const d of Object.values(j.days || {})) for (const f of (d.foods || [])) { if (f.photoImage && f.photoImage.base64 && f.photoId) await pput(f.photoId, { blob: b64blob(f.photoImage.base64, f.photoImage.mimeType), mime: f.photoImage.mimeType }).catch(() => {}); delete f.photoImage; }
   for (const p of (j.photos || [])) { if (p.image && p.image.base64) { await pput(p.id, { blob: b64blob(p.image.base64, p.image.mimeType), mime: p.image.mimeType }).catch(() => {}); } delete p.image; }
   const key = S.profile.geminiKey; S = migrate(j); if (key) S.profile.geminiKey = key; delete S.needsWelcome; S.profile.setupDone = true; S.profile.onboardedV = 1;
   saveNow(); closeSheet(true); restoreCandidate = null; go('today'); toast('Backup restored.');
@@ -1900,11 +2203,11 @@ async function freshStart() {
 }
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px">
-  <li>Larger text: one switch in You, or on the first screen of setup.</li><li>The screen stays on while you sit or train.</li><li>Quiet for today, at the foot of Today: targets hidden until midnight.</li><li>Same as yesterday: one tap repeats a meal on Today.</li><li>A weekly check-in on Sundays: weight, waist and a photo in one go.</li><li>The weight chart follows the 7-day average, with single mornings faint behind it.</li><li>Backups can be saved straight to Files, iCloud or Google Drive.</li><li>Food searches you’ve made still work with no signal.</li><li>If a talk’s site won’t open inside Prakash, tell it once and that site opens in your browser from then on.</li><li>On this day: a year on, Write shows what you wrote.</li><li>Setup is three steps. Your day’s times and the extras wait in You, when you want them.</li><li>Talks have their real names and a line on each. They open inside Prakash, and the next one waits under Continue.</li><li>When the Stop comes, it holds Today for a moment.</li><li>Dates read the British way: 24 Sep 2026.</li><li>Units, asked once: kilograms or stones and pounds, inches or centimetres.</li><li>Reading has moved to Write.</li><li>Quiet mode, at the top of You: hides every target, so Prakash shows only what happened.</li><li>The thirty-second tour lives in Settings.</li><li>My dishes: make your own dish from its ingredients, say how many portions it makes, and it’s one tap to log after that.</li><li>Practice has four parts: Sit (meditation, the Stop, the anger pause, the bell), Pray, Listen and Write (journal and gratitude).</li><li>Three rings instead of seven: Eat, Move and Still, for body, mind and soul. Protein, water and sleep sit just beneath.</li><li>The lamp is the app’s symbol. Prakash means light: the name, the lamp and the light you tap each day are one thing.</li><li>Five tabs: Today, Food, Train, Practice, You, and plainer words throughout.</li><li>Today shows one thing at a time, chosen by the time of day.</li><li>Adding food: tap + Add on a meal, search, or tap + on a recent food.</li><li>Gemini fills in a dish from a photo, ingredient by ingredient, and flags the oil for you to check. Save it as your dish and it’s one tap next time.</li><li>The week counts days you didn’t log at your usual calories. Add a silent day if you like.</li><li>A lamp for each prayer. Talks: swipe when heard, and keep what stayed with you.</li><li>Workouts fill in from last time; tick a set and the rest starts.</li><li>Waist is the main goal, with a healthy target of half your height.</li></ul></section>
+  <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you: what you ate, how you moved, when you sat. It doesn’t judge, count up or speak first. The seeing is yours.</p></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>One box for food: type or say what you had. One food shows your matches; a whole meal, tap Next and see it before it’s added.</li><li>Show it: a photo of your plate, a barcode or a nutrition label.</li><li>Nothing is added unseen, and every number can be changed. Portions in one tap: ½, 1, 1½, 2.</li><li>A dish photo stays with that meal in the diary, on this phone only.</li><li>How your targets were worked out, in plain words, from Goals or the Food page.</li><li>Listen has a Kashmir Shaivism chapter: Osho’s Book of Secrets, five of the Shiva Sutras, and Swami Lakshmanjoo’s recorded teaching.</li><li>Sit has one contemplation to rest with: between two breaths. Write asks, if you like, what surprised you today.</li><li>The lamp’s flame breathes, very slowly. About explains why Prakash is a mirror.</li><li>Larger text, Quiet for today, Same as yesterday and the Sunday check-in are all still where they were.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
