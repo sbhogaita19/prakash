@@ -199,7 +199,8 @@ nav.tabs svg{width:24px;height:24px}
 .focus-mode .line{font-family:var(--serif);font-size:20px;color:#b9c2be;max-width:340px;line-height:1.6}
 .stop-leave{margin-top:18px;background:none;border:none;color:#8a958f;font-size:16px;min-height:48px;padding:8px 18px;cursor:pointer}
 /* train */
-.player{position:fixed;inset:0;z-index:50;background:var(--page);overflow:auto;padding:calc(12px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom))}
+.player{position:static;background:var(--page)}
+.wo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:6px 8px 6px 16px;border-radius:16px;background:var(--now);border:1px solid var(--now-line)}
 .player-in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 .progress{height:6px;border-radius:3px;background:#2a322f;overflow:hidden}.progress i{display:block;height:6px;background:#7fd2ae}
 .sets{display:flex;flex-direction:column;gap:6px}
@@ -259,7 +260,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.8.0';
+const VERSION = '1.8.3';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -325,7 +326,7 @@ function defaults() {
     v: 1, schema: 2,
     profile: {
       setupDone: false, onboardedV: 0, sex: '', dob: null, heightCm: null,
-      kcalTarget: null, proteinTarget: null, waterTarget: 8, stepsTarget: null, v17: 1,
+      kcalTarget: null, proteinTarget: null, waterTarget: 8, stepsTarget: null, moveTarget: null, stillTarget: null, v17: 1,
       goalWeight: null, waistGoalCm: null, waistUnit: 'in', weightUnit: 'kg',
       wake: '06:00', foodFrom: '06:30', foodTo: '18:30', bed: '22:00',
       trainingDays: 3, bpSafe: true, vegetarian: true, eggFree: true,
@@ -391,7 +392,8 @@ function quietToday() { return !!(S.todayOnly && S.todayOnly.date === todayKey()
 function quiet() { return !!S.profile.quiet || quietToday() || (!!S.profile.quietDefault && nowMins() < 18 * 60); }
 /* a target shows only when it's set and the day isn't quiet */
 const tgt = k => { const v = +S.profile[k]; return v > 0 ? v : null; };
-const showK = () => !quiet() && !!tgt('kcalTarget'), showP = () => !quiet() && !!tgt('proteinTarget'), showS = () => !quiet() && !!tgt('stepsTarget');
+const showK = () => !quiet() && !!tgt('kcalTarget'), showP = () => !quiet() && !!tgt('proteinTarget'), showS = () => !quiet() && !!tgt('stepsTarget'),
+  showM = () => !quiet() && !!tgt('moveTarget'), showSt = () => !quiet() && !!tgt('stillTarget');
 /* one-time hints: shown once, where they're needed, gone for good when used or dismissed */
 function hintSeen(id) { return !!(S.profile.hints || {})[id]; }
 function hintDone(id) { S.profile.hints = S.profile.hints || {}; if (!S.profile.hints[id]) { S.profile.hints[id] = 1; save(); } }
@@ -473,12 +475,15 @@ function render() {
   clearTickers();
   const main = $('#main');
   main.oninput = null; main.onchange = null;
+  // before setup is done there is only the setup screen: no Today underneath, no tabs
+  const nav = $('#tabs'); if (nav) nav.hidden = !S.profile.setupDone;
+  if (!S.profile.setupDone) { main.innerHTML = ''; return; }
   main.innerHTML = R[tab]();
   if (R[tab + 'After']) R[tab + 'After'](main);
   if (typeof fillMealPhotos === 'function') fillMealPhotos(main);
   syncWake();
 }
-function go(t, v) { if (v) view[t] = v; tab = t; render(); window.scrollTo(0, 0); }
+function go(t, v) { if (v) view[t] = v; if (t === 'train' && tab !== 'train' && typeof woAway !== 'undefined') woAway = false; tab = t; render(); window.scrollTo(0, 0); }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (!b) return; if (b.dataset.tab === tab && view[tab]) { const home = { food: 'day', train: 'home', practice: view.practice, you: 'home' }[tab]; view[tab] = home; } go(b.dataset.tab); });
 let tickers = [];
 function ticker(fn, ms) { fn(); tickers.push(setInterval(fn, ms || 1000)); }
@@ -548,8 +553,8 @@ const PROGRAM = {
     { name: 'Seated cable row', sets: '3 x 8-12', cue: 'Squeeze the shoulder blades together.' },
     { name: 'Dumbbell lateral raise', sets: '2 x 12-15', cue: 'Light weight, slow down.' },
     { name: 'Leg curl (cable or band)', sets: '2 x 10-12', cue: 'Control the way back.' },
-    { name: 'Reverse crunch', sets: '2 x 10-12', cue: 'Curl the hips up. Breathe out.', core: true },
-    { name: 'Side plank', sets: '2 x 20-30 sec each side', cue: 'Keep breathing.', core: true }] },
+    { name: 'Reverse crunch', sets: '2 x 10-12', cue: 'Curl the hips up. Breathe out.', core: true, unit: 'reps' },
+    { name: 'Side plank', sets: '2 x 20-30 sec each side', cue: 'Keep breathing.', core: true, unit: 'sec' }] },
   B: { title: 'Day B', sub: 'Hinge, press, pull', ex: [
     { name: 'Romanian deadlift', sets: '3 x 8-10', cue: 'Bar close, hips back, flat back.' },
     { name: 'Dumbbell shoulder press', sets: '3 x 8-10', cue: 'Seated. Breathe out as you press.' },
@@ -557,21 +562,21 @@ const PROGRAM = {
     { name: 'Bulgarian split squat', sets: '2 x 8-12 each leg', cue: 'Hold something for balance if needed.' },
     { name: 'Face pull', sets: '2 x 12-15', cue: 'Pull to your forehead, thumbs back.' },
     { name: 'Cable crunch', sets: '2 x 10-12', cue: 'Round down with the stomach, not the arms.', core: true },
-    { name: 'Dead bug', sets: '2 x 8 each side', cue: 'Low back stays on the floor.', core: true }] },
+    { name: 'Dead bug', sets: '2 x 8 each side', cue: 'Low back stays on the floor.', core: true, unit: 'reps' }] },
   C: { title: 'Day C', sub: 'Whole body, lighter', ex: [
     { name: 'Paused back squat', sets: '2 x 8-10', cue: 'Lighter than Day A. Short pause, keep breathing.' },
     { name: 'Incline dumbbell press', sets: '3 x 8-12', cue: 'Lower slowly.' },
     { name: 'One-arm dumbbell row', sets: '3 x 8-12 each side', cue: 'Pull to the hip.' },
     { name: 'Barbell hip thrust', sets: '2 x 8-12', cue: 'Squeeze at the top for a second.' },
     { name: 'Curl and triceps pressdown', sets: '2 x 10-15', cue: 'One after the other, then rest.' },
-    { name: 'Hanging knee raise', sets: '2 x 8-12', cue: 'Knees to chest, no swinging.', core: true },
-    { name: 'Plank', sets: '2 x 30-40 sec', cue: 'Keep breathing.', core: true }] },
+    { name: 'Hanging knee raise', sets: '2 x 8-12', cue: 'Knees to chest, no swinging.', core: true, unit: 'reps' },
+    { name: 'Plank', sets: '2 x 30-40 sec', cue: 'Keep breathing.', core: true, unit: 'sec' }] },
   D: { title: 'Day D', sub: 'Easy day, optional', ex: [
     { name: 'Kettlebell swing', sets: '5 x 10', cue: 'Breathe out each swing. Stop before form fades.' },
     { name: 'Step-ups', sets: '3 x 10 each leg', cue: 'Steady, not fast.' },
-    { name: 'Wall sit', sets: '4 x 2 min', cue: 'Keep breathing normally. Check with your GP first.' },
-    { name: 'Suitcase carry', sets: '3 x 20 m each side', cue: 'Stand tall.' },
-    { name: 'Easy brisk walk', sets: '20-30 minutes', cue: 'You can still talk.' }] }
+    { name: 'Wall sit', sets: '4 x 2 min (120 sec)', cue: 'Keep breathing normally. Check with your GP first.', unit: 'sec' },
+    { name: 'Suitcase carry', sets: '3 x 20 m each side', cue: 'Stand tall.', unit: 'kgm' },
+    { name: 'Easy brisk walk', sets: '20-30 minutes', cue: 'You can still talk.', unit: 'min' }] }
 };
 function rotation() { const n = Number(S.profile.trainingDays) || 3; return n <= 2 ? ['A', 'B'] : n === 3 ? ['A', 'B', 'C'] : ['A', 'B', 'C', 'D']; }
 const PLAN_NOTES = [
@@ -606,14 +611,14 @@ function threeRings(k) {
   return [
     { key: 'eat', label: 'Eat', col: 'var(--ring-eat)', trk: 'var(--ring-eat-t)', v: t.kcal, tg: showK() ? p.kcalTarget : null, sub: showK() ? 'of ' + big(p.kcalTarget) + ' cal' : 'calories', empty: 'nothing yet' },
     useSteps ? { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: +d.steps || 0, tg: showS() ? p.stepsTarget : null, sub: showS() ? 'of ' + big(p.stepsTarget) + ' steps' : 'steps', empty: 'tap to enter', tap: 'steps' }
-      : { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: walk, tg: quiet() ? null : 30, sub: quiet() ? 'minutes moving' : 'of 30 min moving', empty: 'not started', tap: 'steps' },
-    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med, tg: quiet() ? null : 60, sub: quiet() ? 'minutes' : 'of 60 min', empty: 'not started' }
+      : { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: walk, tg: showM() ? tgt('moveTarget') : null, sub: showM() ? 'of ' + tgt('moveTarget') + ' min moving' : 'minutes moving', empty: 'not started', tap: 'steps' },
+    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med, tg: showSt() ? tgt('stillTarget') : null, sub: showSt() ? 'of ' + tgt('stillTarget') + ' min' : 'minutes', empty: 'not started' }
   ];
 }
 function ringsHtml(k) {
   const rs = threeRings(k), d = day(k), t = totals(d), p = S.profile;
   const R = [88, 68, 48];
-  const arcs = rs.map((r, i) => { const C = 2 * Math.PI * R[i], f = !r.tg ? (r.v > 0 ? 1 : 0) : Math.max(0, Math.min(1, r.v / r.tg)), L = f * C; return `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="16"/>${L > 0.5 ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.col}" stroke-width="16" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"${!r.tg ? ' opacity="0.55"' : ''}/>` : ''}`; }).join('');
+  const arcs = rs.map((r, i) => { const C = 2 * Math.PI * R[i], f = r.tg ? Math.max(0, Math.min(1, r.v / r.tg)) : 0, L = f * C; return r.tg ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="16"/>${L > 0.5 ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.col}" stroke-width="16" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"/>` : ''}` : `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="3"/>`; }).join('');
   const label = rs.map(r => `${r.label} ${r.v ? big(r.v) + ' ' + r.sub : r.empty}`).join(', ');
   const val = r => r.v ? `<div class="rv">${big(r.v)}</div><span class="rs">${r.sub}</span>` : `<div class="rv rv-soft">${r.empty}</div>${r.tg ? `<span class="rs">${r.sub}</span>` : ''}`;
   return `<section class="rings3" aria-label="Today: ${esc(label)}">
@@ -697,6 +702,7 @@ function everLogged() { return Object.values(S.days).some(d => (d.foods || []).s
 function nowCard() {
   const p = S.profile, k = todayKey(), d = day(k), t = T(), m = nowMins();
   const wake = mins(p.wake), bed = mins(p.bed);
+  if (typeof draft !== 'undefined' && draft) return { eyebrow: 'Workout in progress', title: 'Continue ' + woWhere(), body: '', btns: [['Continue', 'wo-resume', 'primary']] };
   if (S.sleepTimer.startedAt) return { eyebrow: 'Resting', title: 'Resting since ' + fmtTime(S.sleepTimer.startedAt), body: 'The sleep timer is running.', btns: [['I woke up', 'sleep-stop', 'primary']] };
   const lit = id => !!t.prayers[id];
   const mealLogged = sl => mealFoods(d, sl).length > 0;
@@ -711,7 +717,6 @@ function nowCard() {
   }
   if (m >= wake && m < wake + 180) {
     if (mods().spiritual && !lit('wake') && T().lamp) return prayerCard('wake');
-    if (!d.morningChai) return { eyebrow: 'Morning', title: 'Morning chai', body: 'One cup, taken slowly.', btns: [['Have my chai', 'chai', 'primary']] };
   }
   const lunch = Math.round((mins(p.foodFrom) + mins(p.foodTo)) / 2 / 15) * 15, dinnerAt = mins(p.foodTo) - 45;
   if (mods().food && m >= lunch - 30 && m < lunch + 90 && !mealLogged('lunch')) return mods().spiritual && !lit('food') ? prayerCard('food', [['Add lunch', 'add-meal-lunch', 'primary']]) : { eyebrow: 'Now', title: 'Lunch', body: 'Nothing added yet.', btns: [['Add lunch', 'add-meal-lunch', 'primary']] };
@@ -727,8 +732,24 @@ function nowCard() {
   if (photoDue) return { eyebrow: 'Every two weeks', title: 'Progress photo', body: 'Front and side, same light, same spot.', btns: [['Open photos', 'photos-open', 'primary'], ['Not now', 'photo-snooze', '']] };
   return null;
 }
+/* Morning chai has its own small card near the top, so nothing else (the Stop, a prayer, training) can hide it.
+   It waits from an hour and a half before your wake time until late morning, or until you've had it. */
+function chaiDue() {
+  const d = day(todayKey()), m = nowMins(), wake = mins(S.profile.wake), bed = mins(S.profile.bed);
+  if (d.morningChai || S.sleepTimer.startedAt || m >= bed - 90) return false;
+  return m >= Math.max(180, wake - 90) && m < Math.max(wake + 300, mins('11:30'));
+}
+function chaiHtml() {
+  if (!chaiDue()) return '';
+  return `<section class="card stack chai-card" aria-label="Morning chai" style="gap:10px"><span class="eyebrow">Morning</span><div class="row" style="justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 style="margin:0">Morning chai</h2><p class="muted" style="margin:4px 0 0">One cup, taken slowly.</p></div><button class="btn primary" data-a="chai">Have my chai</button></div></section>`;
+}
 function nowHtml() {
-  const sp = stopPending(); if (sp) { const f = STOP_FORMS[sp.ix]; return `<section class="card now stop-card stack" aria-label="The Stop" style="gap:10px;text-align:center;padding:28px 18px"><span class="eyebrow">The Stop · ${fmtTime(sp.at)}</span><button class="stop-open" data-a="stop-open" aria-label="Open the Stop full screen"><span style="display:block;font-family:var(--serif);font-size:40px;line-height:1.1">${esc(f.word)}</span><span class="muted" style="display:block;margin-top:10px">${esc(f.line)}</span></button><button class="stop-leave" data-a="stop-card-leave" style="margin:0;align-self:center">leave</button></section>`; }
+  const sp = stopPending(); return (sp ? stopCardHtml(sp) : '') + nowCardHtml();
+}
+function stopCardHtml(sp) {
+  { const f = STOP_FORMS[sp.ix]; return `<section class="card now stop-card stack" aria-label="The Stop" style="gap:10px;text-align:center;padding:28px 18px"><span class="eyebrow">The Stop · ${fmtTime(sp.at)}</span><button class="stop-open" data-a="stop-open" aria-label="Open the Stop full screen"><span style="display:block;font-family:var(--serif);font-size:40px;line-height:1.1">${esc(f.word)}</span><span class="muted" style="display:block;margin-top:10px">${esc(f.line)}</span></button><button class="stop-leave" data-a="stop-card-leave" style="margin:0;align-self:center">leave</button></section>`; }
+}
+function nowCardHtml() {
   const c = nowCard(); if (!c) return '';
   return `<section class="card now stack" aria-label="Now" style="gap:10px"><span class="eyebrow">${esc(c.eyebrow)}</span><h2>${esc(c.title)}</h2>${c.body ? `<p class="${c.prayer ? 'prayer-text' : 'muted'}" style="${c.prayer ? 'font-size:18px' : ''}">${esc(c.body)}</p>` : ''}
   <div class="btns">${c.prayer ? `<button class="btn" data-a="pray-toggle" data-id="${c.prayer}" aria-pressed="false"><span class="lampbtn" style="width:30px;height:30px;border:0">${diyaSvg(26)}</span>Prayed</button>` : ''}${c.btns.map(b => `<button class="btn ${b[2]}" data-a="${b[1]}">${esc(b[0])}</button>`).join('')}</div>
@@ -765,6 +786,7 @@ R.today = function () {
   <div class="top"><div><h1 style="font-size:28px;line-height:1.1">${new Date().toLocaleDateString('en-GB', { weekday: 'long' })}</h1><span class="tiny">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}</span></div>
   ${T().lamp ? `<button class="diya" data-a="lamp" aria-pressed="true" aria-label="The lamp is lit for today. Tap to let it go out">${diyaSvg(46)}</button>` : ''}</div>
   ${T().lamp ? '' : morningHtml()}
+  ${chaiHtml()}
   ${ringsHtml(k)}
   ${nowHtml()}
   ${mods().food ? `<section class="card flat" aria-label="Today's food"><div class="between" style="padding:12px 0 4px"><h2 style="font-size:22px">Today's food</h2><span class="tiny">${!showK() ? big(t.kcal) + ' calories' : left >= 0 ? big(left) + ' calories left' : big(-left) + ' over'}</span></div>
@@ -795,8 +817,8 @@ async function gemini(parts, opts) {
   for (const model of models) {
     for (let attempt = 0; ; attempt++) {
       let r, j;
-      try { r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: payload }); j = await r.json().catch(() => null); }
-      catch (e) { const x = Error('offline'); x.detail = String(e && e.message || e); throw x; }
+      try { r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', { method: 'POST', signal: opts.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: payload }); j = await r.json().catch(() => null); }
+      catch (e) { const x = Error(opts.signal && opts.signal.aborted ? 'timeout' : 'offline'); x.timeout = !!(opts.signal && opts.signal.aborted); x.detail = String(e && e.message || e); throw x; }
       const msg = (j && j.error && j.error.message) || '';
       if (r.ok) {
         const text = ((j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('').trim();
@@ -809,7 +831,7 @@ async function gemini(parts, opts) {
       if (geminiBusy(r.status, why)) {
         e.busy = !geminiDailyLimit(why); lastErr = e; if (e.busy) busyErr = e;
         const wait = GEMINI_BACKOFF[attempt];
-        if (e.busy && wait != null && waited + wait <= GEMINI_WAIT_BUDGET) { waited += wait; if (opts.onWait) try { opts.onWait(attempt + 1); } catch (x) {} await sleep(wait); continue; }
+        if (e.busy && !opts.noWait && wait != null && waited + wait <= GEMINI_WAIT_BUDGET) { waited += wait; if (opts.onWait) try { opts.onWait(attempt + 1); } catch (x) {} await sleep(wait); continue; }
         break; // still busy after the retries, or a used-up limit: try the next model
       }
       // this model isn't available to this key (renamed, not on the free plan): try the next one
@@ -837,6 +859,60 @@ function geminiErr(e) {
   if (e && e.status >= 500) return 'Gemini is busy right now. Try again in a minute, or enter the numbers yourself.';
   if (m === 'model') return 'None of the Gemini models answered this key.';
   return 'Gemini couldn’t answer. Try again, or enter the numbers yourself.';
+}
+
+/* ---------- photo estimates: Gemini, then Groq, then OpenRouter ----------
+   Each gets 8 seconds; no answer, an error or nothing readable moves on to the next. An AI without a key is skipped.
+   Keys live only on this phone (never in a backup). The photo goes out only when you tap. */
+const AI_TIMEOUT = 8000;
+const GROQ_MODELS = ['meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct'];
+const OR_MODELS = ['openrouter/free', 'meta-llama/llama-4-maverick:free', 'google/gemma-3-27b-it:free', 'qwen/qwen2.5-vl-72b-instruct:free', 'mistralai/mistral-small-3.2-24b-instruct:free'];
+const AI_KEYS = ['groqKey', 'groqModel', 'openrouterKey', 'openrouterModel'];   // with geminiKey/geminiModel: kept out of backups
+function aiKey(name) { return cleanKey(S.profile[name + 'Key']); }
+function anyAiKey() { return !!(aiKey('gemini') || aiKey('groq') || aiKey('openrouter')); }
+function withTimeout(ms, fn) {
+  const ac = new AbortController(); let t;
+  const stop = new Promise((_, rej) => { t = setTimeout(() => { ac.abort(); const e = Error('timeout'); e.timeout = true; rej(e); }, ms); });
+  return Promise.race([fn(ac.signal), stop]).finally(() => clearTimeout(t));
+}
+async function openAiChat(url, key, model, text, dataUrl, signal, headers) {
+  const content = dataUrl ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: dataUrl } }] : text;
+  const r = await fetch(url, { method: 'POST', signal, headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, headers || {}), body: JSON.stringify({ model, messages: [{ role: 'user', content }], temperature: 0.2, max_tokens: 900 }) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) { const m = j && j.error ? (typeof j.error === 'string' ? j.error : j.error.message || '') : ''; const e = Error(m || 'HTTP ' + r.status); e.status = r.status; throw e; }
+  const c = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  const out = (Array.isArray(c) ? c.map(x => x.text || '').join('') : String(c || '')).trim(); if (!out) throw Error('empty');
+  return out;
+}
+// a model that's gone, renamed or can't take this request: try the next one on the list
+const tryNextModel = e => e && !e.timeout && e.name !== 'AbortError' && (e.status === 404 || e.status === 400 || e.status === 429 || e.status >= 500 || /decommission|not found|does not exist|no longer|not supported|model_not_found|no endpoints|image input|rate.?limit/i.test(e.message || ''));
+async function askList(kind, url, models, text, dataUrl, signal, headers) {
+  const key = aiKey(kind), mk = kind + 'Model', mine = S.profile[mk]; if (!key) throw Error('nokey');
+  const list = mine ? [mine, ...models.filter(m => m !== mine)] : models; let last = null;
+  for (const m of list) {
+    try { const out = await openAiChat(url, key, m, text, dataUrl, signal, headers); if (S.profile[mk] !== m) { S.profile[mk] = m; save(); } return { text: out, model: m }; }
+    catch (e) { last = e; if (!tryNextModel(e)) throw e; }
+  }
+  throw last || Error('model');
+}
+const askGroq = (text, dataUrl, signal) => askList('groq', 'https://api.groq.com/openai/v1/chat/completions', GROQ_MODELS, text, dataUrl, signal);
+const askOpenRouter = (text, dataUrl, signal) => askList('openrouter', 'https://openrouter.ai/api/v1/chat/completions', OR_MODELS, text, dataUrl, signal, { 'X-Title': 'Prakash' });
+function askGemini(text, dataUrl, signal) {
+  const parts = [{ text }]; if (dataUrl) parts.push({ inline_data: { mime_type: 'image/jpeg', data: dataUrl.split(',')[1] } });
+  return gemini(parts, { signal, noWait: true }).then(t => ({ text: t, model: S.profile.geminiModel || '' }));
+}
+const AI_CHAIN = [['Gemini', 'gemini', askGemini], ['Groq', 'groq', askGroq], ['OpenRouter', 'openrouter', askOpenRouter]];
+function aiWhy(e) { if (!e) return 'no answer'; if (e.timeout || e.name === 'AbortError' || e.message === 'timeout') return 'no answer in 8 seconds'; if (e.message === 'offline') return 'couldn’t reach it'; if (e.status === 401 || e.status === 403) return 'the key wasn’t accepted'; if (e.status === 429) return 'busy or over its free limit'; return String(e.message || 'error').slice(0, 90); }
+// parse: the shared reader for every answer (see parseItems in Food)
+async function estimateChain(text, dataUrl, onTry) {
+  const tried = [];
+  for (const [label, kind, fn] of AI_CHAIN) {
+    if (!aiKey(kind)) continue;
+    if (onTry) onTry(label);
+    try { const r = await withTimeout(AI_TIMEOUT, s => fn(text, dataUrl, s)); const items = parseItems(r.text); if (items.length) return { items, by: label, model: r.model || '' }; tried.push(label + ': an answer with no items in it'); }
+    catch (e) { tried.push(label + ': ' + aiWhy(e)); }
+  }
+  const x = Error('allfailed'); x.tried = tried; throw x;
 }
 /* ================= FOOD ================= */
 let foodDate = todayKey();
@@ -962,7 +1038,7 @@ function addRender() {
     </div>`;
   } else if (a.mode === 'show') {
     h = addTop('Show it', 'add-back') + `<div class="stack">
-    <button class="card showit" data-a="add-photo"><span aria-hidden="true" style="font-size:30px">🍛</span><span><strong>A plate of food</strong><span class="tiny" style="display:block">${S.profile.geminiKey ? 'Gemini works out what’s on it' : 'Photo it, then ask any AI or enter the numbers'}</span></span></button>
+    <button class="card showit" data-a="add-photo"><span aria-hidden="true" style="font-size:30px">🍛</span><span><strong>A plate of food</strong><span class="tiny" style="display:block">${anyAiKey() ? 'AI works out what’s on it' : 'Photo it, then ask any AI or enter the numbers'}</span></span></button>
     <button class="card showit" data-a="add-scan"><span aria-hidden="true" style="font-size:30px">▥</span><span><strong>A barcode</strong><span class="tiny" style="display:block">Looks the packet up in Open Food Facts</span></span></button>
     ${S.profile.geminiKey ? `<label class="card showit filebtn" style="cursor:pointer"><span aria-hidden="true" style="font-size:30px">🏷</span><span><strong>A nutrition label</strong><span class="tiny" style="display:block">Gemini reads the numbers off the packet</span></span><input type="file" accept="image/*" capture="environment" data-label></label>` : ''}
     ${a.labelBusy ? `<p class="small">${esc(a.labelBusy)}</p>` : ''}${a.scanMsg && !a.notFound ? `<p class="small">${esc(a.scanMsg)}</p>` : ''}
@@ -1129,15 +1205,17 @@ const EST_SCHEMA = { type: 'OBJECT', properties: { dish: { type: 'STRING' }, por
 on('add-photo', () => { ADD.mode = 'photo'; ADD.est = ADD.est || { name: ADD.q.trim(), details: '', file: null, url: '', loading: false, err: '', ings: null, portion: '1 portion', servings: 1, save: true, manual: false }; addRender(); });
 function estTotals(e) { const t = { kcal: 0, protein: 0, fat: 0, carbs: 0, fibre: 0 }; (e.ings || []).forEach(i => { const g = i.grams; t.kcal += i.r.k * g; t.protein += i.r.p * g; t.fat += i.r.f * g; t.carbs += i.r.c * g; t.fibre += i.r.b * g; }); for (const x in t) t[x] = t[x] * e.servings; return { kcal: n0(t.kcal), protein: n1(t.protein), fat: n1(t.fat), carbs: n1(t.carbs), fibre: n1(t.fibre) }; }
 function estimateHtml() {
-  const e = ADD.est; const hasKey = !!S.profile.geminiKey;
+  const e = ADD.est; const hasKey = anyAiKey();
   const tot = e.ings ? estTotals(e) : null;
   return `<div class="stack">
   <div><label class="lab" for="est-name">Dish and portion</label><input class="input" id="est-name" value="${esc(e.name)}" placeholder="e.g. chana masala, 1 bowl"></div>
   ${e.url ? `<img src="${e.url}" alt="Your dish" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px">` : ''}
   <div class="btns"><label class="btn filebtn">${e.file ? 'Retake photo' : 'Take photo'}<input type="file" accept="image/*" capture="environment" id="est-cam"></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" id="est-pick"></label></div>
   <div><label class="lab" for="est-details">What's in it? (optional, helps)</label><input class="input" id="est-details" value="${esc(e.details)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
-  ${hasKey ? `<button class="btn primary big" data-a="est-go" ${e.loading ? 'disabled' : ''}>${e.loading ? (e.wait || 'Gemini is looking…') : e.ings ? 'Ask Gemini again' : 'Fill in with Gemini'}</button>` : `<div class="okbox small">Connect Gemini (free) in You › Connect Gemini, and it fills this in from a photo.</div>`}
+  ${hasKey ? `<button class="btn primary big" data-a="est-go" ${e.loading ? 'disabled' : ''}>${e.loading ? esc(e.wait || 'Asking…') : e.items ? 'Ask again' : 'Fill in with AI'}</button>` : `<div class="okbox small">Add a free Gemini key (You › Settings › Connect Gemini), and AI fills this in from a photo. Groq and OpenRouter can back it up.</div>`}
   ${e.err ? `<p class="small" style="color:var(--danger)">${esc(e.err)}</p>` : ''}
+  ${e.items ? estItemsHtml(e) : ''}
+  ${!e.loading && !e.items && e.busy ? askYourselfHtml(e, hasKey) : ''}
   ${tot ? `<section class="card stack" style="gap:6px"><span class="eyebrow">${e.other ? 'The estimate' : 'Gemini’s estimate'} · ${esc(e.portion)}</span><div class="big-num">${big(tot.kcal)} calories</div><p class="small">${tot.protein} g protein · ${tot.fat} g fat · ${tot.carbs} g carbs · ${tot.fibre} g fibre</p></section>
   <h3>${e.other ? 'What’s in it' : 'What Gemini thinks is in it'}</h3>
   <div>${e.ings.map((i, ix) => { const oil = i.oil; const step = oil ? 5 : 10; const row = `<div class="between" style="min-height:56px"><span class="${oil ? '' : ''}" style="flex:1">${esc(i.name)}</span><span class="stepper"><button class="step" data-a="est-g" data-i="${ix}" data-d="-${step}" aria-label="Less ${esc(i.name)}">−</button><span class="val">${n0(i.grams)} g</span><button class="step" data-a="est-g" data-i="${ix}" data-d="${step}" aria-label="More ${esc(i.name)}">+</button></span></div>`; return oil ? `<div class="warnbox" style="margin:6px 0">${row}<p class="tiny">A photo can't see oil or ghee. Check this one.</p></div>` : `<div style="border-bottom:1px solid var(--hair2)">${row}</div>`; }).join('')}</div>
@@ -1145,11 +1223,12 @@ function estimateHtml() {
   ${e.assumptions ? `<details class="fold"><summary>Gemini's assumptions</summary><p class="small muted">${esc(e.assumptions)}</p></details>` : ''}` : ''}
   <details class="fold" ${e.manual && !tot ? 'open' : ''}><summary>Enter the numbers yourself</summary><div class="stack"><div class="grid2"><div><label class="lab" for="m-k">Calories</label><input class="input" id="m-k" inputmode="numeric"></div><div><label class="lab" for="m-p">Protein (g)</label><input class="input" id="m-p" inputmode="decimal"></div><div><label class="lab" for="m-f">Fat (g)</label><input class="input" id="m-f" inputmode="decimal"></div><div><label class="lab" for="m-c">Carbs (g)</label><input class="input" id="m-c" inputmode="decimal"></div></div><div><label class="lab" for="m-b">Fibre (g)</label><input class="input" id="m-b" inputmode="decimal"></div><button class="btn" data-a="est-manual">Use these numbers</button></div></details>
   ${tot ? `<button class="btn primary big" data-a="est-add">Add to ${esc(MEAL_NAME[ADD.slot].toLowerCase())}</button><label class="check"><input type="checkbox" id="est-save" ${e.save ? 'checked' : ''}>Save as my dish for next time</label><p class="tiny">An estimate, not a measurement. Change anything that looks wrong.</p>` : ''}
-  <p class="tiny">${hasKey ? 'The photo goes to Google only when you tap. On the free plan Google may use it to improve its products.' : ''}</p></div>`;
+  <p class="tiny">${hasKey ? 'The photo is sent only when you tap, to the AIs you’ve added keys for, one at a time. Free plans may use it to improve their products.' : ''}</p></div>`;
 }
 function bindEstimate(b) {
   const e = ADD.est;
-  const syncPrompt = () => { const t = $('#ai-prompt', b); if (t) t.value = otherAiPrompt(e); const q = encodeURIComponent(otherAiPrompt(e)); $$('a[data-a=ai-copy]', b).forEach(l => { l.href = l.href.split('?q=')[0] + '?q=' + q; }); };
+  const syncPrompt = () => { const q = encodeURIComponent(photoPrompt(e)); $$('a[data-a=ai-ask]', b).forEach(l => { l.href = l.href.split('?q=')[0] + '?q=' + q; }); };
+  b.addEventListener('change', x => { const i = x.target.dataset && x.target.dataset.esti; if (i != null && e.items && e.items[+i]) e.items[+i].on = x.target.checked; });
   const nm = $('#est-name', b); if (nm) nm.oninput = x => { e.name = x.target.value; syncPrompt(); };
   const dt = $('#est-details', b); if (dt) dt.oninput = x => { e.details = x.target.value; syncPrompt(); };
   const ar = $('#ai-reply', b); if (ar) ar.oninput = x => { e.reply = x.target.value; };
@@ -1157,28 +1236,63 @@ function bindEstimate(b) {
   const pick = x => { const f = x.target.files && x.target.files[0]; if (!f) return; if (!f.type.startsWith('image/')) { toast('Choose a photo.'); return; } if (e.url) URL.revokeObjectURL(e.url); e.file = f; e.url = URL.createObjectURL(f); addRender(); };
   ['#est-cam', '#est-pick'].forEach(s => { const i = $(s, b); if (i) i.onchange = pick; });
 }
-/* ---------- when Gemini isn't there or isn't working: ask Claude or ChatGPT, paste the answer back ---------- */
-function otherAiPrompt(e) {
+/* ---------- one prompt for every AI, and one reader for every answer ---------- */
+function photoPrompt(e) {
   const p = S.profile;
-  return `Estimate the nutrition for one portion of a meal${p.vegetarian ? ' (I’m vegetarian' + (p.eggFree ? ', no eggs' : '') + ')' : ''}.
-Dish: ${(e.name || '').trim() || 'see the photo'}.${(e.details || '').trim() ? '\nWhat’s in it: ' + e.details.trim() : ''}${e.file ? '\nI’m attaching a photo of it.' : ''}
-List the main ingredients with realistic grams for one portion. Always include cooking oil, ghee or butter as its own line, with a realistic home-cooking amount.
-Reply ONLY with lines in exactly this format. No table, no bullets, no other text:
-DISH: name | portion
-ingredient | grams g | kcal kcal | protein g protein | fat g fat | carbs g carbs | fibre g fibre`;
+  return `Estimate the nutrition of this meal, one portion as served${p.vegetarian ? ' (I’m vegetarian' + (p.eggFree ? ', no eggs' : '') + ')' : ''}.
+Dish: ${(e.name || '').trim() || 'see the photo'}.${(e.details || '').trim() ? '\nWhat’s in it: ' + e.details.trim() : ''}${e.file ? '\nThere is a photo of it.' : ''}
+List each food on the plate as its own item with realistic grams. Always include cooking oil, ghee or butter as its own item, with a realistic home-cooking amount.
+Reply with ONLY JSON, no other text, in exactly this shape:
+{"items":[{"name":"","grams":0,"kcal":0,"protein":0}]}`;
 }
-function otherAiHtml(e, hasKey, tot) {
-  if (tot && !e.other) return '';
-  const q = encodeURIComponent(otherAiPrompt(e)), open = !hasKey || !!e.err || !!e.reply;
-  return `<details class="fold" ${open ? 'open' : ''}><summary>Ask AI${hasKey ? ' (if Gemini isn’t working)' : ''}</summary><div class="stack">
-  <p class="small muted">Here’s the prompt. Copy it into any AI: Claude, ChatGPT, Gemini, Copilot${e.file ? '. Attach your photo there too' : ''}. Then copy its whole answer and paste it below.</p>
-  <textarea class="input" id="ai-prompt" readonly rows="7" style="font-size:16px;line-height:1.45" aria-label="The prompt">${esc(otherAiPrompt(e))}</textarea>
-  <button class="btn primary" data-a="ai-copy">Copy the prompt</button>
-  <div class="btns"><a class="btn" href="https://claude.ai/new?q=${q}" target="_blank" rel="noopener" data-a="ai-copy">Open Claude</a><a class="btn" href="https://chatgpt.com/?q=${q}" target="_blank" rel="noopener" data-a="ai-copy">Open ChatGPT</a></div>
-  <div><label class="lab" for="ai-reply">Paste the answer here</label><textarea class="input" id="ai-reply" placeholder="DISH: … then one line per ingredient">${esc(e.reply || '')}</textarea></div>
-  <button class="btn primary" data-a="ai-use">Use this answer</button></div></details>`;
+function parseItems(txt) {
+  txt = String(txt || '').replace(/```(?:json)?/gi, '').trim(); const out = [];
+  const tj = x => { try { return JSON.parse(x); } catch (y) { return null; } };
+  let j = null; const m = txt.match(/\{[\s\S]*\}/); if (m) j = tj(m[0]);
+  if (!j) { const a = txt.match(/\[[\s\S]*\]/); const arr = a ? tj(a[0]) : null; if (Array.isArray(arr)) j = { items: arr }; }
+  const arr = j && (Array.isArray(j.items) ? j.items : Array.isArray(j.ingredients) ? j.ingredients : Array.isArray(j) ? j : null);
+  if (arr) arr.forEach(i => { if (!i || typeof i !== 'object') return; const g = +i.grams || +i.g || 0, k = +i.kcal || +i.calories || 0; if (!(k > 0 || g > 0)) return; out.push({ name: String(i.name || 'Item').trim() || 'Item', grams: Math.round(g), kcal: Math.round(k), protein: n1(+i.protein || 0), fat: +i.fat || 0, carbs: +i.carbs || 0, fibre: +i.fibre || +i.fiber || 0 }); });
+  if (!out.length) parseOtherAi(txt).ings.forEach(i => out.push({ name: i.name, grams: Math.round(i.grams), kcal: Math.round(i.k || 0), protein: n1(i.p || 0), fat: i.f || 0, carbs: i.c || 0, fibre: i.b || 0 }));
+  return out;
 }
-on('ai-copy', async b => { const txt = otherAiPrompt(ADD.est); try { await navigator.clipboard.writeText(txt); if (b.tagName !== 'A') toast('Prompt copied. Paste it into any AI.'); } catch (x) { if (b.tagName !== 'A') { const t = $('#ai-prompt'); if (t) { t.focus(); t.select(); } toast('Select the prompt and copy it.'); } } });
+const isFat = n => /\b(oil|ghee|butter)\b/i.test(n);
+function estItemsHtml(e) {
+  const on = e.items.filter(i => i.on), k = on.reduce((a, i) => a + i.kcal, 0), p = on.reduce((a, i) => a + i.protein, 0);
+  return `<section class="card stack" style="gap:6px" aria-label="What’s on the plate"><span class="eyebrow">What’s on the plate · tick what’s right</span>
+  ${e.items.map((i, ix) => `<label class="check" style="min-height:52px;align-items:flex-start"><input type="checkbox" data-esti="${ix}" ${i.on ? 'checked' : ''}><span><strong style="font-weight:500">${esc(i.name)}</strong><span class="tiny" style="display:block">${i.grams ? i.grams + ' g · ' : ''}${big(i.kcal)} cal · ${i.protein} g protein${isFat(i.name) ? ' · a photo can’t see oil or ghee, check this one' : ''}</span></span></label>`).join('')}
+  <p class="small">Ticked: ${big(k)} calories · ${n1(p)} g protein</p>
+  <button class="btn primary big" data-a="est-pick">Add the ticked ones</button>
+  <p class="tiny">Answered by ${esc(e.by)}. An estimate, not a measurement; you can change every number next.</p></section>`;
+}
+function askYourselfHtml(e, hasKey) {
+  const q = encodeURIComponent(photoPrompt(e));
+  return `<section class="card stack" style="gap:10px"><strong>${hasKey ? (e.offline ? 'You’re offline. Ask an AI yourself when you’re back online' : 'The AIs are busy, ask one yourself') : 'Ask an AI yourself'}</strong>
+  <p class="small muted">One tap copies the prompt and opens Claude.${e.file ? ' Attach your photo there' : ''} Send it, copy the whole answer, then come back here.${hasKey ? '' : ' Or add a free key in You › Settings and it’s done for you.'}</p>
+  <a class="btn primary big" href="https://claude.ai/new?q=${q}" target="_blank" rel="noopener" data-a="ai-ask" style="justify-content:center;text-align:center">Copy prompt, open Claude</a>
+  <a class="link small" href="https://chatgpt.com/?q=${q}" target="_blank" rel="noopener" data-a="ai-ask" style="align-self:flex-start;min-height:44px;display:inline-flex;align-items:center">or ChatGPT</a>
+  <button class="btn" data-a="ai-paste">Paste the answer</button>
+  ${e.pasteBox || e.raw ? `<div><label class="lab" for="ai-reply">${e.raw ? 'Couldn’t read items from this answer. Enter the numbers below, or fix it here' : 'Paste the answer here'}</label><textarea class="input" id="ai-reply" rows="6">${esc(e.raw || e.reply || '')}</textarea></div><button class="btn" data-a="ai-use">Use this answer</button>` : ''}
+  ${e.tried && e.tried.length ? `<details class="fold"><summary class="tiny">What was tried</summary><ul class="tiny" style="padding-left:18px;margin:0">${e.tried.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}</section>`;
+}
+on('ai-ask', async () => { const e = ADD && ADD.est; if (!e) return; e.awaitPaste = true; try { await navigator.clipboard.writeText(photoPrompt(e)); } catch (x) {} });
+// the answer: read from the clipboard when you come back, or with one Paste tap; the same reader as the AIs
+function useReply(txt) {
+  const e = ADD && ADD.est; if (!e) return false; txt = String(txt || '').trim();
+  if (!txt || txt === photoPrompt(e).trim()) return false;
+  e.awaitPaste = false; e.reply = txt;
+  const items = parseItems(txt);
+  if (items.length) { e.items = items.map(i => ({ ...i, on: true })); e.by = 'the answer you pasted'; e.raw = ''; e.busy = false; e.pasteBox = false; }
+  else { e.raw = txt; e.manual = true; }
+  addRender(); return true;
+}
+async function readClip(asked) {
+  const e = ADD && ADD.est; if (!e) return;
+  let t = ''; try { t = await navigator.clipboard.readText(); } catch (x) { t = ''; }
+  if (useReply(t)) return;
+  if (asked) { e.pasteBox = true; addRender(); const r = $('#ai-reply'); if (r) r.focus(); toast('Paste the answer into the box.'); }
+}
+on('ai-paste', () => readClip(true));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ADD && ADD.est && ADD.est.awaitPaste && ADD.mode === 'photo') setTimeout(() => readClip(false), 400); });
 function parseOtherAi(txt) {
   const out = { dish: '', portion: '', ings: [] }; txt = String(txt || '').replace(/\*\*/g, '');
   try { const m = txt.match(/\{[\s\S]*\}/); if (m) { const j = JSON.parse(m[0]); if (Array.isArray(j.ingredients)) { out.dish = j.dish || ''; out.portion = j.portion || ''; j.ingredients.forEach(i => { if (i && +i.grams > 0) out.ings.push({ name: String(i.name || 'Ingredient'), grams: +i.grams, k: +i.kcal || 0, p: +i.protein || 0, f: +i.fat || 0, c: +i.carbs || 0, b: +i.fibre || +i.fiber || 0 }); }); if (out.ings.length) return out; } } } catch (x) {}
@@ -1197,14 +1311,7 @@ function parseOtherAi(txt) {
   });
   return out;
 }
-on('ai-use', () => {
-  const e = ADD.est, txt = ($('#ai-reply') || {}).value || e.reply || ''; if (!txt.trim()) { toast('Paste the answer first.'); return; }
-  const r = parseOtherAi(txt); if (!r.ings.length) { toast('Couldn’t read that answer. Copy all of it, or enter the numbers yourself.'); return; }
-  e.ings = r.ings.map(i => ({ name: i.name, grams: n0(i.grams), oil: /oil|ghee|butter/i.test(i.name), r: { k: i.k / i.grams, p: i.p / i.grams, f: i.f / i.grams, c: i.c / i.grams, b: i.b / i.grams } }));
-  e.portion = r.portion || '1 portion'; e.assumptions = ''; e.servings = 1; e.manualNums = false; e.other = true; e.err = '';
-  if (!(e.name || '').trim()) e.name = r.dish || 'Dish';
-  estToDraft(e, 'Estimate from another AI');
-});
+on('ai-use', () => { const t = ($('#ai-reply') || {}).value || ''; if (!t.trim()) { toast('Paste the answer first.'); return; } if (!useReply(t)) toast('That’s the prompt, not the answer. Copy the AI’s reply.'); });
 on('est-g', b => { const i = ADD.est.ings[+b.dataset.i]; i.grams = Math.max(0, i.grams + (+b.dataset.d)); addRender(); });
 on('est-serv', b => { const e = ADD.est; e.servings = Math.max(0.5, e.servings + (+b.dataset.d)); addRender(); });
 on('est-manual', () => {
@@ -1221,22 +1328,21 @@ on('est-add', () => {
 });
 on('est-go', async () => {
   const e = ADD.est; if (!e.name.trim() && !e.file) { toast('Add a photo or the dish name first.'); return; }
-  e.loading = true; e.err = ''; addRender();
-  const prompt = `You are estimating nutrition for one person's home-cooked or bought meal${S.profile.vegetarian ? ' (they are vegetarian' + (S.profile.eggFree ? ', no eggs' : '') + ')' : ''}.
-Dish: ${e.name || 'see photo'}.${e.details ? '\nDetails from them: ' + e.details : ''}${e.file ? '\nA photo is attached.' : '\nNo photo; use the name and details.'}
-Break it into its main ingredients with realistic grams for ONE portion as described (or as seen). Always list cooking oil, ghee or butter as its own ingredient with isAddedFat true, with a realistic home-cooking amount. Give kcal, protein, fat, carbs and fibre for each ingredient at that weight. "portion" is a short plain description such as "1 medium bowl". Put your main assumptions in one or two short sentences.`;
-  const parts = [{ text: prompt }];
+  e.loading = true; e.err = ''; e.items = null; e.by = ''; e.busy = false; e.raw = ''; e.tried = []; e.offline = false; addRender();
   try {
-    if (e.file) { const data = await downscale(e.file, 1024, 0.8); parts.push({ inline_data: { mime_type: 'image/jpeg', data: data.split(',')[1] } }); }
-    const txt = await gemini(parts, { schema: EST_SCHEMA, onWait: () => { e.wait = 'Google is busy. Trying again…'; const bt = $('[data-a=est-go]'); if (bt) bt.textContent = e.wait; } });
-    const j = JSON.parse(txt);
-    if (!j.ingredients || !j.ingredients.length) throw Error('Gemini sent back no ingredients.');
-    e.ings = j.ingredients.filter(i => i && +i.grams > 0).map(i => { const g = +i.grams; return { name: String(i.name), grams: n0(g), oil: !!i.isAddedFat || /oil|ghee|butter/i.test(i.name), r: { k: (+i.kcal || 0) / g, p: (+i.protein || 0) / g, f: (+i.fat || 0) / g, c: (+i.carbs || 0) / g, b: (+i.fibre || 0) / g } }; });
-    e.portion = j.portion || '1 portion'; e.assumptions = j.assumptions || ''; e.servings = 1; e.manualNums = false; e.other = false;
-    if (!e.name.trim()) e.name = j.dish || 'Dish';
-    estToDraft(e, 'Gemini estimate');
-  } catch (err) { e.err = geminiErr(err); }
+    if (navigator.onLine === false) { const x = Error('offline'); x.tried = []; throw x; }
+    const dataUrl = e.file ? await downscale(e.file, 1024, 0.8) : '';
+    const r = await estimateChain(photoPrompt(e), dataUrl, label => { e.wait = 'Asking ' + label + '…'; const bt = $('[data-a=est-go]'); if (bt) bt.textContent = e.wait; });
+    e.items = r.items.map(i => ({ ...i, on: true })); e.by = r.by + (r.model ? ' (' + r.model + ')' : '');
+  } catch (err) { if (err && err.message === 'photo') e.err = 'That photo couldn’t be read. Try another.'; else { e.busy = true; e.tried = (err && err.tried) || []; e.offline = !!(err && err.message === 'offline'); } }
   e.loading = false; e.wait = ''; if (ADD && ADD.est === e) addRender();
+});
+// the ticked items go to the draft, where every number can still be changed before anything is logged
+on('est-pick', () => {
+  const e = ADD.est, got = (e.items || []).filter(i => i.on); if (!got.length) { toast('Tick at least one, or enter the numbers yourself.'); return; }
+  const src = 'Estimate from ' + (e.by.startsWith('the answer') ? 'another AI' : e.by.split(' (')[0]);
+  const items = got.map((i, ix) => ({ id: uid(), name: i.name.charAt(0).toUpperCase() + i.name.slice(1), per: { k: i.kcal, p: i.protein, c: +i.carbs || 0, f: +i.fat || 0, b: +i.fibre || 0 }, unit: i.grams ? i.grams + ' g' : 'portion', qty: 1, src, note: isFat(i.name) ? 'A photo can’t see oil or ghee. Check this one.' : '', photo: ix === 0 ? e.file || null : null, photoUrl: ix === 0 ? e.url || '' : '' }));
+  e.items = null; openDraft(items, 'photo');
 });
 function downscale(file, max, q) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const s = Math.min(1, max / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', q)); }; img.onerror = () => rej(Error('photo')); img.src = String(r.result); }; r.onerror = () => rej(Error('photo')); r.readAsDataURL(file); }); }
 
@@ -1640,7 +1746,7 @@ function howHtml() {
   ${cal}${setDiff ? `<p class="small">Your target is set to ${big(p.kcalTarget)}, not the ${big(sg.kcal)} worked out here: it was chosen in setup or in Goals.</p>` : ''}</section>
   <section class="card stack" style="gap:8px"><h2>Protein · ${tgt('proteinTarget') ? p.proteinTarget + ' g a day' : 'not set yet'}</h2>
   ${kg ? `${row('1.8 g × ' + n1(kg) + ' kg', n0(1.8 * kg) + ' g')}${row('Rounded to the nearest 5', (sg ? sg.protein : Math.round(1.8 * kg / 5) * 5) + ' g')}<p class="small muted">1.8 g for each kilo of body weight.</p>${sg && Math.abs(p.proteinTarget - sg.protein) >= 5 ? `<p class="small">Your target is set to ${p.proteinTarget} g: it was chosen in setup or in Goals.</p>` : ''}` : '<p class="small muted">The working needs your weight.</p>'}</section>
-  <section class="card stack" style="gap:8px"><h2>The rest</h2>${row('Water', p.waterTarget + ' glasses')}${row('Steps', tgt('stepsTarget') ? big(p.stepsTarget) : 'not set')}${row('Still', '60 minutes')}<p class="small muted">These are plain starting numbers, not calculated. Water and steps can be changed in Goals; Still is a full hour of sitting across the day.</p></section>
+  <section class="card stack" style="gap:8px"><h2>The rest</h2>${row('Water', p.waterTarget + ' glasses')}${row('Steps', tgt('stepsTarget') ? big(p.stepsTarget) : 'not set')}${row('Move', tgt('moveTarget') ? tgt('moveTarget') + ' minutes' : 'not set')}${row('Still', tgt('stillTarget') ? tgt('stillTarget') + ' minutes' : 'not set')}<p class="small muted">These are plain numbers you choose, not calculated. Change them in Goals.</p></section>
   <p class="tiny">All of this is worked out on this phone. You can change any target in You › Goals and your day.</p></div>`;
 }
 let howFrom = null;
@@ -1756,13 +1862,24 @@ let restEnd = 0;
 function saveDraft() { try { if (draft) localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft })); else localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
 function nextDayId() { const rot = rotation(); const last = [...S.workouts].reverse().find(w => rot.includes(w.dayId)); if (!last) return rot[0]; return rot[(rot.indexOf(last.dayId) + 1) % rot.length]; }
 function lastExercise(name) { for (let i = S.workouts.length - 1; i >= 0; i--) { const e = (S.workouts[i].exercises || []).find(x => x.name === name); if (e && e.sets && e.sets.length) return { ...e, date: S.workouts[i].date }; } return null; }
+/* what each exercise is measured in. kg: weight and reps. reps: bodyweight reps. sec / min: held or walked for a time.
+   kgm: weight carried for a distance. The second number is kept in "reps" for every unit, so old workouts still read. */
+const UNITS = { kg: { a: 'kg', b: 'reps', hint: 'Add kg and reps first.' }, reps: { a: null, b: 'reps', hint: 'Add the reps first.' }, sec: { a: null, b: 'sec', hint: 'Add the seconds first.' }, min: { a: null, b: 'min', hint: 'Add the minutes first.' }, kgm: { a: 'kg', b: 'm', hint: 'Add kg and metres first.' } };
+function unitOf(e) { if (e && e.unit && UNITS[e.unit]) return e.unit; const name = typeof e === 'string' ? e : e && e.name; for (const id in PROGRAM) { const x = PROGRAM[id].ex.find(y => y.name === name); if (x && x.unit) return x.unit; } return 'kg'; }
+function fmtSets(sets, u) {
+  const U = UNITS[u] || UNITS.kg, v = sets.map(s => s.reps);
+  if (!U.a) return v.join(', ') + ' ' + U.b;
+  const kgs = [...new Set(sets.map(s => +s.kg || 0))];
+  if (u === 'kgm') return kgs.length === 1 ? (kgs[0] ? kgs[0] + ' kg × ' : '') + v.join(', ') + ' m' : sets.map(s => (+s.kg ? s.kg + ' kg × ' : '') + s.reps + ' m').join(', ');
+  return kgs.length === 1 && kgs[0] ? kgs[0] + ' kg × ' + v.join(', ') : sets.map(s => (+s.kg ? s.kg + '×' : '') + s.reps).join(', ');
+}
 function specRange(spec) { const m = String(spec || '').match(/x\s*(\d+)\s*-\s*(\d+)/); return m ? [+m[1], +m[2]] : null; }
 function setCount(spec) { const n = parseInt(spec, 10); return isNaN(n) ? 3 : n; }
 function aimText(ex) {
   const last = lastExercise(ex.name); if (!last) return '';
   const r = specRange(ex.spec), top = last.sets.reduce((a, s) => (+s.kg > +a.kg ? s : a), last.sets[0]);
-  const lastTxt = 'Last time: ' + (+top.kg ? top.kg + ' kg × ' : '') + last.sets.map(s => s.reps).join(', ');
-  if (quiet() || !r || !(+top.kg)) return lastTxt;
+  const u = unitOf(ex), lastTxt = 'Last time: ' + fmtSets(last.sets, u);
+  if (quiet() || !r || !(+top.kg) || u !== 'kg') return lastTxt;
   const allTop = last.sets.every(s => +s.reps >= r[1]);
   if (allTop && last.feel !== 'Hard') return lastTxt + '|Every set reached ' + r[1] + ' with reps to spare, so today is filled in at ' + n1(+top.kg + incFor(ex.name)) + ' kg × ' + r[0] + '. Build the reps from there.';
   if (last.feel === 'Hard') return lastTxt + '|Today, same weight. Aim for the same reps, smoother.';
@@ -1772,35 +1889,49 @@ function aimText(ex) {
    (so there were about 2 good reps left), add a little weight and start again at the bottom of the range. */
 function incFor(name) { return /squat|deadlift|hip thrust|split squat/i.test(name) ? 2.5 : /dumbbell|raise|curl|pressdown/i.test(name) ? 1 : 1.25; }
 function nextSets(e) {
-  const last = lastExercise(e.name), r = specRange(e.sets), n = Math.max(setCount(e.sets), last ? Math.min(last.sets.length, 6) : 0);
-  if (!last) return { sets: Array.from({ length: n }, () => ({ kg: e.core ? '0' : '', reps: '', done: false })), up: false };
+  const last = lastExercise(e.name), r = specRange(e.sets), n = Math.max(setCount(e.sets), last ? Math.min(last.sets.length, 6) : 0), u = unitOf(e), noKg = !UNITS[u].a;
+  if (!last) return { sets: Array.from({ length: n }, () => ({ kg: noKg ? '0' : '', reps: '', done: false })), up: false };
   const top = last.sets.reduce((a, s) => (+s.kg > +a.kg ? s : a), last.sets[0]);
-  const up = !!r && +top.kg > 0 && last.sets.every(s => +s.reps >= r[1]) && last.feel !== 'Hard';
-  return { up, sets: Array.from({ length: n }, (_, i) => { const s = last.sets[i] || last.sets[last.sets.length - 1]; return up ? { kg: String(n1(+top.kg + incFor(e.name))), reps: String(r[0]), done: false } : { kg: String(s.kg || ''), reps: String(s.reps || ''), done: false }; }) };
+  const up = u === 'kg' && !!r && +top.kg > 0 && last.sets.every(s => +s.reps >= r[1]) && last.feel !== 'Hard';
+  return { up, sets: Array.from({ length: n }, (_, i) => { const s = last.sets[i] || last.sets[last.sets.length - 1]; return up ? { kg: String(n1(+top.kg + incFor(e.name))), reps: String(r[0]), done: false } : { kg: noKg ? '0' : String(s.kg || ''), reps: String(s.reps || ''), done: false }; }) };
 }
-function lastLine(name) { const l = lastExercise(name); if (!l) return ''; const kgs = [...new Set(l.sets.map(s => +s.kg || 0))]; return (kgs.length === 1 && kgs[0] ? kgs[0] + ' kg × ' + l.sets.map(s => s.reps).join(', ') : l.sets.map(s => (+s.kg ? s.kg + '×' : '') + s.reps).join(', ')) + ' · ' + fmtDate(l.date); }
+function lastLine(name) { const l = lastExercise(name); if (!l) return ''; return fmtSets(l.sets, unitOf(name)) + ' · ' + fmtDate(l.date); }
 const WARMUP = ['Two minutes of easy movement: brisk march, bike or skipping on the spot.', '10 bodyweight squats and 10 hip hinges, slow and easy.', 'One light set of the first exercise at about half the weight.'];
 function startWorkout(id) {
   const pd = PROGRAM[id];
-  draft = { dayId: id, title: pd.title + ' · ' + pd.sub, startedAt: new Date().toISOString(), i: 0, warm: false, ex: pd.ex.map(e => { const ns = nextSets(e); return { name: e.name, spec: e.sets, cue: e.cue, core: !!e.core, feel: '', up: ns.up, sets: ns.sets }; }) };
+  draft = { dayId: id, title: pd.title + ' · ' + pd.sub, startedAt: new Date().toISOString(), i: 0, warm: false, ex: pd.ex.map(e => { const ns = nextSets(e); return { name: e.name, spec: e.sets, cue: e.cue, core: !!e.core, unit: unitOf(e), feel: '', up: ns.up, sets: ns.sets }; }) };
   restEnd = 0; saveDraft(); go('train');
 }
-on('wo-start', b => startWorkout(b.dataset.id));
-on('wo-start-next', () => startWorkout(nextDayId()));
+// starting another workout while one is open asks first, if anything in it is ticked
+function startOrAsk(id) { if (draft && draft.ex.some(e => e.sets.some(s => s.done))) confirmSheet('Start a new workout?', 'The one in progress (' + woWhere() + ') won’t be saved.', 'Start new', () => { woAway = false; startWorkout(id); }, true); else { woAway = false; startWorkout(id); } }
+on('wo-start', b => startOrAsk(b.dataset.id));
+on('wo-start-next', () => startOrAsk(nextDayId()));
 // the rest belongs to the exercise where the set was done: moving on clears it
-function goExercise(i) { if (i !== draft.i) { restEnd = 0; setHint = null; } draft.i = i; saveDraft(); render(); window.scrollTo(0, 0); }
+function goExercise(i) { if (i !== draft.i) { restEnd = 0; setHint = null; holdStart = 0; } draft.i = i; saveDraft(); render(); window.scrollTo(0, 0); }
 on('wo-prev', () => goExercise(Math.max(0, draft.i - 1)));
 on('wo-next', () => goExercise(Math.min(draft.ex.length - 1, draft.i + 1)));
 on('wo-go', b => goExercise(+b.dataset.i));
 on('wo-warm', () => { draft.warm = true; saveDraft(); render(); });
 on('wo-feel', b => { const ex = draft.ex[draft.i]; ex.feel = ex.feel === b.dataset.f ? '' : b.dataset.f; saveDraft(); render(); });
+/* a timed hold (plank, wall sit): tap to start, tap to stop; the seconds go into the next set that isn't done */
+let holdStart = 0;
+on('hold', () => {
+  if (!holdStart) { holdStart = Date.now(); render(); return; }
+  const secs = Math.max(1, Math.round((Date.now() - holdStart) / 1000)); holdStart = 0;
+  const ex = draft.ex[draft.i], s = ex.sets.find(x => !x.done && !filled(x.reps)) || ex.sets.find(x => !x.done);
+  if (s) { s.reps = String(secs); if (!filled(s.kg)) s.kg = '0'; saveDraft(); }
+  render(); toast(secs + ' seconds' + (s ? ' filled in. Tick the set when it’s right.' : '.'));
+});
 on('wo-addset', () => { const ex = draft.ex[draft.i], l = ex.sets[ex.sets.length - 1] || {}; ex.sets.push({ kg: l.kg || '', reps: l.reps || '', done: false }); saveDraft(); render(); });
 let setHint = null;   // { i, si }: the row that was ticked before kg and reps were filled in
 const filled = v => String(v == null ? '' : v).trim() !== '';
 function setDone(si, v) {
   const ex = draft.ex[draft.i], s = ex.sets[si]; if (!s) return;
-  if (v && !(filled(s.kg) && filled(s.reps))) { setHint = { i: draft.i, si }; render(); return; }   // a blank set stays undone and never starts the rest
+  const needKg = !!UNITS[unitOf(ex)].a; if (!needKg && !filled(s.kg)) s.kg = '0';
+  if (v && !((filled(s.kg) || !needKg) && filled(s.reps))) { setHint = { i: draft.i, si }; render(); return; }   // a blank set stays undone and never starts the rest
   setHint = null; s.done = v;
+  // a ticked set fills the later sets that are still empty (kg and reps both blank); they stay editable
+  if (v) for (let j = si + 1; j < ex.sets.length; j++) { const o = ex.sets[j]; if (!o.done && !filled(o.kg) && !filled(o.reps)) { o.kg = s.kg; o.reps = s.reps; } }
   if (v) { const lastOfAll = draft.i === draft.ex.length - 1 && ex.sets.every(x => x.done); restEnd = lastOfAll ? 0 : Date.now() + (S.profile.restSec || 120) * 1000; }
   saveDraft(); render();
 }
@@ -1813,7 +1944,7 @@ on('wo-close', () => {
   confirmSheet('Close this workout?', 'The sets ticked so far won’t be saved.', 'Discard workout', () => { draft = null; saveDraft(); render(); }, true);
 });
 on('wo-finish', () => {
-  const exercises = draft.ex.map(e => ({ name: e.name, feel: e.feel || '', sets: e.sets.filter(s => s.done && +s.reps > 0).map(s => ({ kg: num(s.kg) || 0, reps: parseInt(s.reps, 10) || 0 })) })).filter(e => e.sets.length);
+  const exercises = draft.ex.map(e => ({ name: e.name, feel: e.feel || '', unit: unitOf(e), sets: e.sets.filter(s => s.done && +s.reps > 0).map(s => ({ kg: num(s.kg) || 0, reps: parseInt(s.reps, 10) || 0 })) })).filter(e => e.sets.length);
   if (!exercises.length) { toast('Tick at least one set first, or close the workout.'); return; }
   const dur = Math.max(1, Math.round((Date.now() - new Date(draft.startedAt)) / 60000));
   S.workouts.push({ id: uid(), date: todayKey(), dayId: draft.dayId, title: draft.title, durationMin: dur, exercises });
@@ -1821,37 +1952,45 @@ on('wo-finish', () => {
   openSheet(`<p class="muted" style="margin-bottom:10px">Workout saved · ${dur} min. Five minutes of stretching, if you like. No timer.</p><ul class="list">${STRETCHES.map((s, i) => `<li class="li"><span>${esc(s)}</span><button class="lampbtn" data-a="stretch" aria-pressed="false" aria-label="Done: ${esc(s)}">${diyaSvg(30)}</button></li>`).join('')}</ul>`, { title: 'Stretch' });
 });
 on('stretch', b => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')));
+/* the player is part of the Train page, not a cover over the app: the tabs keep working and the draft is kept.
+   "Train home" steps out to the Train page; coming back to Train from another tab opens the player again. */
+let woAway = false;
+on('wo-away', () => { woAway = true; render(); window.scrollTo(0, 0); });
+on('wo-resume', () => { if (!draft) return; woAway = false; if (tab !== 'train') go('train'); else { render(); window.scrollTo(0, 0); } });
+function woWhere() { return draft ? PROGRAM[draft.dayId].title + ' · exercise ' + (draft.i + 1) + ' of ' + draft.ex.length : ''; }
 function playerHtml() {
   const ex = draft.ex[draft.i], n = draft.ex.length, aim = aimText(ex).split('|');
-  const resting = restEnd > Date.now();
-  return `<div class="player" role="dialog" aria-label="Workout"><div class="player-in">
-  <div class="between"><button class="link" data-a="wo-close">Close</button><span class="tiny" id="wo-clock"></span></div>
+  const resting = restEnd > Date.now(), U = UNITS[unitOf(ex)];
+  return `<div class="player" role="region" aria-label="Workout"><div class="player-in">
+  <div class="between"><span><button class="link" data-a="wo-away">‹ Train home</button><button class="link" data-a="wo-close" style="margin-left:14px">Close</button></span><span class="tiny" id="wo-clock"></span></div>
   <div><span class="tiny">${esc(PROGRAM[draft.dayId].title)} · exercise ${draft.i + 1} of ${n}${ex.core ? ' · core' : ''}</span><h1 style="font-size:28px">${esc(ex.name)}</h1><p class="muted">${esc(ex.spec)} · ${esc(ex.cue)}</p></div>
   <div class="progress"><i style="width:${(draft.i + 1) / n * 100}%"></i></div>
   ${draft.i === 0 && !draft.warm ? `<section class="card stack" style="gap:8px"><span class="eyebrow">Warm up first · 3 moves</span><ol style="margin:0;padding-left:22px" class="small">${WARMUP.map((w, i) => `<li style="margin-bottom:6px">${esc(i === 2 ? 'One light set of ' + ex.name.toLowerCase() + ' at about half the weight.' : w)}</li>`).join('')}</ol><button class="btn" data-a="wo-warm">Warmed up</button></section>` : ''}
   ${aim[0] ? `<section class="card" style="padding:12px 16px"><span class="muted small">${esc(aim[0])}</span>${aim[1] ? `<div style="font-weight:600;margin-top:2px">${esc(aim[1])}</div>` : ''}</section>` : ''}
-  <div class="sets" aria-label="Sets"><div class="setrow" style="min-height:0;font-size:16px;color:var(--ink2)"><span>Set</span><span>kg</span><span>Reps</span><span style="text-align:center">Done</span></div>
-  ${ex.sets.map((s, si) => `<div class="setrow${s.done ? ' done' : ''}" data-setrow="${si}"><span>${si + 1}</span><input inputmode="decimal" aria-label="Set ${si + 1} kilograms" data-set="${si}:kg" value="${esc(s.kg)}" placeholder="kg"><input inputmode="numeric" aria-label="Set ${si + 1} reps" data-set="${si}:reps" value="${esc(s.reps)}" placeholder="reps"><button class="tick" data-a="wo-tick" data-s="${si}" aria-pressed="${s.done}" aria-label="${s.done ? 'Set ' + (si + 1) + ' done. Tap to undo' : 'Mark set ' + (si + 1) + ' done'}">${s.done ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : ''}</button></div>${setHint && setHint.i === draft.i && setHint.si === si ? '<p class="small set-hint" role="status">Add kg and reps first.</p>' : ''}`).join('')}
+  <div class="sets" aria-label="Sets"><div class="setrow" style="min-height:0;font-size:16px;color:var(--ink2)"><span>Set</span>${U.a ? `<span>${U.a}</span><span>${U.b === 'm' ? 'Metres' : 'Reps'}</span>` : `<span style="grid-column:span 2">${{ reps: 'Reps', sec: 'Seconds', min: 'Minutes' }[U.b]}</span>`}<span style="text-align:center">Done</span></div>
+  ${ex.sets.map((s, si) => `<div class="setrow${s.done ? ' done' : ''}" data-setrow="${si}"><span>${si + 1}</span>${U.a ? `<input inputmode="decimal" aria-label="Set ${si + 1} kilograms" data-set="${si}:kg" value="${esc(s.kg)}" placeholder="kg">` : ''}<input inputmode="numeric" aria-label="Set ${si + 1} ${{ reps: 'reps', sec: 'seconds', min: 'minutes', m: 'metres' }[U.b]}" data-set="${si}:reps" value="${esc(s.reps)}" placeholder="${U.b}"${U.a ? '' : ' style="grid-column:span 2"'}><button class="tick" data-a="wo-tick" data-s="${si}" aria-pressed="${s.done}" aria-label="${s.done ? 'Set ' + (si + 1) + ' done. Tap to undo' : 'Mark set ' + (si + 1) + ' done'}">${s.done ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : ''}</button></div>${setHint && setHint.i === draft.i && setHint.si === si ? `<p class="small set-hint" role="status">${U.hint}</p>` : ''}`).join('')}
   <button class="link" data-a="wo-addset" style="align-self:flex-start">+ Add a set</button></div>
+  ${U.b === 'sec' ? `<button class="btn${holdStart ? ' primary' : ''}" data-a="hold">${holdStart ? 'Stop the hold · <span id="hold-t">0</span> s' : 'Time a hold'}</button>` : ''}
   ${resting ? `<div class="restbar" role="timer"><span>Rest <strong id="rest-left" style="font-size:22px;margin-left:6px"></strong></span><span><button class="link" data-a="rest-more">+30 s</button><button class="link" data-a="rest-skip">Skip</button></span></div>` : ''}
   <div><span class="small">How did that feel?</span><div class="grid3" style="margin-top:8px">${['Easy', 'About right', 'Hard'].map(f => `<button class="chip" data-a="wo-feel" data-f="${f}" aria-pressed="${ex.feel === f}">${f}</button>`).join('')}</div></div>
-  <p class="tiny">Stop each set with 2 good reps left. Never hold your breath.</p>
+  <p class="tiny">${U.b === 'sec' ? 'Stop a few seconds before your form goes. Never hold your breath.' : U.b === 'min' ? 'An easy pace: you can still talk.' : 'Stop each set with 2 good reps left. Never hold your breath.'}</p>
   <div class="grid2"><button class="btn" data-a="wo-prev" ${draft.i === 0 ? 'disabled' : ''}>Previous</button>${draft.i < n - 1 ? '<button class="btn primary" data-a="wo-next">Next exercise</button>' : '<button class="btn primary" data-a="wo-finish">Finish workout</button>'}</div>
   ${draft.i < n - 1 ? '<button class="btn ghost" data-a="wo-finish">Finish workout</button>' : ''}
   <details class="fold"><summary>All exercises</summary><ul class="list">${draft.ex.map((e, i) => `<li class="li"><button class="t" data-a="wo-go" data-i="${i}"><strong>${esc(e.name)}</strong><span>${e.sets.filter(s => s.done).length} of ${e.sets.length} sets done${lastLine(e.name) ? ' · last: ' + esc(lastLine(e.name)) : ''}</span></button></li>`).join('')}</ul></details>
   </div></div>`;
 }
 R.trainAfter = function (main) {
-  if (!draft) {
+  if (!draft || woAway) {
     const w = $('#walk-time', main);
     if (w && S.walkTimer.startedAt) ticker(() => { const s = Math.max(0, Math.floor((Date.now() - new Date(S.walkTimer.startedAt)) / 1000)); w.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); });
     const wm = $('#walk-min', main); if (wm) wm.onchange = e => { day(todayKey()).walkMin = parseInt(e.target.value, 10) || 0; save(); toast('Walking minutes saved.'); };
     return;
   }
-  main.oninput = e => { const t = e.target.closest('[data-set]'); if (!t || !draft) return; const [si, f] = t.dataset.set.split(':'), st = draft.ex[draft.i].sets[+si]; st[f] = t.value; saveDraft(); if (setHint && setHint.si === +si && filled(st.kg) && filled(st.reps)) { setHint = null; const h = t.closest('.sets').querySelector('.set-hint'); if (h) h.remove(); } };
+  main.oninput = e => { const t = e.target.closest('[data-set]'); if (!t || !draft) return; const [si, f] = t.dataset.set.split(':'), st = draft.ex[draft.i].sets[+si]; st[f] = t.value; saveDraft(); if (setHint && setHint.si === +si && (filled(st.kg) || !UNITS[unitOf(draft.ex[draft.i])].a) && filled(st.reps)) { setHint = null; const h = t.closest('.sets').querySelector('.set-hint'); if (h) h.remove(); } };
   $$('[data-setrow]', main).forEach(r => swipe(r, () => setDone(+r.dataset.setrow, true), () => setDone(+r.dataset.setrow, false)));
   ticker(() => {
     const c = $('#wo-clock'); if (c) c.textContent = Math.max(0, Math.round((Date.now() - new Date(draft.startedAt)) / 60000)) + ' min';
+    const ht = $('#hold-t'); if (ht && holdStart) ht.textContent = Math.round((Date.now() - holdStart) / 1000);
     const rl = $('#rest-left');
     if (restEnd) { const left = Math.round((restEnd - Date.now()) / 1000); if (left <= 0) { restEnd = 0; bell(660, 1.4); toast('Rest over. Next set when you’re ready.'); render(); return; } if (rl) rl.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); }
   }, 500);
@@ -1860,10 +1999,11 @@ on('walk-start', () => { S.walkTimer.startedAt = new Date().toISOString(); save(
 on('walk-stop', () => { const m = Math.max(1, Math.round((Date.now() - new Date(S.walkTimer.startedAt)) / 60000)); const d = day(todayKey()); d.walkMin = (+d.walkMin || 0) + m; S.walkTimer.startedAt = null; save(); render(); toast(m + ' walking minutes added.'); });
 on('wo-del', b => { const ix = S.workouts.findIndex(w => w.id === b.dataset.id); if (ix < 0) return; confirmSheet('Remove this workout?', S.workouts[ix].title + ', ' + fmtDay(S.workouts[ix].date), 'Remove', () => { const gone = S.workouts.splice(ix, 1)[0]; save(); render(); undoBar('Workout removed.', () => { S.workouts.splice(ix, 0, gone); save(); render(); }); }, true); });
 R.train = function () {
-  if (draft) return playerHtml();
+  if (draft && !woAway) return playerHtml();
   const next = nextDayId(), rot = rotation(), d = day(todayKey()), today = S.workouts.filter(w => w.date === todayKey());
   const recent = [...S.workouts].slice(-6).reverse();
   return `<div class="stack"><h1>Train</h1>
+  ${draft ? `<div class="wo-bar" role="status"><span><strong>Workout in progress</strong><span class="tiny" style="display:block">${esc(woWhere())}</span></span><button class="btn primary" data-a="wo-resume">Resume</button></div>` : ''}
   ${today.length ? `<div class="okbox"><strong>Trained today</strong><p class="tiny">${esc(today.map(w => w.title).join(', '))}</p></div>` : ''}
   <section class="card now stack" style="gap:8px"><span class="eyebrow">Next</span><h2>${esc(PROGRAM[next].title)} · ${esc(PROGRAM[next].sub)}</h2><ul class="list" style="margin:0">${PROGRAM[next].ex.map(e => { const ns = nextSets(e), l = lastLine(e.name); return `<li class="li" style="min-height:0;padding:8px 0"><div class="t"><strong style="font-weight:500">${esc(e.name)}${e.core ? ' <span class="tiny" style="font-weight:400">· core</span>' : ''}</strong><span>${l ? 'Last: ' + esc(l) : esc(e.sets) + ' · first time'}${ns.up ? ' · up to ' + esc(ns.sets[0].kg) + ' kg today' : ''}</span></div></li>`; }).join('')}</ul><button class="btn primary big" data-a="wo-start" data-id="${next}">Warm up and start</button></section>
   <details class="fold"><summary>Start a different day</summary><div class="stack">${rot.filter(id => id !== next).map(id => `<button class="navrow" data-a="wo-start" data-id="${id}"><span>${esc(PROGRAM[id].title)} · ${esc(PROGRAM[id].sub)}<small>${PROGRAM[id].ex.length} exercises</small></span></button>`).join('')}</div></details>
@@ -2053,6 +2193,7 @@ on('j-rec', async b => {
 });
 function journalCollect() { const o = { kind: ($('#j-kind') || {}).value || 'Free writing', tags: $$('[data-jtag]:checked').map(x => x.dataset.jtag) }; JQ.forEach(q => { const el = $('#j-' + q[0]); o[q[0]] = el ? el.value : ''; }); return o; }
 on('j-save', async () => {
+  jSpeakStop();
   const o = journalCollect(); if (!JQ.some(q => (o[q[0]] || '').trim()) && !voiceDraft) { toast('Nothing written yet.'); return; }
   const old = journalEdit && journalEdit.id ? journalEdit : {}, id = old.id || uid(), now = new Date().toISOString();
   const entry = { ...old, id, created: old.created || now, updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags };
@@ -2061,13 +2202,29 @@ on('j-save', async () => {
   try { localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {}
   save(); journalMode = 'entries'; journalEdit = null; render(); toast('Saved.');
 });
+/* speak into Write: the phone's own speech-to-text, into the box beside the microphone */
+const MIC_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+let jRec = null;
+function jSpeakStop() { if (jRec) { try { jRec.stop(); } catch (e) {} } }
+on('j-speak', b => {
+  const f = b.dataset.f, was = jRec && jRec._f; jSpeakStop(); if (was === f) return;
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition, box = $('#j-' + f), st = $('#js-' + f); if (!R || !box) return;
+  const r = new R(); jRec = r; r._f = f; r.lang = 'en-GB'; r.interimResults = true; r.continuous = true;
+  const before = box.value.replace(/\s+$/, ''); let final = '';
+  b.setAttribute('aria-pressed', 'true'); if (st) st.textContent = 'Listening… tap the microphone again to stop.';
+  r.onresult = ev => { if (!document.body.contains(box)) { jSpeakStop(); return; } let interim = ''; for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) final += (final ? ' ' : '') + t.trim(); else interim += t; } box.value = [before, final, interim.trim()].filter(Boolean).join(before && !/[\n]$/.test(before) ? ' ' : ''); box.dispatchEvent(new Event('input', { bubbles: true })); };
+  r.onerror = ev => { if (st) st.textContent = ev.error === 'not-allowed' ? 'The microphone wasn’t allowed. You can type, or use the keyboard’s microphone.' : ev.error === 'network' ? 'Speaking needs the internet on this phone. The keyboard’s microphone may work offline.' : ev.error === 'no-speech' ? 'Nothing heard. Tap to try again.' : ''; };
+  r.onend = () => { if (jRec === r) jRec = null; const btn = $(`[data-a=j-speak][data-f="${f}"]`); if (btn) btn.setAttribute('aria-pressed', 'false'); if (st && /Listening/.test(st.textContent)) st.textContent = ''; };
+  try { r.start(); } catch (e) { jRec = null; b.setAttribute('aria-pressed', 'false'); }
+});
 function writeHtml() {
   const w = S.witness;
   if (journalMode === 'write') {
     let e = journalEdit || {}; if (!journalEdit) { try { const d = JSON.parse(localStorage.getItem(JOURNAL_DRAFT_KEY) || 'null'); if (d) e = d; } catch (x) {} }
     return `${backBar('Journal', 'j-home')}<p class="journal-q">Not homework. Just watching, the way you'd watch the river.</p>
     <div><label class="lab" for="j-kind">When</label><select class="input" id="j-kind">${['Free writing', 'Before meditation', 'After meditation', 'Gratitude'].map(k => `<option${e.kind === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
-    ${JQ.map(q => `<div><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px">${esc(q[1])}</label><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea></div>`).join('')}
+    ${micSupported() ? '<p class="small muted">Tap the microphone beside a question to speak your answer. Your phone’s browser turns speech into words, which may use Google or Apple.</p>' : ''}
+    ${JQ.map(q => `<div><div class="between" style="gap:10px;align-items:flex-end"><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px;flex:1">${esc(q[1])}</label>${micSupported() ? `<button class="iconbtn" data-a="j-speak" data-f="${q[0]}" aria-pressed="false" aria-label="Speak your answer to: ${esc(q[1])}" style="width:48px;min-height:48px;margin-bottom:6px">${MIC_SVG}</button>` : ''}</div><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea><span class="small muted" id="js-${q[0]}" role="status"></span></div>`).join('')}
     <p class="journal-q" style="font-size:18px;color:var(--ink2)">Now put it all down. Nothing to carry, nowhere to reach.</p>
     <div><span class="lab">Threads</span><div class="chips">${WITNESS_TAGS.map(t => `<label class="chip" style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" data-jtag="${esc(t)}" ${(e.tags || []).includes(t) ? 'checked' : ''} style="accent-color:var(--green)"> ${esc(t)}</label>`).join('')}</div></div>
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
@@ -2081,7 +2238,7 @@ function writeHtml() {
   ${readingCard()}
   ${gratitudeHtml()}`;
 }
-on('j-home', () => { journalMode = 'home'; journalEdit = null; render(); });
+on('j-home', () => { jSpeakStop(); journalMode = 'home'; journalEdit = null; render(); });
 
 /* ---------- Remember: the Stop, anger, the bell, gratitude ---------- */
 function stopSchedule() {
@@ -2216,6 +2373,7 @@ function settingsHtml() {
   <button class="navrow" data-a="you" data-v="sections"><span>What to show<small>Hide what you don’t use. Nothing is deleted.</small></span></button>
   <button class="navrow" data-a="you" data-v="units"><span>Units<small>${p.weightUnit === 'st' ? 'Stones and pounds' : 'Kilograms'} · waist in ${p.waistUnit === 'cm' ? 'centimetres' : 'inches'}</small></span></button>
   <button class="navrow" data-a="you" data-v="gemini"><span>Connect Gemini<small>${p.geminiKey ? 'Connected' : 'Free. Fills in dishes from a photo'}</small></span></button>
+  <button class="navrow" data-a="you" data-v="moreai"><span>Backup AIs for photos<small>${[p.groqKey && 'Groq', p.openrouterKey && 'OpenRouter'].filter(Boolean).join(' and ') || 'Optional. Groq and OpenRouter, if Gemini is busy'}</small></span></button>
   <button class="navrow" data-a="you" data-v="music"><span>Meditation music<small>The Spotify link for Gauri Shankar</small></span></button>
   <button class="navrow" data-a="tour"><span>Show the tour<small>Thirty seconds on how Prakash works</small></span></button>
   <button class="navrow" data-a="setup-again"><span>Go through setup again<small>Your answers are kept and filled in</small></span></button></div></div>`;
@@ -2223,7 +2381,7 @@ function settingsHtml() {
 function unitsHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Units</h1><p class="muted small">Used everywhere: Body, goals, charts and setup. What you've already saved is kept and shown in the new units.</p><section class="card stack">${unitChips('unit-set')}</section></div>`; }
 on('unit-set', b => { S.profile[b.dataset.k] = b.dataset.u; save(); render(); });
 function goalsHtml() { return targetsHtml().replace(/^<div class="stack">[\s\S]*?<\/h1>/, `<div class="stack">${backBar('You', 'you-home')}<h1>Goals and your day</h1>`).replace(/<\/div>$/, '') + rhythmHtml().replace(/^<div class="stack">[\s\S]*?<\/p>/, '<h2 style="margin-top:8px">Your day</h2><p class="muted small">These times decide what Today shows, and when.</p>'); }
-const YOU_PARENT = { how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
+const YOU_PARENT = { how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', moreai: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
 on('you-up', () => go('you', YOU_PARENT[view.you] || 'home'));
 /* ---------- body ---------- */
 function lineChart(pts, unit, goal) {
@@ -2379,7 +2537,7 @@ function field(id, label, key, val, kind, extra) { return `<div><label class="la
 function targetsHtml() {
   const p = S.profile, sug = suggestTargets();
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Targets and goal</h1>
-  <section class="card stack"><h2>Each day</h2><div class="grid2">${field('t-k', 'Calories', 'kcalTarget', p.kcalTarget, 'num', 'data-int="1"')}${field('t-p', 'Protein (g)', 'proteinTarget', p.proteinTarget, 'num', 'data-int="1"')}${field('t-w', 'Water (glasses)', 'waterTarget', p.waterTarget, 'num', 'data-int="1"')}${field('t-s', 'Steps', 'stepsTarget', p.stepsTarget, 'num', 'data-int="1"')}</div>
+  <section class="card stack"><h2>Each day</h2><div class="grid2">${field('t-k', 'Calories', 'kcalTarget', p.kcalTarget, 'num', 'data-int="1"')}${field('t-p', 'Protein (g)', 'proteinTarget', p.proteinTarget, 'num', 'data-int="1"')}${field('t-w', 'Water (glasses)', 'waterTarget', p.waterTarget, 'num', 'data-int="1"')}${field('t-s', 'Steps', 'stepsTarget', p.stepsTarget, 'num', 'data-int="1"')}${field('t-m', 'Move (minutes)', 'moveTarget', p.moveTarget, 'num', 'data-int="1" placeholder="e.g. 30"')}${field('t-st', 'Still (minutes)', 'stillTarget', p.stillTarget, 'num', 'data-int="1" placeholder="e.g. 60"')}</div><p class="tiny">Leave any box empty and its ring shows just the number. Move counts walking and workouts when there are no steps; Still counts sitting.</p>
   ${sug ? `<p class="tiny">From your details, a gentle loss is about ${big(sug.kcal)} calories and ${sug.protein} g protein a day.</p>` : ''}<button class="navrow" data-a="how"><span>How these were worked out<small>The calculation, in words and numbers</small></span></button></section>
   <section class="card stack"><h2>Goal</h2><div class="grid2"><div><label class="lab" for="t-wg">Waist goal (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="t-wg" data-set="waistGoalCm" data-kind="waist" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div></div>${weightFields('t-gw', p.goalWeight, 'Weight goal', 'data-wgoal="1"')}
   ${p.heightCm ? `<p class="tiny">Half your height is a healthy waist: ${waistShow(p.heightCm / 2)}.</p>` : ''}
@@ -2422,11 +2580,34 @@ on('g-save', async () => {
   catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${esc(geminiErr(e))}</p>${e && e.status && e.detail ? `<details class="fold" style="margin-top:6px"><summary class="tiny">Details</summary><p class="tiny">${esc(String(e.detail).slice(0, 300))}${e.model ? ' (' + esc(e.model) + ')' : ''}</p></details>` : ''}</div>`; }
 });
 on('g-remove', () => { delete S.profile.geminiKey; delete S.profile.geminiModel; save(); render(); toast('Key removed from this phone.'); });
+/* Groq and OpenRouter: optional, free keys, tried after Gemini for photo estimates. The keys stay on this phone. */
+function moreAiHtml() {
+  const p = S.profile, box = (id, name, key, where, hint) => `<section class="card stack" style="gap:10px"><h2>${name}</h2><p class="small muted">Free key from <a href="https://${where}" target="_blank" rel="noopener">${where}</a>. ${hint}</p>
+  <div><label class="lab" for="k-${id}">${name} API key (optional)</label><input class="input" id="k-${id}" type="password" autocomplete="off" value="${esc(p[id + 'Key'] || '')}" placeholder="${id === 'groq' ? 'gsk_…' : 'sk-or-…'}"></div>
+  <div class="btns"><button class="btn primary" data-a="ai-key-save" data-k="${id}">Save</button><button class="btn" data-a="ai-key-test" data-k="${id}">Test</button>${p[id + 'Key'] ? `<button class="btn danger" data-a="ai-key-del" data-k="${id}">Remove</button>` : ''}</div><div id="k-${id}-st" role="status">${p[id + 'Model'] ? `<p class="tiny">Last answered with ${esc(p[id + 'Model'])}.</p>` : ''}</div></section>`;
+  return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Backup AIs for photos</h1><p class="muted small">For a photo of food, Prakash asks Gemini first, then Groq, then OpenRouter, giving each 8 seconds. Any without a key is skipped. If none answer, you can ask Claude or ChatGPT yourself.</p>
+  ${box('groq', 'Groq', 'groqKey', 'console.groq.com/keys', 'Uses a Llama 4 vision model.')}
+  ${box('openrouter', 'OpenRouter', 'openrouterKey', 'openrouter.ai/keys', 'Uses a free vision model.')}
+  <ul class="small muted" style="padding-left:20px;margin:0"><li>Keys stay on this phone. They are never put in a backup.</li><li>A photo is sent only when you tap Fill in with AI, and only to the next AI if the one before didn’t answer. Free plans may use what you send to improve their products.</li></ul></div>`;
+}
+function aiKeyFrom(k) { const el = $('#k-' + k); return el ? cleanKey(el.value) : ''; }
+on('ai-key-save', b => { const k = b.dataset.k, v = aiKeyFrom(k); if (!v) { toast('Paste the key first.'); return; } S.profile[k + 'Key'] = v; delete S.profile[k + 'Model']; save(); render(); toast('Saved on this phone.'); });
+on('ai-key-del', b => { const k = b.dataset.k; delete S.profile[k + 'Key']; delete S.profile[k + 'Model']; save(); render(); toast('Key removed from this phone.'); });
+on('ai-key-test', async b => {
+  const k = b.dataset.k, st = $('#k-' + k + '-st'), v = aiKeyFrom(k), name = k === 'groq' ? 'Groq' : 'OpenRouter';
+  if (!v) { toast('Paste the key first.'); return; }
+  if (S.profile[k + 'Key'] !== v) { S.profile[k + 'Key'] = v; delete S.profile[k + 'Model']; save(); }
+  if (navigator.onLine === false) { st.innerHTML = '<p class="small">You’re offline. Test it when you’re back online.</p>'; return; }
+  st.innerHTML = '<p class="small">Testing…</p>'; b.disabled = true;
+  try { const r = await withTimeout(AI_TIMEOUT * 2, s => (k === 'groq' ? askGroq : askOpenRouter)('Reply with ONLY this JSON: {"items":[{"name":"test","grams":1,"kcal":1,"protein":0}]}', '', s)); st.innerHTML = `<div class="okbox">Working. ${name} answered${r.model ? ' (' + esc(r.model) + ')' : ''}.</div>`; }
+  catch (e) { st.innerHTML = `<div class="warnbox"><p class="small" style="color:var(--warn-ink)">${name} didn’t answer: ${esc(aiWhy(e))}.</p></div>`; }
+  b.disabled = false;
+});
 function musicHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Meditation music</h1><p class="muted small">Begin Gauri Shankar opens this in Spotify. Paste a different album or playlist link to change it.</p><div><label class="lab" for="gs-link">Spotify link</label><input class="input" id="gs-link" inputmode="url" autocomplete="off" value="${esc(gsLink())}"></div><button class="btn" data-a="med-music">Open in Spotify</button></div>`; }
 
 /* ---------- backup ---------- */
 async function backupObject() {
-  const out = JSON.parse(JSON.stringify(S)); delete out.profile.geminiKey; delete out.profile.geminiModel; delete out.needsWelcome;
+  const out = JSON.parse(JSON.stringify(S)); delete out.profile.geminiKey; delete out.profile.geminiModel; AI_KEYS.forEach(k => delete out.profile[k]); delete out.needsWelcome;
   let voices = 0, photos = 0;
   for (const e of out.witness.entries) { const a = await wget(e.id).catch(() => null); if (a && a.blob) { e.audio = { mimeType: a.blob.type || a.mime || 'audio/webm', base64: await blob64(a.blob) }; voices++; } }
   for (const p of out.photos) { if (p.dataUrl) { photos++; continue; } const r = await pget(p.id).catch(() => null); if (r && r.blob) { p.image = { mimeType: r.blob.type || 'image/jpeg', base64: await blob64(r.blob) }; photos++; } }
@@ -2472,7 +2653,7 @@ on('restore-go', async () => {
   for (const e of ((j.witness || {}).entries || [])) { if (e.audio && e.audio.base64) { await wput(e.id, { blob: b64blob(e.audio.base64, e.audio.mimeType), mime: e.audio.mimeType }).catch(() => {}); e.hasVoice = true; } delete e.audio; }
   for (const d of Object.values(j.days || {})) for (const f of (d.foods || [])) { if (f.photoImage && f.photoImage.base64 && f.photoId) await pput(f.photoId, { blob: b64blob(f.photoImage.base64, f.photoImage.mimeType), mime: f.photoImage.mimeType }).catch(() => {}); delete f.photoImage; }
   for (const p of (j.photos || [])) { if (p.image && p.image.base64) { await pput(p.id, { blob: b64blob(p.image.base64, p.image.mimeType), mime: p.image.mimeType }).catch(() => {}); } delete p.image; }
-  const key = S.profile.geminiKey; S = migrate(j); if (key) S.profile.geminiKey = key; delete S.needsWelcome; S.profile.setupDone = true; S.profile.onboardedV = 1;
+  const key = S.profile.geminiKey, more = {}; AI_KEYS.forEach(k => { if (S.profile[k]) more[k] = S.profile[k]; }); S = migrate(j); AI_KEYS.forEach(k => delete S.profile[k]); if (key) S.profile.geminiKey = key; Object.assign(S.profile, more); delete S.needsWelcome; S.profile.setupDone = true; S.profile.onboardedV = 1;
   saveNow(); closeSheet(true); restoreCandidate = null; go('today'); toast('Backup restored.');
 });
 function backupHtml() {
@@ -2492,10 +2673,10 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
