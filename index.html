@@ -126,6 +126,9 @@ html.big-text .rings3-keys .rs{white-space:nowrap}
 .searchbar label{min-width:0}
 .searchbar .iconbtn{width:48px}
 .link{min-width:44px}
+.stop-open{background:none;border:0;color:var(--ink);font:inherit;cursor:pointer;padding:8px;min-height:44px;width:100%}
+.set-hint{grid-column:1/-1;margin:-4px 0 6px;color:var(--warn-ink)}
+.guess{display:block;font-size:16px;color:var(--warn-ink);margin-bottom:2px}
 .okbox{background:var(--now);border:1px solid var(--now-line);border-radius:14px;padding:12px 14px}
 /* top */
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -256,7 +259,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.7.0';
+const VERSION = '1.8.0';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -276,7 +279,8 @@ const todayKey = () => keyOf();
 function dateOf(k) { const a = k.split('-').map(Number); return new Date(a[0], a[1] - 1, a[2]); }
 function addDays(k, n) { const d = dateOf(k); d.setDate(d.getDate() + n); return keyOf(d); }
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-function fmtD(d) { d = new Date(d); return d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear(); }   // 24 Sep 2026, everywhere
+function validDate(d) { return d != null && d !== '' && !isNaN(new Date(d).getTime()); }
+function fmtD(d) { if (!validDate(d)) return ''; d = new Date(d); return d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear(); }   // 24 Sep 2026, everywhere
 function fmtDate(k) { return fmtD(dateOf(k)); }
 function fmtDay(k) { const d = dateOf(k); return WDAY[d.getDay()] + ' ' + fmtD(d); }
 /* A date field that always reads "24 Sep 2026": the phone's own date picker sits invisibly on top. */
@@ -349,6 +353,8 @@ function migrate(s) {
   if (!s.witness) s.witness = { entries: [], readings: [] };
   if (!Array.isArray(s.witness.entries)) s.witness.entries = [];
   if (!Array.isArray(s.witness.readings)) s.witness.readings = [];
+  // entries with no usable date and no words are empty shells: drop them. Entries with words stay, dated or not.
+  s.witness.entries = s.witness.entries.filter(e => e && (validDate(e.created) || ['direct', 'story', 'nextStep', 'wonder'].some(k => String(e[k] || '').trim())));
   if (!s.talks) s.talks = { heard: {}, themes: {}, notes: {} };
   ['heard', 'themes', 'notes'].forEach(k => { if (!s.talks[k]) s.talks[k] = {}; });
   // 1.7: a calorie target nobody chose (the old 1,700 default left by "Skip for now") becomes "not set yet"
@@ -625,7 +631,7 @@ on('go-food', () => go('food', 'day'));
 on('go-sleep', () => { go('you', 'body'); setTimeout(() => { const s = $('#sleep-card'); if (s) s.scrollIntoView({ block: 'start' }); }, 60); });
 on('water', () => { day(todayKey()).water++; save(); render(); });
 on('lamp', () => { const t = T(); t.lamp = !t.lamp; if (t.lamp) hintDone('lamp'); save(); render(); if (t.lamp) bell(528, 2.5); });
-on('quiet-today', () => { const t = T(); t.quiet = !t.quiet; save(); render(); toast(t.quiet ? 'Quiet until midnight. Only what happened.' : 'Targets are back.'); });
+on('quiet-today', () => { const t = T(); t.quiet = !t.quiet; save(); render(); toast(t.quiet ? 'Quiet for today is on, until midnight.' : 'Quiet for today is off.'); });
 /* the lamp first: until it's lit, the day opens with the lamp and the waking prayer */
 function morningHtml() {
   const pr = PRAYERS.find(x => x.id === 'wake'), lines = pr.text.split('\n').filter(x => x.trim() && !x.trim().startsWith('ॐ')).slice(0, 3);
@@ -642,9 +648,49 @@ function tipToday() { const p = S.profile; if (everLogged() || (p.tipDay && p.ti
 function eveningLineHtml() {
   if (!mods().mind || nowMins() < 18 * 60) return '';
   const done = T().line;
-  return `<section class="card stack" style="gap:10px" aria-label="One line for today"><h2 style="font-size:20px">One line for today</h2>${done ? `<p class="small muted">Kept in your journal: “${esc(done)}”</p>` : `<input class="input" id="eve-line" maxlength="160" placeholder="Optional. Whatever is true tonight." aria-label="One line for today"><button class="btn" data-a="eve-save">Keep it in the journal</button>`}</section>`;
+  return `<section class="card stack" style="gap:10px" aria-label="One line for today"><h2 style="font-size:20px">One line for today</h2>${done ? `<p class="small muted">Kept in your journal: “${esc(done)}”</p>` : `<input class="input" id="eve-line" maxlength="300" placeholder="Optional. Whatever is true tonight." aria-label="One line for today"><button class="btn" data-a="eve-save">Keep it in the journal</button>`}</section>`;
 }
-on('eve-save', () => { const v = (($('#eve-line') || {}).value || '').trim(); if (!v) { toast('A few words, or leave it.'); return; } const n = new Date().toISOString(); S.witness.entries.unshift({ id: uid(), created: n, updated: n, kind: 'The day’s last line', direct: v, story: '', nextStep: '', tags: [] }); T().line = v; save(); render(); toast('Kept in your journal.'); });
+on('eve-save', () => { const v = (($('#eve-line') || {}).value || '').trim(); if (!v) { toast('A few words, or leave it.'); return; } const n = new Date().toISOString(); S.witness.entries.unshift({ id: uid(), created: n, updated: n, kind: 'The day’s last line', direct: v, story: '', nextStep: '', tags: [] }); T().line = v; save(); render(); const found = readDay(v); if (found.length) offerDay(found); else toast('Kept in your journal.'); });
+/* One line can fill in the day: "had dal and two rotis with Mum, walked 20 minutes, sat for the hour".
+   It's read here, on the phone, against your own foods and a few plain patterns. Nothing is added until you tick it. */
+function readDay(text) {
+  const out = [], k = todayKey(), num1 = w => ({ a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, half: 0.5 })[String(w).toLowerCase()] || parseFloat(w);
+  const clauses = String(text).split(/\s*(?:[,;.]|\bthen\b|\band then\b)\s*/i).map(x => x.trim()).filter(Boolean);
+  for (let c of clauses) {
+    let m;
+    if ((m = c.match(/\b(\d[\d,]*)\s*steps\b/i))) { out.push({ kind: 'steps', n: parseInt(m[1].replace(/,/g, ''), 10), label: big(parseInt(m[1].replace(/,/g, ''), 10)) + ' steps' }); continue; }
+    if ((m = c.match(/\b(walk(?:ed)?|walking|stroll(?:ed)?)\b.*?\b(\d+|an?|half an?)\s*(hours?|hrs?|minutes?|mins?)\b|\b(\d+)\s*(minutes?|mins?)\s*(?:of\s*)?walk/i))) { const n = m[2] ? (/half/i.test(m[2]) ? 0.5 : num1(m[2])) * (/^h/i.test(m[3]) ? 60 : 1) : +m[4]; if (n > 0) { out.push({ kind: 'walk', n: Math.round(n), label: Math.round(n) + ' minutes walking' }); continue; } }
+    if ((m = c.match(/\b(sat|sitting|meditat\w*|gauri shankar)\b(?:.*?\b(\d+|an?|half an?|the)\s*(hours?|hrs?|minutes?|mins?)\b)?/i))) { const n = m[3] ? (/half/i.test(m[2]) ? 0.5 : m[2] && /the|an?/i.test(m[2]) ? 1 : num1(m[2])) * (/^h/i.test(m[3]) ? 60 : 1) : null; if (n > 0) { out.push({ kind: 'sit', n: Math.round(n), label: Math.round(n) + ' minutes sitting' }); continue; } }
+    if ((m = c.match(/\b(\d+|a|one|two|three|four|five|six)\s*(?:glass(?:es)?|cups?)\s*of\s*water\b/i))) { out.push({ kind: 'water', n: num1(m[1]), label: num1(m[1]) + ' glass' + (num1(m[1]) === 1 ? '' : 'es') + ' of water' }); continue; }
+    // food: "had X", "ate X", "X for dinner"; people after "with" aren't food
+    let f = c.replace(/^(?:i\s+)?(?:had|ate|have had|eaten)\s+/i, '').replace(/\bwith\s+(?:my\s+)?[A-Z][\w’']*(?:\s+and\s+[A-Z][\w’']*)*\b.*$/, '').replace(/\bwith\s+(?:mum|dad|family|friends?|the kids|my wife|my husband)\b.*$/i, '');
+    const slot = (c.match(/\b(breakfast|lunch|dinner|snack)\b/i) || [])[1]; f = f.replace(/\b(?:for|at)\s+(?:breakfast|lunch|dinner|a snack|snack)\b/i, '').trim();
+    if (!f || /^(felt|feeling|it was|was|am|i'm|slept|rested|tired|calm|happy|sad)\b/i.test(f)) continue;
+    parseSentence(f).forEach(pt => { const mm = matchLocal(pt.name); if (!mm) return; const cand = { ...mm.c }, am = pt.qty != null ? defaultAmt(cand) : (cand._qty != null ? { qty: cand._qty, unit: cand._unit } : defaultAmt(cand)); if (pt.qty != null) am.qty = am.unit === 'g' ? pt.qty * 100 : pt.qty; delete cand._qty; delete cand._unit;
+      const v = calc(cand, am.qty, am.unit), guess = isGuess(pt.name, cand.name);
+      out.push({ kind: 'food', cand, qty: am.qty, unit: am.unit, slot: slot ? slot.toLowerCase() : (nowMins() >= 16 * 60 ? 'dinner' : nowMins() >= 11 * 60 ? 'lunch' : 'breakfast'), guess, said: pt.raw, label: cand.name + ' · ' + amountLabel(cand, am.qty, am.unit) + ' · ' + big(v.kcal) + ' cal' }); });
+  }
+  return out;
+}
+let DAYFOUND = null;
+function offerDay(found) {
+  DAYFOUND = found.map(x => ({ ...x, on: !x.guess }));
+  const row = (x, i) => `<label class="check" style="align-items:flex-start;min-height:52px"><input type="checkbox" data-dayi="${i}" ${x.on ? 'checked' : ''}><span>${x.guess ? '<span class="guess">Did you mean…?</span>' : ''}${esc(x.label)}${x.kind === 'food' ? `<span class="tiny" style="display:block">${esc(MEAL_NAME[x.slot])} · you wrote “${esc(x.said)}”</span>` : ''}</span></label>`;
+  openSheet(`<div class="stack"><p class="small muted">Kept in your journal. Your line also mentions these. Tick what’s right; nothing is added otherwise.</p>${DAYFOUND.map(row).join('')}<button class="btn primary big" data-a="day-add">Add the ticked ones</button><button class="btn" data-a="sheet-close">Just the journal</button></div>`, { title: 'Your line', label: 'Add to today', bind: el => el.addEventListener('change', e => { const i = e.target.dataset && e.target.dataset.dayi; if (i != null) DAYFOUND[+i].on = e.target.checked; }) });
+}
+on('day-add', () => {
+  const d = day(todayKey()), got = (DAYFOUND || []).filter(x => x.on); if (!got.length) { closeSheet(); toast('Kept in your journal.'); return; }
+  const undo = { foods: [], walk: 0, water: 0, steps: null, med: [] };
+  got.forEach(x => {
+    if (x.kind === 'food') { const e = makeEntry(x.cand, x.qty, x.unit, x.slot, { source: 'From your line' }); d.foods.push(e); undo.foods.push(e.id); }
+    if (x.kind === 'walk') { d.walkMin = (+d.walkMin || 0) + x.n; undo.walk += x.n; }
+    if (x.kind === 'water') { d.water = (+d.water || 0) + x.n; undo.water += x.n; }
+    if (x.kind === 'steps') { undo.steps = d.steps; d.steps = x.n; }
+    if (x.kind === 'sit') { const m = { id: uid(), date: todayKey(), minutes: x.n, kind: 'plain' }; S.meditations.push(m); undo.med.push(m.id); }
+  });
+  d.silent = false; save(); closeSheet(); render();
+  undoBar(got.length === 1 ? 'Added to today.' : got.length + ' things added to today.', () => { d.foods = d.foods.filter(f => !undo.foods.includes(f.id)); d.walkMin -= undo.walk; d.water -= undo.water; if (undo.steps !== null) d.steps = undo.steps; S.meditations = S.meditations.filter(m => !undo.med.includes(m.id)); save(); render(); }, 6000);
+});
 function everLogged() { return Object.values(S.days).some(d => (d.foods || []).some(f => !f.autoChai)); }
 
 /* The one "Now" card: chosen by the time of day. */
@@ -682,7 +728,7 @@ function nowCard() {
   return null;
 }
 function nowHtml() {
-  const sp = stopPending(); if (sp) { const f = STOP_FORMS[sp.ix]; return `<section class="card now stop-card stack" aria-label="The Stop" style="gap:10px;text-align:center;padding:28px 18px"><span class="eyebrow">The Stop · ${fmtTime(sp.at)}</span><div style="font-family:var(--serif);font-size:40px;line-height:1.1">${esc(f.word)}</div><p class="muted">${esc(f.line)}</p><button class="stop-leave" data-a="stop-card-leave" style="margin:0;align-self:center">leave</button></section>`; }
+  const sp = stopPending(); if (sp) { const f = STOP_FORMS[sp.ix]; return `<section class="card now stop-card stack" aria-label="The Stop" style="gap:10px;text-align:center;padding:28px 18px"><span class="eyebrow">The Stop · ${fmtTime(sp.at)}</span><button class="stop-open" data-a="stop-open" aria-label="Open the Stop full screen"><span style="display:block;font-family:var(--serif);font-size:40px;line-height:1.1">${esc(f.word)}</span><span class="muted" style="display:block;margin-top:10px">${esc(f.line)}</span></button><button class="stop-leave" data-a="stop-card-leave" style="margin:0;align-self:center">leave</button></section>`; }
   const c = nowCard(); if (!c) return '';
   return `<section class="card now stack" aria-label="Now" style="gap:10px"><span class="eyebrow">${esc(c.eyebrow)}</span><h2>${esc(c.title)}</h2>${c.body ? `<p class="${c.prayer ? 'prayer-text' : 'muted'}" style="${c.prayer ? 'font-size:18px' : ''}">${esc(c.body)}</p>` : ''}
   <div class="btns">${c.prayer ? `<button class="btn" data-a="pray-toggle" data-id="${c.prayer}" aria-pressed="false"><span class="lampbtn" style="width:30px;height:30px;border:0">${diyaSvg(26)}</span>Prayed</button>` : ''}${c.btns.map(b => `<button class="btn ${b[2]}" data-a="${b[1]}">${esc(b[0])}</button>`).join('')}</div>
@@ -833,7 +879,7 @@ function foodDayHtml() {
   const k = foodDate, t = todayKey(), d = day(k), tot = totals(d), p = S.profile, left = (p.kcalTarget || 0) - tot.kcal;
   const past = k < t, silent = isSilent(k), real = realFoods(d).length;
   let status = '';
-  if (silent) status = `<div class="okbox"><strong>A silent day</strong><p class="tiny" style="margin-top:4px">Nothing to log.${tgt('kcalTarget') ? ' The week counts it at your usual ' + big(p.kcalTarget) + '.' : ''}</p><button class="link" data-a="silent-off" style="padding:0">Log this day after all</button></div>`;
+  if (silent) status = `<div class="okbox"><strong>Nothing logged this day</strong><p class="tiny" style="margin-top:4px">Nothing to log.${tgt('kcalTarget') ? ' The week counts it at your usual ' + big(p.kcalTarget) + '.' : ''}</p><button class="link" data-a="silent-off" style="padding:0">Log this day after all</button></div>`;
   else if (past && !real) status = `<p class="tiny">Not logged.${tgt('kcalTarget') ? ' The week counts it at your usual ' + big(p.kcalTarget) + '.' : ''} Add what you remember, or leave it.</p>`;
   return `<div class="stack">
   <h1>Food</h1>
@@ -844,7 +890,7 @@ function foodDayHtml() {
     return `<section class="meal" aria-label="${nm}"><div class="meal-head"><strong>${nm}${fs.length ? ` <span class="tiny" style="font-weight:400">${big(kc)} cal</span>` : ''}</strong><button class="link" data-a="add-meal" data-slot="${sl}" data-k="${k}">+ Add</button></div>
     ${fs.map(f => `<button class="food-row" data-a="food-item" data-id="${f.id}">${f.photoId ? `<img class="food-thumb" data-mealphoto="${esc(f.photoId)}" alt="">` : ''}<span class="t"><strong style="font-weight:500">${esc(f.name)}</strong><span>${esc(f.amount || '')}${f.amount ? ' · ' : ''}${n0(f.protein)} g protein${f.trigger ? ' · ' + esc(f.trigger) : ''}</span></span><span class="k">${big(f.kcal)}</span></button>`).join('')}
     ${hadY ? `<button class="link" data-a="repeat-meal" data-slot="${sl}" data-k="${k}" style="padding:0 0 6px">Same as yesterday</button>` : ''}</section>`; }).join('')}
-  <div class="btns">${!silent && real ? (d.closed ? `<button class="btn" data-a="day-open">Day closed · reopen</button>` : `<button class="btn" data-a="day-close">That's everything for ${k === t ? 'today' : 'this day'}</button>`) : ''}${!silent && !real ? `<button class="btn" data-a="silent-on">Make it a silent day</button>` : ''}</div>
+  <div class="btns">${!silent && real ? (d.closed ? `<button class="btn" data-a="day-open">Day closed · reopen</button>` : `<button class="btn" data-a="day-close">That's everything for ${k === t ? 'today' : 'this day'}</button>`) : ''}${!silent && !real ? `<button class="btn" data-a="silent-on">${k === t ? 'Nothing to log today' : 'Nothing to log this day'}</button>` : ''}</div>
   <button class="navrow" data-a="food-week"><span>See the whole week<small>Calories across the week, and what's coming up</small></span></button>
   </div>`;
 }
@@ -879,12 +925,19 @@ function addItemsNow() {
   else items = BASICS.map(x => ({ c: x }));
   return items;
 }
-function addRow(it, i, src) { const c = it.c, am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c), v = calc(c, am.qty, am.unit); return `<li class="li"><button class="t" data-a="add-quick" data-hold="add-pick" data-src="${src}" data-i="${i}" aria-label="Add ${esc(c.name)}, ${esc(amountLabel(c, am.qty, am.unit))}"><strong>${esc(c.name)}</strong><span>${it.tag ? esc(it.tag) + ' · ' : ''}${esc(amountLabel(c, am.qty, am.unit))} · ${shortMacro(v)}</span></button><button class="round" data-a="add-pick" data-src="${src}" data-i="${i}" aria-label="Change the amount of ${esc(c.name)}" style="font-size:20px">⋯</button></li>`; }
+/* "dal" typed on its own is a general word: a named dish it matched is only a guess, and is shown as one */
+const PLAIN_WORDS = new Set(['cooked', 'dry', 'raw', 'plain', 'boiled', 'fresh', 'homemade', 'bowl', 'cup', 'mug', 'glass', 'plate', 'portion', 'piece', 'slice', 'small', 'medium', 'large']);
+function isGuess(said, name) {
+  const q = toks(said); if (q.length !== 1) return false;
+  const same = new Set([q[0], ...(ALIAS[q[0]] || []).flatMap(toks)]);
+  return toks(name).some(w => !same.has(w) && !PLAIN_WORDS.has(w) && !/^\d/.test(w));
+}
+function addRow(it, i, src) { const c = it.c, am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c), v = calc(c, am.qty, am.unit); return `<li class="li"><button class="t" data-a="add-quick" data-hold="add-pick" data-src="${src}" data-i="${i}" aria-label="Add ${esc(c.name)}, ${esc(amountLabel(c, am.qty, am.unit))}">${it.guess ? `<span class="guess">Did you mean…?</span>` : ''}<strong>${esc(c.name)}</strong><span>${it.tag ? esc(it.tag) + ' · ' : ''}${esc(amountLabel(c, am.qty, am.unit))} · ${shortMacro(v)}</span></button><button class="round" data-a="add-pick" data-src="${src}" data-i="${i}" aria-label="Change the amount of ${esc(c.name)}" style="font-size:20px">⋯</button></li>`; }
 function addResultsHtml() {
   const a = ADD, q = a.q.trim();
   if (q && looksLikeSentence(q)) {
     const parts = parseSentence(q), miss = []; a._items = [];
-    parts.forEach(pt => { const m = matchLocal(pt.name); if (!m) { miss.push(pt); return; } const c = { ...m.c }, am = pt.qty != null ? defaultAmt(c) : (c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c)); if (pt.qty != null) { am.qty = am.unit === 'g' ? pt.qty * 100 : pt.qty; } c._qty = am.qty; c._unit = am.unit; a._items.push({ c, tag: '“' + pt.raw + '”' }); });
+    parts.forEach(pt => { const m = matchLocal(pt.name); if (!m) { miss.push(pt); return; } const c = { ...m.c }, am = pt.qty != null ? defaultAmt(c) : (c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c)); if (pt.qty != null) { am.qty = am.unit === 'g' ? pt.qty * 100 : pt.qty; } c._qty = am.qty; c._unit = am.unit; a._items.push({ c, tag: '“' + pt.raw + '”', guess: isGuess(pt.name, c.name) }); });
     return `<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('')}</ul>
     ${miss.map(pt => `<div class="between" style="min-height:52px;border-top:1px solid var(--hair2)"><span class="small">No match for “${esc(pt.raw)}”</span><button class="link" data-a="say-part" data-t="${esc(pt.name)}">Look it up</button></div>`).join('')}
     ${a._items.length > 1 ? `<button class="btn primary" data-a="add-all" style="width:100%;margin-top:10px">Add all ${a._items.length}</button>` : ''}`;
@@ -938,7 +991,7 @@ function addRender() {
   }
   const b = sheetBody(h); if (!b) return;
   const qi = $('#add-q', b);
-  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; a.onlineFor = ''; if (offCtl) offCtl.abort(); clearTimeout(a._ot); clearTimeout(a._t); a._t = setTimeout(() => { refreshAddResults(); autoOnline(); }, 150); }; qi.onkeydown = e => { if (e.key === 'Enter' && a.q.trim()) { e.preventDefault(); if (looksLikeSentence(a.q.trim()) && (a._items || []).length) A['add-all'](); else qi.blur(); } }; }
+  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; a.onlineFor = ''; if (offCtl) offCtl.abort(); clearTimeout(a._ot); clearTimeout(a._t); a._t = setTimeout(() => { refreshAddResults(); autoOnline(); }, 150); }; qi.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); refreshAddResults(); qi.blur(); } }; }   // Enter only shows the matches; nothing is added without a tap
   const qq = $('#add-qty', b); if (qq) qq.oninput = e => { const v = num(e.target.value); if (v != null && v > 0) { a.qty = v; const s = $('.big-num', b); const val = calc(a.cand, a.qty, a.unit); if (s) s.firstChild.nodeValue = big(val.kcal) + ' '; } };
   if (a.mode === 'scan') startScan();
   if (a.mode === 'photo') bindEstimate(b);
@@ -1359,7 +1412,7 @@ function qtyFromCand(c, stated) {
 }
 function draftItem(c, o) {
   o = o || {}; const { per, unit } = perFromCand(c), clean = { ...c }; delete clean._qty; delete clean._unit;
-  return { id: uid(), name: c.name, per, unit, qty: qtyFromCand(c, o.qty), src: o.src || c.src || '', said: o.said || '', countAsk: !!o.countAsk, oilG: o.oilG || 0, oilNow: o.oilG || 0, cand: clean };
+  return { id: uid(), name: c.name, per, unit, qty: qtyFromCand(c, o.qty), src: o.src || c.src || '', said: o.said || '', countAsk: !!o.countAsk, oilG: o.oilG || 0, oilNow: o.oilG || 0, cand: clean, note: o.said && typeof isGuess === 'function' && isGuess(o.said.replace(/^[\d.½\s]+/, ''), c.name) ? 'Did you mean this? Check it, change it or remove it.' : '' };
 }
 function emptyItem(name, said, note) { return { id: uid(), name: name || '', per: { k: 0, p: 0, c: 0, f: 0, b: 0 }, unit: 'portion', qty: 1, src: '', said: said || '', empty: true, note: note || 'Not in your foods yet. Enter the numbers, or remove it.' }; }
 const drVal = (it, k) => (it.per[k] || 0) * it.qty;
@@ -1720,7 +1773,7 @@ function aimText(ex) {
 function incFor(name) { return /squat|deadlift|hip thrust|split squat/i.test(name) ? 2.5 : /dumbbell|raise|curl|pressdown/i.test(name) ? 1 : 1.25; }
 function nextSets(e) {
   const last = lastExercise(e.name), r = specRange(e.sets), n = Math.max(setCount(e.sets), last ? Math.min(last.sets.length, 6) : 0);
-  if (!last) return { sets: Array.from({ length: n }, () => ({ kg: '', reps: '', done: false })), up: false };
+  if (!last) return { sets: Array.from({ length: n }, () => ({ kg: e.core ? '0' : '', reps: '', done: false })), up: false };
   const top = last.sets.reduce((a, s) => (+s.kg > +a.kg ? s : a), last.sets[0]);
   const up = !!r && +top.kg > 0 && last.sets.every(s => +s.reps >= r[1]) && last.feel !== 'Hard';
   return { up, sets: Array.from({ length: n }, (_, i) => { const s = last.sets[i] || last.sets[last.sets.length - 1]; return up ? { kg: String(n1(+top.kg + incFor(e.name))), reps: String(r[0]), done: false } : { kg: String(s.kg || ''), reps: String(s.reps || ''), done: false }; }) };
@@ -1734,14 +1787,20 @@ function startWorkout(id) {
 }
 on('wo-start', b => startWorkout(b.dataset.id));
 on('wo-start-next', () => startWorkout(nextDayId()));
-on('wo-prev', () => { draft.i = Math.max(0, draft.i - 1); saveDraft(); render(); window.scrollTo(0, 0); });
-on('wo-next', () => { draft.i = Math.min(draft.ex.length - 1, draft.i + 1); saveDraft(); render(); window.scrollTo(0, 0); });
-on('wo-go', b => { draft.i = +b.dataset.i; saveDraft(); render(); });
+// the rest belongs to the exercise where the set was done: moving on clears it
+function goExercise(i) { if (i !== draft.i) { restEnd = 0; setHint = null; } draft.i = i; saveDraft(); render(); window.scrollTo(0, 0); }
+on('wo-prev', () => goExercise(Math.max(0, draft.i - 1)));
+on('wo-next', () => goExercise(Math.min(draft.ex.length - 1, draft.i + 1)));
+on('wo-go', b => goExercise(+b.dataset.i));
 on('wo-warm', () => { draft.warm = true; saveDraft(); render(); });
 on('wo-feel', b => { const ex = draft.ex[draft.i]; ex.feel = ex.feel === b.dataset.f ? '' : b.dataset.f; saveDraft(); render(); });
 on('wo-addset', () => { const ex = draft.ex[draft.i], l = ex.sets[ex.sets.length - 1] || {}; ex.sets.push({ kg: l.kg || '', reps: l.reps || '', done: false }); saveDraft(); render(); });
+let setHint = null;   // { i, si }: the row that was ticked before kg and reps were filled in
+const filled = v => String(v == null ? '' : v).trim() !== '';
 function setDone(si, v) {
-  const ex = draft.ex[draft.i], s = ex.sets[si]; if (!s) return; s.done = v;
+  const ex = draft.ex[draft.i], s = ex.sets[si]; if (!s) return;
+  if (v && !(filled(s.kg) && filled(s.reps))) { setHint = { i: draft.i, si }; render(); return; }   // a blank set stays undone and never starts the rest
+  setHint = null; s.done = v;
   if (v) { const lastOfAll = draft.i === draft.ex.length - 1 && ex.sets.every(x => x.done); restEnd = lastOfAll ? 0 : Date.now() + (S.profile.restSec || 120) * 1000; }
   saveDraft(); render();
 }
@@ -1772,7 +1831,7 @@ function playerHtml() {
   ${draft.i === 0 && !draft.warm ? `<section class="card stack" style="gap:8px"><span class="eyebrow">Warm up first · 3 moves</span><ol style="margin:0;padding-left:22px" class="small">${WARMUP.map((w, i) => `<li style="margin-bottom:6px">${esc(i === 2 ? 'One light set of ' + ex.name.toLowerCase() + ' at about half the weight.' : w)}</li>`).join('')}</ol><button class="btn" data-a="wo-warm">Warmed up</button></section>` : ''}
   ${aim[0] ? `<section class="card" style="padding:12px 16px"><span class="muted small">${esc(aim[0])}</span>${aim[1] ? `<div style="font-weight:600;margin-top:2px">${esc(aim[1])}</div>` : ''}</section>` : ''}
   <div class="sets" aria-label="Sets"><div class="setrow" style="min-height:0;font-size:16px;color:var(--ink2)"><span>Set</span><span>kg</span><span>Reps</span><span style="text-align:center">Done</span></div>
-  ${ex.sets.map((s, si) => `<div class="setrow${s.done ? ' done' : ''}" data-setrow="${si}"><span>${si + 1}</span><input inputmode="decimal" aria-label="Set ${si + 1} kilograms" data-set="${si}:kg" value="${esc(s.kg)}" placeholder="kg"><input inputmode="numeric" aria-label="Set ${si + 1} reps" data-set="${si}:reps" value="${esc(s.reps)}" placeholder="reps"><button class="tick" data-a="wo-tick" data-s="${si}" aria-pressed="${s.done}" aria-label="${s.done ? 'Set ' + (si + 1) + ' done. Tap to undo' : 'Mark set ' + (si + 1) + ' done'}">${s.done ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : ''}</button></div>`).join('')}
+  ${ex.sets.map((s, si) => `<div class="setrow${s.done ? ' done' : ''}" data-setrow="${si}"><span>${si + 1}</span><input inputmode="decimal" aria-label="Set ${si + 1} kilograms" data-set="${si}:kg" value="${esc(s.kg)}" placeholder="kg"><input inputmode="numeric" aria-label="Set ${si + 1} reps" data-set="${si}:reps" value="${esc(s.reps)}" placeholder="reps"><button class="tick" data-a="wo-tick" data-s="${si}" aria-pressed="${s.done}" aria-label="${s.done ? 'Set ' + (si + 1) + ' done. Tap to undo' : 'Mark set ' + (si + 1) + ' done'}">${s.done ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : ''}</button></div>${setHint && setHint.i === draft.i && setHint.si === si ? '<p class="small set-hint" role="status">Add kg and reps first.</p>' : ''}`).join('')}
   <button class="link" data-a="wo-addset" style="align-self:flex-start">+ Add a set</button></div>
   ${resting ? `<div class="restbar" role="timer"><span>Rest <strong id="rest-left" style="font-size:22px;margin-left:6px"></strong></span><span><button class="link" data-a="rest-more">+30 s</button><button class="link" data-a="rest-skip">Skip</button></span></div>` : ''}
   <div><span class="small">How did that feel?</span><div class="grid3" style="margin-top:8px">${['Easy', 'About right', 'Hard'].map(f => `<button class="chip" data-a="wo-feel" data-f="${f}" aria-pressed="${ex.feel === f}">${f}</button>`).join('')}</div></div>
@@ -1789,7 +1848,7 @@ R.trainAfter = function (main) {
     const wm = $('#walk-min', main); if (wm) wm.onchange = e => { day(todayKey()).walkMin = parseInt(e.target.value, 10) || 0; save(); toast('Walking minutes saved.'); };
     return;
   }
-  main.oninput = e => { const t = e.target.closest('[data-set]'); if (!t || !draft) return; const [si, f] = t.dataset.set.split(':'); draft.ex[draft.i].sets[+si][f] = t.value; saveDraft(); };
+  main.oninput = e => { const t = e.target.closest('[data-set]'); if (!t || !draft) return; const [si, f] = t.dataset.set.split(':'), st = draft.ex[draft.i].sets[+si]; st[f] = t.value; saveDraft(); if (setHint && setHint.si === +si && filled(st.kg) && filled(st.reps)) { setHint = null; const h = t.closest('.sets').querySelector('.set-hint'); if (h) h.remove(); } };
   $$('[data-setrow]', main).forEach(r => swipe(r, () => setDone(+r.dataset.setrow, true), () => setDone(+r.dataset.setrow, false)));
   ticker(() => {
     const c = $('#wo-clock'); if (c) c.textContent = Math.max(0, Math.round((Date.now() - new Date(draft.startedAt)) / 60000)) + ' min';
@@ -1806,7 +1865,7 @@ R.train = function () {
   const recent = [...S.workouts].slice(-6).reverse();
   return `<div class="stack"><h1>Train</h1>
   ${today.length ? `<div class="okbox"><strong>Trained today</strong><p class="tiny">${esc(today.map(w => w.title).join(', '))}</p></div>` : ''}
-  <section class="card now stack" style="gap:8px"><span class="eyebrow">Next</span><h2>${esc(PROGRAM[next].title)} · ${esc(PROGRAM[next].sub)}</h2><ul class="list" style="margin:0">${PROGRAM[next].ex.filter(e => !e.core).map(e => { const ns = nextSets(e), l = lastLine(e.name); return `<li class="li" style="min-height:0;padding:8px 0"><div class="t"><strong style="font-weight:500">${esc(e.name)}</strong><span>${l ? 'Last: ' + esc(l) : esc(e.sets) + ' · first time'}${ns.up ? ' · up to ' + esc(ns.sets[0].kg) + ' kg today' : ''}</span></div></li>`; }).join('')}</ul><button class="btn primary big" data-a="wo-start" data-id="${next}">Warm up and start</button></section>
+  <section class="card now stack" style="gap:8px"><span class="eyebrow">Next</span><h2>${esc(PROGRAM[next].title)} · ${esc(PROGRAM[next].sub)}</h2><ul class="list" style="margin:0">${PROGRAM[next].ex.map(e => { const ns = nextSets(e), l = lastLine(e.name); return `<li class="li" style="min-height:0;padding:8px 0"><div class="t"><strong style="font-weight:500">${esc(e.name)}${e.core ? ' <span class="tiny" style="font-weight:400">· core</span>' : ''}</strong><span>${l ? 'Last: ' + esc(l) : esc(e.sets) + ' · first time'}${ns.up ? ' · up to ' + esc(ns.sets[0].kg) + ' kg today' : ''}</span></div></li>`; }).join('')}</ul><button class="btn primary big" data-a="wo-start" data-id="${next}">Warm up and start</button></section>
   <details class="fold"><summary>Start a different day</summary><div class="stack">${rot.filter(id => id !== next).map(id => `<button class="navrow" data-a="wo-start" data-id="${id}"><span>${esc(PROGRAM[id].title)} · ${esc(PROGRAM[id].sub)}<small>${PROGRAM[id].ex.length} exercises</small></span></button>`).join('')}</div></details>
   <details class="fold"><summary>How the plan works</summary><ul style="padding-left:20px;margin:0" class="small">${PLAN_NOTES.map(x => `<li style="margin-bottom:8px">${esc(x)}</li>`).join('')}${S.profile.bpSafe ? '<li>With blood pressure: steady breathing, no straining, no maximum lifts.</li>' : ''}</ul></details>
   <h2>Walk</h2>
@@ -2014,7 +2073,7 @@ function writeHtml() {
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px"><span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)} · ${esc(e.practice || e.kind || '')}</span>${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">What surprised you · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}</span>` : e.practice || e.kind ? `<span class="tiny">${esc(e.practice || e.kind)}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">What surprised you · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
   <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
@@ -2042,8 +2101,8 @@ function checkStop() {
   if (Date.now() - due[due.length - 1].getTime() > 3 * 3600e3) return; // too stale to be a signal
   const ix = Math.floor(Math.random() * STOP_FORMS.length), f = STOP_FORMS[ix];
   T().stop = { ix, at: Date.now() }; save(); if (tab === 'today' && !document.hidden) render();
+  // only ever a card on Today, or a silent notification while the app is in the background
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) navigator.serviceWorker.ready.then(reg => reg.showNotification(f.word, { body: f.line, tag: 'prakash-stop', silent: true, data: { stop: true } })).catch(() => {});
-  else showStop(ix);
 }
 function showStop(ix) {
   const f = STOP_FORMS[ix != null ? ix : Math.floor(Math.random() * STOP_FORMS.length)];
@@ -2052,9 +2111,10 @@ function showStop(ix) {
   o.innerHTML = `<div class="big" style="font-size:44px">${esc(f.word)}</div><div class="line">${esc(f.line)}</div><button class="stop-leave">leave</button>`;
   document.body.appendChild(o); o.querySelector('button').onclick = () => { o.remove(); stopClear(); };
 }
-function stopPending() { const st = S.todayOnly && S.todayOnly.date === todayKey() && S.todayOnly.stop; return st && Date.now() - st.at < 30 * 60e3 && STOP_FORMS[st.ix] ? st : null; }
+function stopPending() { const st = S.todayOnly && S.todayOnly.date === todayKey() && S.todayOnly.stop; return st && Date.now() - st.at < 3 * 3600e3 && STOP_FORMS[st.ix] ? st : null; }
 function stopClear() { if (S.todayOnly && S.todayOnly.stop) { delete S.todayOnly.stop; save(); if (tab === 'today') render(); } }
 on('stop-card-leave', () => stopClear());
+on('stop-open', () => { const sp = stopPending(); showStop(sp ? sp.ix : null); });
 function showAnger(step) {
   step = step || 0; let o = $('.focus-mode.anger'); if (!o) { o = document.createElement('div'); o.className = 'focus-mode anger leaveable'; o.setAttribute('role', 'dialog'); document.body.appendChild(o); }
   if (step < ANGER_STEPS.length) { o.innerHTML = `<div class="line" style="font-size:24px">${esc(ANGER_STEPS[step])}</div><div><button class="btn" id="ag-next" style="min-width:140px">Next</button></div><button class="stop-leave" id="ag-leave">leave</button>`; $('#ag-next', o).onclick = () => showAnger(step + 1); $('#ag-leave', o).onclick = () => o.remove(); }
@@ -2136,7 +2196,7 @@ function youHome() {
     <button class="btn ghost" data-a="extras-later">Not now</button></section>` : '';
   return `<div class="stack"><h1>You</h1>
   <button class="choice" data-a="quiet" aria-pressed="${!!p.quiet}"><span><strong>Quiet mode</strong><small>${p.quiet ? 'On: only what happened. No targets, nothing left or over.' : quietToday() ? 'Quiet for today is on until midnight. Tap to keep it on.' : 'Hide targets and show only what happened'}</small></span><span class="tiny">${p.quiet ? 'On' : 'Off'}</span></button>
-  <button class="choice" data-a="quiet-default" aria-pressed="${!!p.quietDefault}"><span><strong>Quiet by default</strong><small>${p.quietDefault ? 'On: targets stay hidden until 6pm each day' : 'Hide targets until 6pm every day'}</small></span><span class="tiny">${p.quietDefault ? 'On' : 'Off'}</span></button>
+  <button class="choice" data-a="quiet-default" aria-pressed="${!!p.quietDefault}"><span><strong>Quiet until 6 pm</strong><small>${p.quietDefault ? 'On: targets are hidden until 6 pm each day' : 'Hide targets until 6 pm every day'}</small></span><span class="tiny">${p.quietDefault ? 'On' : 'Off'}</span></button>
   <button class="choice" data-a="big-text" aria-pressed="${!!p.bigText}"><span><strong>Larger text</strong><small>${p.bigText ? 'On: bigger words and roomier buttons' : 'Make everything easier to read'}</small></span><span class="tiny">${p.bigText ? 'On' : 'Off'}</span></button>
   <div>${rows.map(r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`).join('')}</div>
   ${nudge}${extras}</div>`;
@@ -2147,9 +2207,9 @@ function isInstalled() { try { return window.matchMedia('(display-mode: standalo
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; if (tab === 'you') render(); });
 window.addEventListener('appinstalled', () => { installPrompt = null; if (tab === 'you') render(); });
 on('install', async () => { if (!installPrompt) return; installPrompt.prompt(); try { await installPrompt.userChoice; } catch (e) {} installPrompt = null; render(); });
-on('quiet-default', () => { S.profile.quietDefault = !S.profile.quietDefault; save(); render(); toast(S.profile.quietDefault ? 'Targets stay hidden until 6pm.' : 'Targets show all day.'); });
+on('quiet-default', () => { S.profile.quietDefault = !S.profile.quietDefault; save(); render(); toast(S.profile.quietDefault ? 'Quiet until 6 pm is on.' : 'Quiet until 6 pm is off.'); });
 on('extras-later', () => { S.profile.extrasDismissed = true; save(); render(); });
-on('quiet', () => { S.profile.quiet = !S.profile.quiet; if (S.todayOnly) delete S.todayOnly.quiet; save(); render(); toast(S.profile.quiet ? 'Quiet mode on. Only what happened.' : 'Quiet mode off.'); });
+on('quiet', () => { S.profile.quiet = !S.profile.quiet; if (S.todayOnly) delete S.todayOnly.quiet; save(); render(); toast(S.profile.quiet ? 'Quiet mode is on.' : 'Quiet mode is off.'); });
 function settingsHtml() {
   const p = S.profile;
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Settings</h1><div>
@@ -2335,7 +2395,7 @@ function rhythmHtml() {
   const p = S.profile;
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Your day</h1><p class="muted small">These times decide what Today shows, and when.</p>
   <section class="card stack"><div class="grid2">${field('r-w', 'Wake', 'wake', p.wake, 'text', 'type="time"')}${field('r-b', 'Bed', 'bed', p.bed, 'text', 'type="time"')}${field('r-f', 'First food', 'foodFrom', p.foodFrom, 'text', 'type="time"')}${field('r-t', 'Last food', 'foodTo', p.foodTo, 'text', 'type="time"')}</div></section>
-  <section class="card stack"><h2>A silent day</h2><p class="muted small">One day a week with nothing to log. The week counts it at your usual calories.</p><div class="chips">${[[-1, 'None'], [0, 'Sun'], [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat']].map(x => `<button class="chip" data-a="silent-day" data-d="${x[0]}" aria-pressed="${+p.silentWeekday === x[0]}">${x[1]}</button>`).join('')}</div></section>
+  <section class="card stack"><h2>A day with nothing to log</h2><p class="muted small">One day a week with nothing to log. The week counts it at your usual calories.</p><div class="chips">${[[-1, 'None'], [0, 'Sun'], [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat']].map(x => `<button class="chip" data-a="silent-day" data-d="${x[0]}" aria-pressed="${+p.silentWeekday === x[0]}">${x[1]}</button>`).join('')}</div></section>
   <section class="card stack"><h2>Food</h2><label class="check"><input type="checkbox" data-set="vegetarian" ${p.vegetarian ? 'checked' : ''}>Vegetarian</label><label class="check"><input type="checkbox" data-set="eggFree" ${p.eggFree ? 'checked' : ''}>No eggs</label></section>
   <section class="card stack"><h2>Before eating</h2><label class="check"><input type="checkbox" data-set="breathBeforeMeals" ${p.breathBeforeMeals ? 'checked' : ''}>Ask “What’s asking for food?” once per meal</label></section></div>`;
 }
@@ -2432,7 +2492,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet by default: targets hidden until 6pm. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
@@ -2548,8 +2608,10 @@ setInterval(() => { const k = todayKey() + ':' + Math.floor(nowMins() / 15); if 
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; if (tab === 'today' && !$('.sheet-back')) render(); checkStop(); });
 window.addEventListener('load', () => setTimeout(checkStop, 5000));
 setInterval(checkStop, 30000);
-if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'show-stop' && !stopBusy()) showStop(); });
-if (/[?&]stop=1/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTimeout(() => { if (!stopBusy()) showStop(); }, 1500); }
+// a tapped Stop notification brings you to Today, where the Stop waits as a card; nothing opens full screen by itself
+function stopFromNotice() { if (!stopPending()) { T().stop = { ix: Math.floor(Math.random() * STOP_FORMS.length), at: Date.now() }; save(); } if (!stopBusy()) go('today'); }
+if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'show-stop') stopFromNotice(); });
+if (/[?&]stop=1/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTimeout(stopFromNotice, 300); }
 </script>
 <script>
 if ('serviceWorker' in navigator) {
