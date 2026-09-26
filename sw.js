@@ -2,7 +2,7 @@
 // Network first with a 2-second fallback to the saved copy, so updates show quickly and
 // a weak signal never leaves a blank screen. Only old Prakash caches are removed;
 // localStorage and IndexedDB (your data) are never touched.
-const CACHE = 'prakash-1.6.0';
+const CACHE = 'prakash-1.7.0';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './prakash-om-favicon.png', './prakash-om-192.png', './prakash-om-512.png'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && /^(prakash|sadhana)-/.test(k)).map(k => caches.delete(k)))).then(() => self.clients.claim())));
