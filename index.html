@@ -260,7 +260,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.8.3';
+const VERSION = '1.8.4';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -865,7 +865,8 @@ function geminiErr(e) {
    Each gets 8 seconds; no answer, an error or nothing readable moves on to the next. An AI without a key is skipped.
    Keys live only on this phone (never in a backup). The photo goes out only when you tap. */
 const AI_TIMEOUT = 8000;
-const GROQ_MODELS = ['meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct'];
+// Groq retired Llama 4 Maverick (March 2026) and Scout (July 2026); Qwen is its vision model now. If these go too, Prakash asks Groq which it has.
+const GROQ_MODELS = ['qwen/qwen3.8-27b', 'qwen/qwen3.6-27b', 'meta-llama/llama-4-scout-17b-16e-instruct'];
 const OR_MODELS = ['openrouter/free', 'meta-llama/llama-4-maverick:free', 'google/gemma-3-27b-it:free', 'qwen/qwen2.5-vl-72b-instruct:free', 'mistralai/mistral-small-3.2-24b-instruct:free'];
 const AI_KEYS = ['groqKey', 'groqModel', 'openrouterKey', 'openrouterModel'];   // with geminiKey/geminiModel: kept out of backups
 function aiKey(name) { return cleanKey(S.profile[name + 'Key']); }
@@ -875,24 +876,40 @@ function withTimeout(ms, fn) {
   const stop = new Promise((_, rej) => { t = setTimeout(() => { ac.abort(); const e = Error('timeout'); e.timeout = true; rej(e); }, ms); });
   return Promise.race([fn(ac.signal), stop]).finally(() => clearTimeout(t));
 }
-async function openAiChat(url, key, model, text, dataUrl, signal, headers) {
+async function openAiChat(url, key, model, text, dataUrl, signal, headers, noExtra) {
   const content = dataUrl ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: dataUrl } }] : text;
-  const r = await fetch(url, { method: 'POST', signal, headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, headers || {}), body: JSON.stringify({ model, messages: [{ role: 'user', content }], temperature: 0.2, max_tokens: 900 }) });
+  const body = { model, messages: [{ role: 'user', content }], temperature: 0.2, max_tokens: 900 };
+  // Qwen on Groq thinks out loud by default; for a plain JSON answer in 8 seconds, ask it not to
+  const extra = !noExtra && /groq\.com/.test(url) && /qwen/i.test(model); if (extra) body.reasoning_effort = 'none';
+  const r = await fetch(url, { method: 'POST', signal, headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, headers || {}), body: JSON.stringify(body) });
   const j = await r.json().catch(() => null);
-  if (!r.ok) { const m = j && j.error ? (typeof j.error === 'string' ? j.error : j.error.message || '') : ''; const e = Error(m || 'HTTP ' + r.status); e.status = r.status; throw e; }
+  if (!r.ok) { const m = j && j.error ? (typeof j.error === 'string' ? j.error : j.error.message || '') : ''; if (extra && r.status === 400 && /reasoning/i.test(m)) return openAiChat(url, key, model, text, dataUrl, signal, headers, true); const e = Error(m || 'HTTP ' + r.status); e.status = r.status; e.gone = r.status === 404 || /decommission|does not exist|not found|no longer|model_not_found|no endpoints/i.test(m); throw e; }
   const c = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-  const out = (Array.isArray(c) ? c.map(x => x.text || '').join('') : String(c || '')).trim(); if (!out) throw Error('empty');
+  const out = (Array.isArray(c) ? c.map(x => x.text || '').join('') : String(c || '')).replace(/<think>[\s\S]*?<\/think>/gi, '').trim(); if (!out) throw Error('empty');
   return out;
 }
 // a model that's gone, renamed or can't take this request: try the next one on the list
 const tryNextModel = e => e && !e.timeout && e.name !== 'AbortError' && (e.status === 404 || e.status === 400 || e.status === 429 || e.status >= 500 || /decommission|not found|does not exist|no longer|not supported|model_not_found|no endpoints|image input|rate.?limit/i.test(e.message || ''));
+/* when every model on the list has been retired, ask the service which models it has now and try the ones that take photos */
+async function discoverModels(kind, key, signal) {
+  try {
+    if (kind === 'groq') { const r = await fetch('https://api.groq.com/openai/v1/models', { signal, headers: { Authorization: 'Bearer ' + key } }); const j = await r.json(); return (j.data || []).map(m => m.id).filter(id => /qwen.*\d+b|vl\b|vision|scout|maverick|gemma|pixtral/i.test(id) && !/guard|whisper|tts|embed/i.test(id)).sort().reverse().slice(0, 3); }
+    const r = await fetch('https://openrouter.ai/api/v1/models', { signal }); const j = await r.json();
+    return (j.data || []).filter(m => /:free$/.test(m.id) && m.architecture && ((m.architecture.input_modalities || []).includes('image') || /image/.test(m.architecture.modality || ''))).map(m => m.id).slice(0, 3);
+  } catch (e) { if (signal && signal.aborted) throw e; return []; }
+}
 async function askList(kind, url, models, text, dataUrl, signal, headers) {
   const key = aiKey(kind), mk = kind + 'Model', mine = S.profile[mk]; if (!key) throw Error('nokey');
-  const list = mine ? [mine, ...models.filter(m => m !== mine)] : models; let last = null;
+  const list = mine ? [mine, ...models.filter(m => m !== mine)] : [...models]; let last = null, allGone = true;
+  const tryOne = async m => { const out = await openAiChat(url, key, m, text, dataUrl, signal, headers); if (S.profile[mk] !== m) { S.profile[mk] = m; save(); } return { text: out, model: m }; };
   for (const m of list) {
-    try { const out = await openAiChat(url, key, m, text, dataUrl, signal, headers); if (S.profile[mk] !== m) { S.profile[mk] = m; save(); } return { text: out, model: m }; }
-    catch (e) { last = e; if (!tryNextModel(e)) throw e; }
+    try { return await tryOne(m); }
+    catch (e) { last = e; if (!e.gone) allGone = false; if (!tryNextModel(e)) throw e; }
   }
+  if (allGone) for (const m of (await discoverModels(kind, key, signal)).filter(x => !list.includes(x))) {
+    try { return await tryOne(m); } catch (e) { last = e; if (!tryNextModel(e)) throw e; }
+  }
+  if (last && last.gone) last.message = 'retired';
   throw last || Error('model');
 }
 const askGroq = (text, dataUrl, signal) => askList('groq', 'https://api.groq.com/openai/v1/chat/completions', GROQ_MODELS, text, dataUrl, signal);
@@ -902,7 +919,7 @@ function askGemini(text, dataUrl, signal) {
   return gemini(parts, { signal, noWait: true }).then(t => ({ text: t, model: S.profile.geminiModel || '' }));
 }
 const AI_CHAIN = [['Gemini', 'gemini', askGemini], ['Groq', 'groq', askGroq], ['OpenRouter', 'openrouter', askOpenRouter]];
-function aiWhy(e) { if (!e) return 'no answer'; if (e.timeout || e.name === 'AbortError' || e.message === 'timeout') return 'no answer in 8 seconds'; if (e.message === 'offline') return 'couldn’t reach it'; if (e.status === 401 || e.status === 403) return 'the key wasn’t accepted'; if (e.status === 429) return 'busy or over its free limit'; return String(e.message || 'error').slice(0, 90); }
+function aiWhy(e) { if (!e) return 'no answer'; if (e.timeout || e.name === 'AbortError' || e.message === 'timeout') return 'no answer in 8 seconds'; if (e.message === 'offline') return 'couldn’t reach it'; if (e.status === 401 || e.status === 403) return 'the key wasn’t accepted'; if (e.status === 429) return 'busy or over its free limit'; if (e.message === 'retired') return 'the models Prakash knows have been retired, and no replacement answered'; return String(e.message || 'error').slice(0, 160); }
 // parse: the shared reader for every answer (see parseItems in Food)
 async function estimateChain(text, dataUrl, onTry) {
   const tried = [];
@@ -1246,7 +1263,7 @@ Reply with ONLY JSON, no other text, in exactly this shape:
 {"items":[{"name":"","grams":0,"kcal":0,"protein":0}]}`;
 }
 function parseItems(txt) {
-  txt = String(txt || '').replace(/```(?:json)?/gi, '').trim(); const out = [];
+  txt = String(txt || '').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```(?:json)?/gi, '').trim(); const out = [];
   const tj = x => { try { return JSON.parse(x); } catch (y) { return null; } };
   let j = null; const m = txt.match(/\{[\s\S]*\}/); if (m) j = tj(m[0]);
   if (!j) { const a = txt.match(/\[[\s\S]*\]/); const arr = a ? tj(a[0]) : null; if (Array.isArray(arr)) j = { items: arr }; }
@@ -2586,7 +2603,7 @@ function moreAiHtml() {
   <div><label class="lab" for="k-${id}">${name} API key (optional)</label><input class="input" id="k-${id}" type="password" autocomplete="off" value="${esc(p[id + 'Key'] || '')}" placeholder="${id === 'groq' ? 'gsk_…' : 'sk-or-…'}"></div>
   <div class="btns"><button class="btn primary" data-a="ai-key-save" data-k="${id}">Save</button><button class="btn" data-a="ai-key-test" data-k="${id}">Test</button>${p[id + 'Key'] ? `<button class="btn danger" data-a="ai-key-del" data-k="${id}">Remove</button>` : ''}</div><div id="k-${id}-st" role="status">${p[id + 'Model'] ? `<p class="tiny">Last answered with ${esc(p[id + 'Model'])}.</p>` : ''}</div></section>`;
   return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Backup AIs for photos</h1><p class="muted small">For a photo of food, Prakash asks Gemini first, then Groq, then OpenRouter, giving each 8 seconds. Any without a key is skipped. If none answer, you can ask Claude or ChatGPT yourself.</p>
-  ${box('groq', 'Groq', 'groqKey', 'console.groq.com/keys', 'Uses a Llama 4 vision model.')}
+  ${box('groq', 'Groq', 'groqKey', 'console.groq.com/keys', 'Uses its Qwen vision model.')}
   ${box('openrouter', 'OpenRouter', 'openrouterKey', 'openrouter.ai/keys', 'Uses a free vision model.')}
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Keys stay on this phone. They are never put in a backup.</li><li>A photo is sent only when you tap Fill in with AI, and only to the next AI if the one before didn’t answer. Free plans may use what you send to improve their products.</li></ul></div>`;
 }
@@ -2673,7 +2690,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
