@@ -249,7 +249,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.4.2';
+const VERSION = '1.6.0';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -484,7 +484,24 @@ const BASICS = [
   ['Onion', 40, 1.1, 0.1, 9.3, 150, 'medium onion', 1.7], ['Tomato', 18, 0.9, 0.2, 3.9, 120, 'medium tomato', 1.2], ['Tomatoes, tinned', 20, 1, 0.2, 3.5, 400, 'tin', 1], ['Garlic', 149, 6.4, 0.5, 33, 5, 'clove', 2.1], ['Ginger', 80, 1.8, 0.8, 18, 10, 'thumb', 2],
   ['Spinach', 23, 2.9, 0.4, 3.6, 30, 'handful', 2.2], ['Peas, frozen', 81, 5.4, 0.4, 14.5, 80, 'heaped spoon', 5.1], ['Cauliflower', 25, 1.9, 0.3, 5, 100, 'portion', 2], ['Mixed vegetables, frozen', 65, 3.3, 0.5, 13, 80, 'portion', 4], ['Potato, raw', 77, 2, 0.1, 17, 175, 'medium potato', 2.2],
   ['Basmati rice, dry', 350, 8, 0.8, 78, 75, 'portion', 1.3], ['Chana dal, dry', 360, 20, 5, 60, 50, 'portion', 11], ['Moong dal, dry', 347, 24, 1.2, 63, 50, 'portion', 16], ['Toor dal, dry', 343, 22, 1.5, 63, 50, 'portion', 15], ['Chickpeas, dry', 364, 19, 6, 61, 50, 'portion', 17], ['Kidney beans, dry', 333, 24, 0.8, 60, 50, 'portion', 25],
-  ['Atta (wholewheat flour)', 340, 12, 1.7, 72, 30, 'roti’s worth', 11], ['Besan (gram flour)', 387, 22, 6.7, 58, 30, '3 tbsp', 11], ['Sugar', 400, 0, 0, 100, 4, 'tsp', 0], ['Butter', 717, 0.9, 81, 0.1, 10, 'tsp', 0], ['Sunflower or mustard oil', 884, 0, 100, 0, 14, 'tbsp', 0], ['Coconut milk, tinned', 197, 2, 21, 3, 100, '100 ml', 0]
+  ['Atta (wholewheat flour)', 340, 12, 1.7, 72, 30, 'roti’s worth', 11], ['Besan (gram flour)', 387, 22, 6.7, 58, 30, '3 tbsp', 11], ['Sugar', 400, 0, 0, 100, 4, 'tsp', 0], ['Butter', 717, 0.9, 81, 0.1, 10, 'tsp', 0], ['Sunflower or mustard oil', 884, 0, 100, 0, 14, 'tbsp', 0], ['Coconut milk, tinned', 197, 2, 21, 3, 100, '100 ml', 0],
+  // everyday home dishes and UK staples: typical values per 100 g, a home portion as the serving
+  ['Dal tadka', 110, 5.5, 4, 13, 200, 'bowl', 3], ['Chana masala', 140, 6.5, 5, 17, 200, 'bowl', 5], ['Rajma', 120, 6, 3.5, 16, 200, 'bowl', 5], ['Kadhi', 85, 3, 4.5, 8, 200, 'bowl', 0.8],
+  ['Aloo gobi', 95, 2.3, 5, 10, 150, 'bowl', 2.5], ['Bhindi sabzi', 100, 2.2, 7, 8, 150, 'bowl', 3.5], ['Mixed vegetable sabzi', 90, 2.5, 5, 9, 150, 'bowl', 3], ['Palak paneer', 150, 7, 11, 5, 200, 'bowl', 2],
+  ['Paneer butter masala', 220, 8, 17, 8, 200, 'bowl', 1.5], ['Paratha, plain', 320, 7, 13, 44, 60, 'paratha', 5], ['Aloo paratha', 260, 6, 11, 35, 100, 'paratha', 4], ['Puri', 400, 6, 22, 45, 25, 'puri', 3],
+  ['Naan', 300, 9, 6, 50, 90, 'naan', 2], ['Idli', 130, 4, 0.5, 27, 40, 'idli', 1.5], ['Dosa, plain', 170, 4, 5, 27, 80, 'dosa', 1.5], ['Masala dosa', 180, 4, 7, 25, 180, 'dosa', 2],
+  ['Sambar', 65, 3, 2, 9, 200, 'bowl', 2.5], ['Upma', 150, 3.5, 5, 22, 200, 'bowl', 2], ['Poha', 160, 3, 5, 26, 200, 'plate', 1.5], ['Khichdi', 120, 4.5, 3, 19, 250, 'bowl', 2.5],
+  ['Jeera rice', 150, 3, 3, 28, 180, 'bowl', 0.6], ['Raita', 60, 3, 2.5, 6, 100, 'small bowl', 0.5], ['Dahi (plain yogurt)', 61, 3.5, 3.3, 4.7, 125, 'small bowl', 0], ['Lassi, sweet', 90, 3, 2.5, 14, 250, 'glass', 0],
+  ['Samosa, vegetable', 260, 4.5, 14, 29, 80, 'samosa', 3], ['Onion bhaji', 280, 6, 17, 26, 30, 'bhaji', 4], ['Dhokla', 160, 6, 5, 23, 50, 'piece', 2], ['Besan chilla', 190, 9, 8, 21, 70, 'chilla', 5],
+  ['Kheer', 140, 4, 4.5, 21, 150, 'bowl', 0.2], ['Gulab jamun', 330, 4, 13, 50, 40, 'piece', 0.5], ['Jalebi', 400, 2, 15, 65, 30, 'piece', 0.5],
+  ['Porridge made with milk', 110, 4.8, 3.5, 15, 250, 'bowl', 1.5], ['Weetabix', 362, 12, 2, 69, 19, 'biscuit', 10], ['Cornflakes', 378, 7, 0.9, 84, 30, 'bowl', 3], ['White bread', 250, 9, 3, 47, 36, 'slice', 2.5],
+  ['Jam', 250, 0.4, 0, 60, 15, 'tbsp', 1], ['Baked beans', 80, 4.7, 0.3, 13, 200, 'half tin', 3.8], ['Jacket potato', 93, 2.5, 0.1, 21, 180, 'medium potato', 2.2], ['Chips, oven', 160, 2.5, 5, 26, 150, 'portion', 2.5],
+  ['Pasta, cooked', 150, 5.5, 0.9, 30, 200, 'plate', 1.8], ['Pizza, margherita', 250, 11, 9, 31, 100, 'slice', 2], ['Tomato soup', 55, 0.9, 3, 6.5, 300, 'bowl', 0.6], ['Cheese sandwich', 280, 12, 13, 28, 130, 'sandwich', 2.5],
+  ['Egg, boiled', 143, 12.6, 9.5, 0.7, 50, 'egg', 0], ['Orange', 47, 0.9, 0.1, 12, 130, 'orange', 2.4], ['Grapes', 69, 0.7, 0.2, 18, 80, 'handful', 0.9], ['Strawberries', 32, 0.7, 0.3, 7.7, 80, 'handful', 2],
+  ['Mango', 60, 0.8, 0.4, 15, 150, 'half mango', 1.6], ['Pear', 57, 0.4, 0.1, 15, 170, 'pear', 3.1], ['Dates', 280, 2.5, 0.4, 75, 8, 'date', 8],
+  ['Digestive biscuit', 480, 7, 21, 63, 15, 'biscuit', 3.5], ['Rich tea biscuit', 450, 7, 15, 72, 8, 'biscuit', 2], ['Crisps', 530, 6, 33, 52, 25, 'bag', 4.5], ['Milk chocolate', 530, 7.5, 30, 57, 25, '4 squares', 2],
+  ['Cake, sponge', 380, 5, 18, 50, 60, 'slice', 1], ['Tea with milk', 12, 0.8, 0.4, 1.2, 250, 'mug', 0], ['Coffee with milk', 30, 2, 1.5, 2.5, 250, 'mug', 0], ['Orange juice', 45, 0.7, 0.2, 10, 200, 'glass', 0.2],
+  ['Cola', 42, 0, 0, 10.6, 330, 'can', 0], ['Beer', 43, 0.5, 0, 3.6, 568, 'pint', 0], ['Wine', 85, 0.1, 0, 2.6, 175, 'glass', 0],
 ].map(b => ({ name: b[0], per: '100g', k: b[1], p: b[2], f: b[3], c: b[4], serveGrams: b[5], serveLabel: b[6], b: b[7], src: 'Basic' }));
 
 const QUOTES = [
@@ -623,6 +640,7 @@ function nowCard() {
     if (gap >= 2) return { eyebrow: 'Training', title: 'Next: ' + PROGRAM[next].title, body: PROGRAM[next].sub + '.', btns: [['Start workout', 'wo-start-next', 'primary']] };
   }
   if (mods().spiritual && m >= mins('11:50') && m < mins('13:00') && !lit('noon')) return prayerCard('noon');
+  if (reviewDue()) return { eyebrow: 'Sunday evening', title: 'The week, looked back on', body: 'Plain facts from the food week, and room for one note.', btns: [['Look back', 'review-now', 'primary'], ['Not this week', 'review-skip', '']] };
   if (checkinDue()) return { eyebrow: 'Sunday', title: 'Weekly check-in', body: 'Weight, waist and a photo, in one go. Skip any of them.', btns: [['Begin', 'checkin', 'primary'], ['Not this week', 'checkin-skip', '']] };
   if (photoDue) return { eyebrow: 'Every two weeks', title: 'Progress photo', body: 'Front and side, same light, same spot.', btns: [['Open photos', 'photos-open', 'primary'], ['Not now', 'photo-snooze', '']] };
   return null;
@@ -744,7 +762,7 @@ function defaultAmt(c) { if (c.per === 'portion') return { qty: 1, unit: 'portio
 function factor(c, qty, unit) { if (c.per === 'portion') return qty; const g = unit === 'serving' ? qty * (c.serveGrams || 100) : qty; return g / 100; }
 function amountLabel(c, qty, unit) {
   if (c.per === 'portion') { const l = c.portionLabel || 'portion'; return qty === 1 ? (/^[\d½]/.test(l) ? l : '1 ' + l) : fmtQ(qty) + ' × ' + l.replace(/^1\s+(?=[a-z])/i, ''); }
-  if (unit === 'serving') return (qty === 1 ? '1 ' : fmtQ(qty) + ' × ') + (c.serveLabel || 'serving');
+  if (unit === 'serving') { const l = c.serveLabel || 'serving'; return qty === 1 ? (/^(\d|½|half |a |an )/i.test(l) ? l : '1 ' + l) : fmtQ(qty) + ' × ' + l; }
   return fmtQ(qty) + ' g';
 }
 function calc(c, qty, unit) { const x = factor(c, qty, unit); return { kcal: n0(c.k * x), protein: n1(c.p * x), fat: n1((c.f || 0) * x), carbs: n1((c.c || 0) * x), fibre: n1((c.b || 0) * x) }; }
@@ -770,6 +788,7 @@ on('food-date', b => { foodDate = b.dataset.k; render(); });
 on('food-today', () => { foodDate = todayKey(); render(); });
 on('food-week-shift', b => { foodDate = addDays(foodDate, +b.dataset.n); if (foodDate > todayKey()) foodDate = todayKey(); render(); });
 on('food-week', () => go('food', 'week'));
+on('review-from-week', () => { const end = addDays(mondayOf(weekOf), 6); reviewWeek = end > todayKey() ? todayKey() : end; go('food', 'review'); });
 on('food-back', () => go('food', 'day'));
 
 function foodDayHtml() {
@@ -811,8 +830,10 @@ function addItemsNow() {
   const a = ADD, q = a.q.trim().toLowerCase(), hist = historyFoods();
   let items = [];
   if (q) {
-    const m = x => (x.name || '').toLowerCase().includes(q);
-    items = [...S.dishes.filter(m).map(x => ({ c: x, tag: 'My dish' })), ...S.foodFavourites.filter(m).map(f => ({ c: candFromEntry(f), tag: 'Favourite' })), ...hist.filter(m).slice(0, 15).map(f => ({ c: candFromEntry(f), tag: 'Had before' })), ...BASICS.filter(m).map(x => ({ c: x, tag: 'Basic' }))];
+    // your own foods first, then the phone's staples; each ranked by how well the words match
+    const qt = toks(q), score = n => qt.length ? matchScore(qt, n) || (n.toLowerCase().includes(q) ? 50 : 0) : 0;
+    const group = (list, toC, tag, max) => list.map(x => ({ x, s: score(x.name || '') })).filter(o => o.s > 0).sort((a, b) => b.s - a.s).slice(0, max).map(o => ({ c: toC(o.x), tag }));
+    items = [...group(S.dishes, x => x, 'My dish', 8), ...group(S.foodFavourites, candFromEntry, 'Favourite', 8), ...group(hist, candFromEntry, 'Had before', 10), ...group(BASICS, x => x, 'Basic', 12)];
     const seen = new Set(); items = items.filter(i => { const n = i.c.name.toLowerCase(); if (seen.has(n)) return false; seen.add(n); return true; });
   } else if (a.list === 'recent') items = hist.slice(0, 25).map(f => ({ c: candFromEntry(f) }));
   else if (a.list === 'fav') items = S.foodFavourites.map(f => ({ c: candFromEntry(f) }));
@@ -827,7 +848,7 @@ function addResultsHtml() {
   a._items = addItemsNow();
   const emptyMsg = { recent: 'Foods you add appear here, ready to add again with one tap.', fav: 'Tap any food you have logged, then “Add to favourites”.', dish: 'Your own recipes live here. Make one from its ingredients, or photo a dish and tick “Save as my dish”.', basics: '' }[a.list];
   return `${!q && a.list === 'dish' ? '<button class="btn" data-a="rec-new" style="width:100%;margin-bottom:6px">Make a new dish from its ingredients</button>' : ''}<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('') || (q ? '<p class="tiny" style="padding:8px 0">Nothing saved by that name.</p>' : `<p class="tiny" style="padding:12px 0">${emptyMsg}</p>`)}</ul>
-  ${q ? `${a.online ? `<h3 style="margin:10px 0 4px">Online results</h3><ul class="list">${a.online.map((c, i) => addRow({ c, tag: c.brand || 'Open Food Facts' }, i, 'o')).join('')}</ul>` : ''}${a.onlineMsg ? `<p class="tiny" style="margin:6px 0">${esc(a.onlineMsg)}</p>` : ''}${a.online ? '' : `<button class="btn" data-a="add-online" style="width:100%;margin-top:8px">Search online for “${esc(q)}”</button>`}` : ''}`;
+  ${q ? `${a.online ? `<h3 style="margin:10px 0 4px">From Open Food Facts</h3><ul class="list">${a.online.map((c, i) => addRow({ c, tag: c.brand || 'Open Food Facts' }, i, 'o')).join('')}</ul>` : ''}${a.onlineMsg ? `<p class="tiny" style="margin:6px 0">${esc(a.onlineMsg)}</p>` : ''}${a.online && a.online.length ? '' : a.onlineFor === q && !a.online ? '' : `<button class="btn" data-a="add-online" style="width:100%;margin-top:8px">${a.onlineFor === q ? 'Try Open Food Facts again' : 'Look up “' + esc(q) + '” in Open Food Facts'}</button>`}` : ''}`;
 }
 function addRender() {
   if (!ADD) return;
@@ -874,7 +895,7 @@ function addRender() {
   }
   const b = sheetBody(h); if (!b) return;
   const qi = $('#add-q', b);
-  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; clearTimeout(a._t); a._t = setTimeout(refreshAddResults, 120); }; qi.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && a.q.trim()) { e.preventDefault(); A['say-go'](); } }; }
+  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; a.onlineFor = ''; if (offCtl) offCtl.abort(); clearTimeout(a._ot); clearTimeout(a._t); a._t = setTimeout(() => { refreshAddResults(); autoOnline(); }, 150); }; qi.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && a.q.trim()) { e.preventDefault(); A['say-go'](); } }; }
   const qq = $('#add-qty', b); if (qq) qq.oninput = e => { const v = num(e.target.value); if (v != null && v > 0) { a.qty = v; const s = $('.big-num', b); const val = calc(a.cand, a.qty, a.unit); if (s) s.firstChild.nodeValue = big(val.kcal) + ' '; } };
   if (a.mode === 'scan') startScan();
   if (a.mode === 'photo') bindEstimate(b);
@@ -912,34 +933,56 @@ const OFF_KEY = 'prakash-off-cache-en'; try { localStorage.removeItem('prakash-o
 function offCacheGet() { try { return JSON.parse(localStorage.getItem(OFF_KEY) || '{}') || {}; } catch (e) { return {}; } }
 function offCachePut(q, list) { if (!list || !list.length) return; const c = offCacheGet(); c[q.toLowerCase().trim()] = { at: Date.now(), c: list.slice(0, 15) }; const ks = Object.keys(c).sort((a, b) => c[b].at - c[a].at); ks.slice(60).forEach(k => delete c[k]); try { localStorage.setItem(OFF_KEY, JSON.stringify(c)); } catch (e) {} }
 function offCacheFind(q) { q = q.toLowerCase().trim(); const c = offCacheGet(); if (c[q]) return c[q].c; const words = q.split(/\s+/).filter(Boolean), seen = new Set(), out = []; Object.values(c).forEach(e => e.c.forEach(x => { const n = (x.name + ' ' + (x.brand || '')).toLowerCase(); if (words.every(w => n.includes(w)) && !seen.has(n)) { seen.add(n); out.push(x); } })); return out.slice(0, 15); }
+/* Open Food Facts lookup.
+   1. search.openfoodfacts.org, their fast search service (the old cgi search is slow and often busy)
+   2. the old search, as a fallback
+   Every try has a time limit, so nothing hangs. Results that aren't in English go last, UK products first. */
+const OFF_FIELDS = 'code,product_name,product_name_en,generic_name_en,lang,brands,nutriments,serving_size,countries_tags';
+function offTimed(url, ms, signal) { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); if (signal) signal.addEventListener('abort', () => c.abort()); return fetch(url, { headers: { Accept: 'application/json' }, signal: c.signal }).finally(() => clearTimeout(t)); }
+async function offSearch(query, n, signal) {
+  const q = encodeURIComponent(query);
+  const tries = [
+    ['https://search.openfoodfacts.org/search?q=' + q + '&langs=en&page_size=' + (n * 2) + '&fields=' + OFF_FIELDS, 7000, j => j.hits || []],
+    ['https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + q + '&search_simple=1&action=process&json=1&lc=en&sort_by=unique_scans_n&page_size=' + (n * 2) + '&fields=' + OFF_FIELDS, 12000, j => j.products || []]];
+  let busy = false, reached = false;
+  for (const [u, ms, pick] of tries) {
+    if (signal && signal.aborted) return { list: [], reached, busy };
+    try { const r = await offTimed(u, ms, signal); reached = true; if (!r.ok) { busy = true; continue; } const list = offResults({ products: pick(await r.json()) }, n, query); if (list.length) return { list, reached, busy: false }; }
+    catch (e) { if (e && e.name === 'AbortError' && !(signal && signal.aborted)) busy = true; }
+  }
+  return { list: [], reached, busy };
+}
+// looks online by itself when your own foods don't have it: after a short pause in typing, once per search
+let offCtl = null;
+function autoOnline() {
+  const a = ADD; if (!a || a.mode !== 'list') return; const q = a.q.trim();
+  if (q.length < 3 || looksLikeSentence(q) || a.onlineFor === q) return;
+  if ((a._items || []).length >= 4) return;
+  clearTimeout(a._ot); a._ot = setTimeout(() => { if (ADD === a && a.q.trim() === q) A['add-online'](); }, 700);
+}
 on('add-online', async () => {
   const a = ADD, query = a.q.trim(); if (!query) return;
-  a.onlineMsg = 'Searching Open Food Facts…'; refreshAddResults();
-  const urls = offSearchUrls(query, 15);
-  let j = null, busy = false;
-  if (navigator.onLine === false) { const kept = offCacheFind(query); a.online = kept; a.onlineMsg = kept.length ? 'No connection, so these are from searches you’ve made before.' : 'No connection. Your own foods and Basics still work.'; refreshAddResults(); return; }
-  for (const u of urls) { try { const r = await fetch(u, { headers: { Accept: 'application/json' } }); if (r.ok) { j = await r.json(); if ((j.products || []).length) break; continue; } busy = true; } catch (e) {} }
-  if (ADD !== a) return;
-  if (!j) { const kept = offCacheFind(query); if (kept.length) { a.online = kept; a.onlineMsg = 'No connection, so these are from searches you’ve made before.'; refreshAddResults(); return; } a.onlineMsg = busy ? 'Open Food Facts is busy. Try again in a moment.' : 'Couldn’t reach Open Food Facts. Check the internet connection.'; refreshAddResults(); return; }
-  a.online = offResults(j, 15); offCachePut(query, a.online);
-  a.onlineMsg = a.online.length ? 'Values from packet labels (Open Food Facts).' : 'Nothing with nutrition values matched.'; refreshAddResults();
+  a.onlineFor = query; a.online = null; a.onlineMsg = 'Looking in Open Food Facts…'; refreshAddResults();
+  if (offCtl) offCtl.abort(); const ctl = offCtl = new AbortController();
+  if (navigator.onLine === false) { const kept = offCacheFind(query); a.online = kept; a.onlineMsg = kept.length ? 'No connection, so these are from searches you’ve made before.' : 'No connection. Your own foods and the staples still work.'; refreshAddResults(); return; }
+  const slow = setTimeout(() => { if (ADD === a && a.onlineFor === query && !a.online) { a.onlineMsg = 'Still looking… Open Food Facts is slow today.'; refreshAddResults(); } }, 4000);
+  const r = await offSearch(query, 12, ctl.signal); clearTimeout(slow);
+  if (ADD !== a || a.onlineFor !== query || ctl.signal.aborted) return;
+  if (!r.list.length) { const kept = offCacheFind(query); if (kept.length && !r.reached) { a.online = kept; a.onlineMsg = 'No connection, so these are from searches you’ve made before.'; refreshAddResults(); return; }
+    a.online = []; a.onlineMsg = r.busy ? 'Open Food Facts didn’t answer in time. Tap to try again, or photo the packet.' : !r.reached ? 'Couldn’t reach Open Food Facts. Check the internet connection.' : 'Open Food Facts has nothing called “' + query + '” with calories. Try fewer words, or photo the label.'; refreshAddResults(); return; }
+  a.online = r.list; offCachePut(query, a.online); a.onlineMsg = 'From packet labels, via Open Food Facts. Tap one to check it before it’s added.'; refreshAddResults();
 });
-/* Open Food Facts is French-run and worldwide: its default name is the product's own language.
-   Search products sold in the UK, ask for English names, and put English-named products first. */
-const OFF_FIELDS = 'product_name,product_name_en,generic_name_en,lang,brands,nutriments,serving_size,countries_tags';
-function offSearchUrls(query, n) {
-  const q = encodeURIComponent(query), base = '&search_simple=1&action=process&json=1&lc=en&sort_by=unique_scans_n&page_size=' + (n * 2) + '&fields=' + OFF_FIELDS;
-  return ['https://uk.openfoodfacts.org/cgi/search.pl?search_terms=' + q + base,
-    'https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + q + base + '&tagtype_0=countries&tag_contains_0=contains&tag_0=united-kingdom'];
-}
 function offIsEnglish(prod) { return !!(String(prod.product_name_en || '').trim() || prod.lang === 'en'); }
-function offResults(j, n) {
-  const ps = (j.products || []).slice().sort((a, b) => offIsEnglish(b) - offIsEnglish(a));
+function offResults(j, n, query) {
+  const qt = query ? toks(query) : [], uk = p => (p.countries_tags || []).some(t => /united-kingdom/.test(t)) ? 1 : 0;
+  const rank = p => offIsEnglish(p) * 4 + uk(p) * 2 + (qt.length && matchScore(qt, (p.product_name_en || p.product_name || '')) ? 3 : 0);
+  const ps = (j.products || []).map((p, i) => ({ p, i, r: rank(p) })).sort((a, b) => b.r - a.r || a.i - b.i).map(o => o.p);
   const seen = new Set(); return ps.map(offCand).filter(c => { if (!c) return false; const k = (c.name + '|' + c.brand).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, n);
 }
 function parseServing(s) { const m = String(s || '').match(/(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i); return m ? parseFloat(m[1]) : 0; }
 function offCand(prod) {
-  const n = prod.nutriments || {}, k = Number(n['energy-kcal_100g']); let name = String(prod.product_name_en || prod.product_name || prod.generic_name_en || '').trim(); const brand = String(prod.brands || '').split(',')[0].trim();
+  const n = prod.nutriments || {}, kj = Number(n['energy-kj_100g']) || (n['energy_unit'] !== 'kcal' ? Number(n['energy_100g']) : 0), k = Number(n['energy-kcal_100g']) || (kj > 0 ? Math.round(kj / 4.184) : 0);
+  let name = String(prod.product_name_en || prod.product_name || prod.generic_name_en || '').trim(); const brand = String(Array.isArray(prod.brands) ? prod.brands[0] || '' : prod.brands || '').split(',')[0].trim();
   if (!name || !isFinite(k) || k <= 0) return null;
   const c = { name, brand, per: '100g', k, p: +n['proteins_100g'] || 0, f: +n['fat_100g'] || 0, c: +n['carbohydrates_100g'] || 0, b: +n['fiber_100g'] || 0, src: 'Open Food Facts' };
   const sg = parseServing(prod.serving_size); if (sg) { c.serveGrams = sg; c.serveLabel = 'serving (' + prod.serving_size + ')'; }
@@ -1178,12 +1221,13 @@ function foodWeekHtml() {
     <div class="fact"><span>Fibre, logged days</span><strong>${fib != null ? fib + ' g a day' : '-'}</strong></div>
     <div class="fact"><span>Weight, weekly average</span><strong>${wThis != null ? wShow(wThis) + (wLast != null ? ' (week before ' + wShow(wLast) + ')' : '') : '-'}</strong></div>
   </div></section>
+  <button class="navrow" data-a="review-from-week"><span>The week, looked back on<small>Plain facts, and room for one note</small></span></button>
   <h2>Coming up</h2>
   ${up.length ? `<ul class="list">${up.map(e => { const dl = Math.round((dateOf(e.date) - dateOf(t)) / 864e5); return `<li class="li"><div class="t"><strong>${esc(e.name)}</strong><span>${fmtDay(e.date)} · about ${big(e.extra)} extra${quiet() ? '.' : dl >= 1 ? '. Eat about ' + big(Math.ceil(e.extra / dl)) + ' fewer a day until then and it’s covered.' : '. Enjoy it.'}</span></div><button class="link" data-a="ev-del" data-id="${e.id}" aria-label="Remove ${esc(e.name)}">Remove</button></li>`; }).join('')}</ul>` : '<p class="tiny">A party or a meal out coming up? Add it, and the week makes room for it.</p>'}
   <div class="card stack"><div><label class="lab" for="ev-n">What</label><input class="input" id="ev-n" placeholder="e.g. Diwali party"></div><div class="grid2"><div><label class="lab" for="ev-d">Date</label>${dateField('ev-d', '', `min="${t}"`)}</div><div><label class="lab" for="ev-x">Extra calories</label><input class="input" id="ev-x" inputmode="numeric" placeholder="800"></div></div><button class="btn" data-a="ev-add">Add to Coming up</button></div>
   </div>`;
 }
-R.food = () => view.food === 'week' ? foodWeekHtml() : foodDayHtml();
+R.food = () => view.food === 'week' ? foodWeekHtml() : view.food === 'review' ? reviewHtml() : view.food === 'month' ? monthPageHtml() : foodDayHtml();
 
 /* ---------- recipe builder: My dishes from ingredients ---------- */
 function recTotals(rec) { const t = { kcal: 0, protein: 0, fat: 0, carbs: 0, fibre: 0 }; rec.ings.forEach(i => { const x = i.grams / 100; t.kcal += i.k * x; t.protein += i.p * x; t.fat += (i.f || 0) * x; t.carbs += (i.c || 0) * x; t.fibre += (i.b || 0) * x; }); const n = Math.max(1, rec.portions); return { kcal: n0(t.kcal / n), protein: n1(t.protein / n), fat: n1(t.fat / n), carbs: n1(t.carbs / n), fibre: n1(t.fibre / n), all: n0(t.kcal) }; }
@@ -1349,7 +1393,7 @@ const STOP = new Set(['of', 'some', 'the', 'my', 'little', 'bit', 'with', 'and',
 function sing(w) { if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y'; if (w.length > 4 && /(sses|ches|shes|oes)$/.test(w)) return w.slice(0, -2); if (w.length > 3 && /s$/.test(w) && !/(ss|us)$/.test(w)) return w.slice(0, -1); return w; }
 function toks(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w && !STOP.has(w)).map(sing); }
 function parseSentence(txt) {
-  return String(txt || '').split(/\s*(?:,|;|\n|\+|&|\band\b|\bwith\b|\bplus\b)\s*/i).map(s => s.trim()).filter(Boolean).map(raw => {
+  return String(txt || '').split(/\s*(?:,|;|\n|\+|&)\s*/).flatMap(seg => { const t = seg.trim(); if (!t || !/\b(and|with|plus)\b/i.test(t) || matchLocal(t.replace(/^[\d.½]+\s*/, ''))) return [t]; return t.split(/\s*\b(?:and|with|plus)\b\s*/i); }).join('\u0001').split(/\u0001/).map(s => s.trim()).filter(Boolean).map(raw => {
     let s = raw.replace(/^(i\s+(had|ate)|had|ate)\s+/i, ''), qty = null, m;
     if ((m = s.match(/^(\d+(?:\.\d+)?|\d\/\d|½)\s*(?:x\s*)?/i))) { qty = m[1] === '½' ? 0.5 : m[1].includes('/') ? (+m[1][0] / +m[1][2]) : +m[1]; s = s.slice(m[0].length); }
     else if ((m = s.match(/^(half\s+an?|a\s+half|a\s+couple\s+of|an?|one|two|three|four|five|six|seven|eight|half|couple(?:\s+of)?)\s+/i))) { const w = m[1].toLowerCase(); qty = /half/.test(w) ? 0.5 : /couple/.test(w) ? 2 : NUMWORDS[w]; s = s.slice(m[0].length); }
@@ -1361,7 +1405,7 @@ function matchScore(qt, name) {
   const ct = toks(name); if (!ct.length) return 0;
   const hit = w => ct.includes(w) || (ALIAS[w] || []).some(x => toks(x).every(y => ct.includes(y))) || (w.length >= 4 && ct.some(c => c.startsWith(w)));
   if (!qt.every(hit)) return 0;
-  return (qt.length === ct.length ? 100 : 80) - Math.min(30, (ct.length - qt.length) * 5);
+  return (qt.length === ct.length ? 100 : 80) - Math.min(30, (ct.length - qt.length) * 5) + (qt.every(w => ct.includes(w)) ? 5 : 0);
 }
 // your own dishes first, then what you've had before (most recent first), then the built-in staples
 function matchLocal(name) {
@@ -1410,7 +1454,11 @@ on('say-mic', b => {
   r.onend = () => { sayRec = null; const btn = $('[data-a=say-mic]'); if (btn) { btn.setAttribute('aria-pressed', 'false'); btn.querySelector('span').textContent = 'Speak'; } };
   try { r.start(); } catch (e) { sayRec = null; }
 });
-function looksLikeSentence(q) { return parseSentence(q).length > 1 || /^\s*(\d|½|(a|an|one|two|three|four|half)\s)/i.test(q); }
+function looksLikeSentence(q) {
+  if (/[,;\n+&]/.test(q) || /^\s*(\d|½|(a|an|one|two|three|four|half)\s)/i.test(q)) return true;
+  if (!/\b(and|with|plus)\b/i.test(q)) return false;
+  return !matchLocal(q) && parseSentence(q).length > 1 && parseSentence(q).every(p => matchLocal(p.name));
+}
 function sayHtml() {
   const a = ADD;
   return `<section class="card stack" style="gap:10px"><label for="add-q" style="font-size:18px;font-weight:600">Say or type what you had</label>
@@ -1494,6 +1542,103 @@ function estToDraft(e, src, manual) {
   if (manual) { const g = e.ings[0]; it.per = { k: g.r.k * g.grams, p: g.r.p * g.grams, c: g.r.c * g.grams, f: g.r.f * g.grams, b: g.r.b * g.grams }; } else ingsToPer(it);
   e.ings = null; e.loading = false; openDraft([it], 'photo');
 }
+/* ================= THE WEEK, LOOKED BACK ON =================
+   Sunday evening, a calm look at the food week: plain facts, one open question, one note of your own.
+   Once a month, the notes read together, with what repeated in the diary. Everything stays on this phone. */
+let reviewWeek = null, reviewMonth = null;
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function weekNotes() { if (!S.weekNotes) S.weekNotes = {}; return S.weekNotes; }
+function reviewDue() { const k = todayKey(), m = nowMins(); return mods().food && dateOf(k).getDay() === 0 && m >= mins('17:00') && S.profile.reviewWeek !== mondayOf(k) && Object.keys(S.days).some(dk => dk >= mondayOf(k) && realFoods(peekDay(dk)).length); }
+function weekFacts(k) {
+  const wb = weekBudget(k), p = S.profile, keys = wb.keys, t = todayKey();
+  const past = wb.days.filter(x => x.dk <= t && x.status !== 'future');
+  const logged = past.filter(x => ['logged', 'partly', 'today'].includes(x.status) && x.eaten > 0);
+  const missing = past.filter(x => x.status === 'none');
+  const sum = f => logged.reduce((a, x) => a + f(x), 0), avg = f => logged.length ? sum(f) / logged.length : null;
+  const kcal = avg(x => x.eaten), protein = avg(x => totals(peekDay(x.dk)).protein);
+  const stepDays = past.filter(x => (peekDay(x.dk) || {}).steps > 0), steps = stepDays.length ? stepDays.reduce((a, x) => a + peekDay(x.dk).steps, 0) / stepDays.length : null;
+  const bank = logged.length ? sum(x => x.eaten - x.dt) : null;   // over (+) or under (−) across the days that were logged
+  const byDiff = logged.map(x => ({ ...x, diff: x.eaten - x.dt })).sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff));
+  const closest = byDiff.slice(0, 2).filter(x => Math.abs(x.diff) <= 200), fullest = [...byDiff].sort((a, b) => b.diff - a.diff).filter(x => x.diff > 250).slice(0, 2);
+  return { wb, keys, logged, missing, kcal, protein, steps, stepDays: stepDays.length, bank, closest, fullest, target: p.kcalTarget, pTarget: p.proteinTarget, sTarget: p.stepsTarget };
+}
+/* one open question from the week's plain facts: never advice, always optional */
+function weekQuestion(f) {
+  if (!f.logged.length) return 'Nothing was logged this week. Is there anything you’d like different about next week?';
+  const top = f.fullest[0];
+  if (top && top.diff >= 300) return `${WDL[dateOf(top.dk).getDay()]} was the week’s fullest day, ${big(top.diff)} over. Is there anything you’d like different about ${WDL[dateOf(top.dk).getDay()]}s?`;
+  if (f.protein != null && f.protein < f.pTarget * 0.8) return `Protein averaged ${n0(f.protein)} g against ${f.pTarget} g. Is there a meal where a little more would fit easily?`;
+  if (f.missing.length >= 2) return `${f.missing.length} days have nothing logged. Is there something that would make busy days easier to note?`;
+  if (f.steps != null && f.steps < f.sTarget * 0.6) return `Steps averaged ${big(f.steps)} against ${big(f.sTarget)}. Is there a walk that would fit into the week?`;
+  return 'The week stayed close to your targets. Is there anything you’d like to keep just as it is?';
+}
+function reviewHtml() {
+  const k = reviewWeek || todayKey(), f = weekFacts(k), q = quiet(), notes = weekNotes(), wk = mondayOf(k), prevNote = notes[addDays(wk, -7)], note = notes[wk];
+  const row = (l, v) => `<div class="fact"><span>${l}</span><strong>${v}</strong></div>`, day = dk => WD[dateOf(dk).getDay()];
+  const firstSunday = dateOf(k).getDay() === 0 && dateOf(k).getDate() <= 7;
+  return `<div class="stack">${backBar('Food', 'review-back')}
+  <div class="between"><button class="link" data-a="review-shift" data-n="-7" aria-label="Week before">‹</button><h1 style="font-size:26px;text-align:center">The week, looked back on</h1><button class="link" data-a="review-shift" data-n="7" aria-label="Week after" ${addDays(k, 7) > todayKey() ? 'disabled style="visibility:hidden"' : ''}>›</button></div>
+  <p class="muted small" style="text-align:center;margin-top:-6px">${fmtDate(f.keys[0])} to ${fmtDate(f.keys[6])}</p>
+  ${prevNote && prevNote.text ? `<section class="card stack" style="gap:6px"><span class="eyebrow">Last week you wrote</span><p class="journal-q" style="font-size:18px">${esc(prevNote.text)}</p></section>` : ''}
+  <section class="card stack" style="gap:4px"><h2>Food</h2><div class="facts">
+    ${row('Calories, a day on average', f.kcal != null ? big(f.kcal) + (q ? '' : '<span class="tiny" style="display:block;font-weight:400">of ' + big(f.target) + '</span>') : '-')}
+    ${!q && f.bank != null ? row('Across the logged days', f.bank >= 0 ? big(f.bank) + ' over' : big(-f.bank) + ' under') : ''}
+    ${row('Protein, a day on average', f.protein != null ? n0(f.protein) + ' g' + (q ? '' : '<span class="tiny" style="display:block;font-weight:400">of ' + f.pTarget + ' g</span>') : '-')}
+    ${row('Days logged', f.logged.length + ' of ' + (f.logged.length + f.missing.length))}
+  </div>${!q && f.bank != null ? `<p class="tiny" style="margin-top:6px">The week as a whole: ${f.logged.length} logged days came to ${big(f.logged.reduce((a, x) => a + x.eaten, 0))} calories against ${big(f.logged.reduce((a, x) => a + x.dt, 0))}.</p>` : ''}</section>
+  <section class="card stack" style="gap:4px"><h2>Moving</h2><div class="facts">${row('Steps, a day on average', f.steps != null ? big(f.steps) + (q ? '' : '<span class="tiny" style="display:block;font-weight:400">of ' + big(f.sTarget) + '</span>') : 'None entered')}${f.steps != null ? row('Days with steps', f.stepDays) : ''}</div></section>
+  ${!q && (f.closest.length || f.fullest.length) ? `<section class="card stack" style="gap:4px"><h2>The days</h2><div class="facts">${f.closest.length ? row('Closest to target', f.closest.map(x => day(x.dk)).join(', ')) : ''}${f.fullest.length ? row('Fullest', f.fullest.map(x => day(x.dk) + ' (' + big(x.diff) + ' over)').join(', ')) : ''}</div></section>` : ''}
+  ${f.missing.length ? `<section class="card stack" style="gap:8px"><h2>Nothing logged</h2><p class="small muted">Add what you remember, or leave it. The week counts these at your usual ${big(f.target)}.</p><div class="btns">${f.missing.map(x => `<button class="btn" data-a="review-fill" data-k="${x.dk}">${WDL[dateOf(x.dk).getDay()]}</button>`).join('')}</div></section>` : ''}
+  <section class="card now stack" style="gap:10px"><p style="font-size:18px">${esc(weekQuestion(f))}</p>
+  <label class="lab" for="rv-note" style="color:var(--ink);font-size:16px">What would you like to change next week? <span class="tiny">(one short note, if you like)</span></label>
+  <textarea class="input" id="rv-note" rows="2" maxlength="200" placeholder="In your own words">${esc(note ? note.text : '')}</textarea>
+  <button class="btn primary" data-a="review-save">${note ? 'Save the change' : 'Keep this note'}</button></section>
+  ${firstSunday ? monthHtml(monthOf(addDays(k, -7)), true) : ''}
+  <button class="navrow" data-a="review-month"><span>Month by month<small>Your notes read together, and what repeated</small></span></button>
+  <p class="tiny">Worked out on this phone from what you logged. Nothing is sent anywhere.</p></div>`;
+}
+const monthOf = k => k.slice(0, 7);
+function monthName(m) { const d = dateOf(m + '-01'); return MON[d.getMonth()] ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.getMonth()] + ' ' + d.getFullYear() : m; }
+/* what repeated in a month: foods that came up again and again, and when. Plain counts only. */
+function monthPatterns(m) {
+  const counts = {};
+  Object.keys(S.days).filter(k => k.startsWith(m)).forEach(k => realFoods(peekDay(k)).forEach(f => {
+    const n = (f.name || '').trim(); if (!n) return; const key = n.toLowerCase();
+    const c = counts[key] || (counts[key] = { name: n, n: 0, kcal: 0, wd: {}, slot: {}, days: new Set() });
+    c.n++; c.kcal += +f.kcal || 0; const w = dateOf(k).getDay(); c.wd[w] = (c.wd[w] || 0) + 1; c.slot[f.slot || 'snack'] = (c.slot[f.slot || 'snack'] || 0) + 1; c.days.add(k);
+  }));
+  // the same snack, or the same meal on the same day of the week: not the everyday staples of breakfast, lunch and dinner
+  const noted = Object.entries(weekNotes()).filter(([wk, v]) => v && v.text && monthOf(addDays(wk, 6)) === m).map(([, v]) => toks(v.text).filter(x => x.length > 3)).flat();
+  return Object.values(counts).filter(c => c.days.size >= 3 && c.kcal / c.n >= 80).map(c => {
+    const topWd = Object.entries(c.wd).sort((a, b) => b[1] - a[1])[0], topSlot = Object.entries(c.slot).sort((a, b) => b[1] - a[1])[0];
+    const onDay = topWd[1] >= 3 && topWd[1] / c.n >= 0.6, asSnack = topSlot[0] === 'snack' && topSlot[1] / c.n >= 0.6, inNote = toks(c.name).some(w => noted.includes(w));
+    const when = onDay ? 'mostly on ' + WDL[+topWd[0]] + 's' : asSnack ? 'mostly as a snack' : '';
+    return { ...c, when, keep: onDay || asSnack || inNote };
+  }).filter(c => c.keep).sort((a, b) => b.kcal - a.kcal).slice(0, 4);
+}
+function monthHtml(m, inWeek) {
+  const notes = weekNotes(), mine = Object.entries(notes).filter(([wk, v]) => v && v.text && monthOf(addDays(wk, 6)) === m).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  const pats = monthPatterns(m), words = w => toks(w).filter(x => x.length > 3);
+  const echo = p => mine.find(([, v]) => words(v.text).some(w => words(p.name).includes(w)));
+  return `<section class="card stack" style="gap:10px"><span class="eyebrow">${inWeek ? 'Last month · ' : ''}${esc(monthName(m))}</span>
+  <h2>Your notes</h2>${mine.length ? mine.map(([wk, v]) => `<div><span class="tiny">Week of ${fmtDate(wk)}</span><p class="journal-q" style="font-size:17px">${esc(v.text)}</p></div>`).join('') : '<p class="small muted">No notes this month.</p>'}
+  <h2 style="margin-top:6px">What came up again and again</h2>
+  ${pats.length ? pats.map(p => { const e = echo(p); return `<div class="stack" style="gap:4px;border-top:1px solid var(--hair2);padding-top:10px"><strong>${esc(p.name)}</strong><span class="small muted">${p.n} times on ${p.days.size} days${p.when ? ', ' + p.when : ''} · about ${big(p.kcal / p.n)} calories each</span>${e ? `<p class="small">You wrote in the week of ${fmtDate(e[0])}: “${esc(e[1].text)}”</p>` : `<p class="small">Is there anything you’d like different here?</p>`}</div>`; }).join('') : '<p class="small muted">Nothing repeated often enough to show.</p>'}</section>`;
+}
+function monthPageHtml() {
+  const m = reviewMonth || monthOf(todayKey()), now = monthOf(todayKey());
+  const shift = n => { const d = dateOf(m + '-01'); d.setMonth(d.getMonth() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  return `<div class="stack">${backBar('The week', 'review-open')}<div class="between"><button class="link" data-a="month-shift" data-m="${shift(-1)}" aria-label="Month before">‹</button><h1 style="font-size:26px">Month by month</h1><button class="link" data-a="month-shift" data-m="${shift(1)}" aria-label="Month after" ${shift(1) > now ? 'disabled style="visibility:hidden"' : ''}>›</button></div>${monthHtml(m)}</div>`;
+}
+on('review-open', () => { reviewWeek = reviewWeek || todayKey(); S.profile.reviewWeek = mondayOf(todayKey()); save(); go('food', 'review'); });
+on('review-now', () => { reviewWeek = todayKey(); S.profile.reviewWeek = mondayOf(todayKey()); save(); go('food', 'review'); });
+on('review-skip', () => { S.profile.reviewWeek = mondayOf(todayKey()); save(); render(); });
+on('review-back', () => { reviewWeek = null; go('food', 'day'); });
+on('review-shift', b => { const k = addDays(reviewWeek || todayKey(), +b.dataset.n); reviewWeek = k > todayKey() ? todayKey() : k; render(); window.scrollTo(0, 0); });
+on('review-month', () => { reviewMonth = monthOf(reviewWeek || todayKey()); go('food', 'month'); });
+on('month-shift', b => { reviewMonth = b.dataset.m; render(); });
+on('review-fill', b => { foodDate = b.dataset.k; go('food', 'day'); });
+on('review-save', () => { const v = (($('#rv-note') || {}).value || '').trim(), wk = mondayOf(reviewWeek || todayKey()); if (v) weekNotes()[wk] = { text: v, at: new Date().toISOString() }; else delete weekNotes()[wk]; save(); render(); toast(v ? 'Kept for next week.' : 'Note removed.'); });
 /* ================= TRAIN ================= */
 let draft = null;
 try { const x = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (x && x.draft && Array.isArray(x.draft.ex)) draft = x.draft; } catch (e) {}
@@ -2214,7 +2359,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">A quiet mirror for your day. Nothing here scores you.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you: what you ate, how you moved, when you sat. It doesn’t judge, count up or speak first. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>One box for food: type or say what you had. One food shows your matches; a whole meal, tap Next and see it before it’s added.</li><li>Show it: a photo of your plate, a barcode or a nutrition label.</li><li>Nothing is added unseen, and every number can be changed. Portions in one tap: ½, 1, 1½, 2.</li><li>A dish photo stays with that meal in the diary, on this phone only.</li><li>How your targets were worked out, in plain words, from Goals or the Food page.</li><li>Listen has a Kashmir Shaivism chapter: Osho’s Book of Secrets, five of the Shiva Sutras, and Swami Lakshmanjoo’s recorded teaching.</li><li>Sit has one contemplation to rest with: between two breaths. Write asks, if you like, what surprised you today.</li><li>The lamp’s flame breathes, very slowly. About explains why Prakash is a mirror.</li><li>Larger text, Quiet for today, Same as yesterday and the Sunday check-in are all still where they were.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>The week, looked back on: on Sunday evenings, plain facts from the food week, one open question, and room for one note of your own. Once a month, your notes read together with what came up again and again.</li><li>Food lookup redesigned: about 60 more everyday foods are on the phone (dal, sabzis, parathas, idli, dosa, porridge, beans on toast…), matching understands plurals and other spellings, and Open Food Facts is searched by itself when your own foods don’t have it, using their faster search, with a time limit so it never hangs.</li><li>One box for food: type or say what you had. One food shows your matches; a whole meal, tap Next and see it before it’s added.</li><li>Show it: a photo of your plate, a barcode or a nutrition label.</li><li>Nothing is added unseen, and every number can be changed. Portions in one tap: ½, 1, 1½, 2.</li><li>A dish photo stays with that meal in the diary, on this phone only.</li><li>How your targets were worked out, in plain words, from Goals or the Food page.</li><li>Listen has a Kashmir Shaivism chapter: Osho’s Book of Secrets, five of the Shiva Sutras, and Swami Lakshmanjoo’s recorded teaching.</li><li>Sit has one contemplation to rest with: between two breaths. Write asks, if you like, what surprised you today.</li><li>The lamp’s flame breathes, very slowly. About explains why Prakash is a mirror.</li><li>Larger text, Quiet for today, Same as yesterday and the Sunday check-in are all still where they were.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
