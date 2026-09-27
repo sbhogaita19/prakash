@@ -260,11 +260,11 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.9.0';
+const VERSION = '1.9.1';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview']; // tried in order; first that answers wins
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3-flash-preview']; // tried in order; first that answers wins
 const MEALS = [['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snack', 'Snacks']];
 const MEAL_NAME = Object.fromEntries(MEALS);
 const REASONS = ['Hungry', 'Habit', 'Feeling', 'Bored', 'Company'];
@@ -812,11 +812,28 @@ let GEMINI_BACKOFF = [2000, 5000, 10000], GEMINI_WAIT_BUDGET = 45000;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function geminiBusy(status, why) { return status === 429 || status >= 500 || /high demand|overloaded|unavailable|try again later|temporarily|RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|INTERNAL/i.test(why); }
 function geminiDailyLimit(why) { return /per ?day|perday|daily|limit: ?0\b/i.test(why); }
+/* when every Gemini model on the list has been retired, ask Google which Flash models this key can use now, and try those */
+async function geminiDiscover(key, signal) {
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { signal, headers: { 'x-goog-api-key': key } }); const j = await r.json();
+    return (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => String(m.name || '').replace(/^models\//, ''))
+      .filter(id => /^gemini-[\d.]+-flash/.test(id) && !/tts|live|transcribe|image|embed|audio|thinking/i.test(id) && !GEMINI_MODELS.includes(id)).sort().reverse().slice(0, 3);
+  } catch (e) { if (signal && signal.aborted) throw e; return []; }
+}
 async function gemini(parts, opts) {
   opts = opts || {};
+  try { return await geminiTry(parts, opts, null); }
+  catch (e) {
+    const gone = e && !e.busy && e.message !== 'offline' && e.message !== 'timeout' && (e.message === 'model' || e.status === 404 || /not found|not supported|no longer available|deprecated|not available/i.test(e.detail || e.message || ''));
+    if (!gone) throw e;
+    const found = await geminiDiscover(cleanKey(S.profile.geminiKey), opts.signal); if (!found.length) throw e;
+    return geminiTry(parts, opts, found);
+  }
+}
+async function geminiTry(parts, opts, only) {
   const key = cleanKey(S.profile.geminiKey); if (!key) throw Error('nokey');
   let lastErr = null, busyErr = null, waited = 0;
-  const models = S.profile.geminiModel ? [S.profile.geminiModel, ...GEMINI_MODELS.filter(m => m !== S.profile.geminiModel)] : GEMINI_MODELS;
+  const models = only || (S.profile.geminiModel ? [S.profile.geminiModel, ...GEMINI_MODELS.filter(m => m !== S.profile.geminiModel)] : GEMINI_MODELS);
   const body = { contents: [{ parts }] };
   if (opts.schema) body.generationConfig = { responseMimeType: 'application/json', responseSchema: opts.schema };
   if (opts.tools) body.tools = opts.tools;
@@ -872,9 +889,11 @@ function geminiErr(e) {
    Each gets 8 seconds; no answer, an error or nothing readable moves on to the next. An AI without a key is skipped.
    Keys live only on this phone (never in a backup). The photo goes out only when you tap. */
 const AI_TIMEOUT = 8000;
-// Groq retired Llama 4 Maverick (March 2026) and Scout (July 2026); Qwen is its vision model now. If these go too, Prakash asks Groq which it has.
-const GROQ_MODELS = ['qwen/qwen3.8-27b', 'qwen/qwen3.6-27b', 'meta-llama/llama-4-scout-17b-16e-instruct'];
-const OR_MODELS = ['openrouter/free', 'meta-llama/llama-4-maverick:free', 'google/gemma-3-27b-it:free', 'qwen/qwen2.5-vl-72b-instruct:free', 'mistralai/mistral-small-3.2-24b-instruct:free'];
+// Checked September 2026: Groq's only vision model is Qwen 3.8 (Llama 4 Maverick and Scout, and Qwen 3.6, are gone).
+// If it goes too, Prakash asks Groq which models it has now.
+const GROQ_MODELS = ['qwen/qwen3.8-27b'];
+// Checked September 2026: OpenRouter's free router picks a free model that can see images; then free vision models by name.
+const OR_MODELS = ['openrouter/free', 'qwen/qwen3.8-27b:free', 'google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free'];
 const AI_KEYS = ['groqKey', 'groqModel', 'openrouterKey', 'openrouterModel'];   // with geminiKey/geminiModel: kept out of backups
 function aiKey(name) { return cleanKey(S.profile[name + 'Key']); }
 function anyAiKey() { return !!(aiKey('gemini') || aiKey('groq') || aiKey('openrouter')); }
@@ -1236,10 +1255,10 @@ function estimateHtml() {
   ${e.url ? `<img src="${e.url}" alt="Your dish" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px">` : ''}
   <div class="btns"><label class="btn filebtn">${e.file ? 'Retake photo' : 'Take photo'}<input type="file" accept="image/*" capture="environment" id="est-cam"></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" id="est-pick"></label></div>
   <div><label class="lab" for="est-details">What's in it? (optional, helps)</label><input class="input" id="est-details" value="${esc(e.details)}" placeholder="e.g. chickpeas, tomato, 1 tsp oil"></div>
-  ${hasKey ? `<button class="btn primary big" data-a="est-go" ${e.loading ? 'disabled' : ''}>${e.loading ? esc(e.wait || 'Asking…') : e.items ? 'Ask again' : 'Fill in with AI'}</button>` : `<div class="okbox small">Add a free Gemini key (You › Settings › Connect Gemini), and AI fills this in from a photo. Groq and OpenRouter can back it up.</div>`}
+  ${hasKey ? `<button class="btn primary big" data-a="est-go" ${e.loading ? 'disabled' : ''}>${e.loading ? esc(e.wait || 'Asking…') : e.items ? 'Ask again' : 'Fill in with AI'}</button>` : ''}
   ${e.err ? `<p class="small" style="color:var(--danger)">${esc(e.err)}</p>` : ''}
   ${e.items ? estItemsHtml(e) : ''}
-  ${!e.loading && !e.items && e.busy ? askYourselfHtml(e, hasKey) : ''}
+  ${!e.loading && !e.items && (e.busy || !hasKey) ? askYourselfHtml(e, hasKey) : ''}
   ${tot ? `<section class="card stack" style="gap:6px"><span class="eyebrow">${e.other ? 'The estimate' : 'Gemini’s estimate'} · ${esc(e.portion)}</span><div class="big-num">${big(tot.kcal)} calories</div><p class="small">${tot.protein} g protein · ${tot.fat} g fat · ${tot.carbs} g carbs · ${tot.fibre} g fibre</p></section>
   <h3>${e.other ? 'What’s in it' : 'What Gemini thinks is in it'}</h3>
   <div>${e.ings.map((i, ix) => { const oil = i.oil; const step = oil ? 5 : 10; const row = `<div class="between" style="min-height:56px"><span class="${oil ? '' : ''}" style="flex:1">${esc(i.name)}</span><span class="stepper"><button class="step" data-a="est-g" data-i="${ix}" data-d="-${step}" aria-label="Less ${esc(i.name)}">−</button><span class="val">${n0(i.grams)} g</span><button class="step" data-a="est-g" data-i="${ix}" data-d="${step}" aria-label="More ${esc(i.name)}">+</button></span></div>`; return oil ? `<div class="warnbox" style="margin:6px 0">${row}<p class="tiny">A photo can't see oil or ghee. Check this one.</p></div>` : `<div style="border-bottom:1px solid var(--hair2)">${row}</div>`; }).join('')}</div>
@@ -1290,8 +1309,8 @@ function estItemsHtml(e) {
 }
 function askYourselfHtml(e, hasKey) {
   const q = encodeURIComponent(photoPrompt(e));
-  return `<section class="card stack" style="gap:10px"><strong>${hasKey ? (e.offline ? 'You’re offline. Ask an AI yourself when you’re back online' : 'The AIs are busy, ask one yourself') : 'Ask an AI yourself'}</strong>
-  <p class="small muted">One tap copies the prompt and opens Claude.${e.file ? ' Attach your photo there' : ''} Send it, copy the whole answer, then come back here.${hasKey ? '' : ' Or add a free key in You › Settings and it’s done for you.'}</p>
+  return `<section class="card stack" style="gap:10px"><strong>${hasKey ? (e.offline ? 'You’re offline. Ask an AI yourself when you’re back online' : 'The AIs are busy, ask one yourself') : 'No keys set - paste this into Claude'}</strong>
+  <p class="small muted">One tap copies the prompt and opens Claude.${e.file ? ' Attach your photo there.' : ''} Send it, copy the whole answer, then come back here.${hasKey ? '' : ' To have this filled in for you, add a free key in You › Settings.'}</p>
   <a class="btn primary big" href="https://claude.ai/new?q=${q}" target="_blank" rel="noopener" data-a="ai-ask" style="justify-content:center;text-align:center">Copy prompt, open Claude</a>
   <a class="link small" href="https://chatgpt.com/?q=${q}" target="_blank" rel="noopener" data-a="ai-ask" style="align-self:flex-start;min-height:44px;display:inline-flex;align-items:center">or ChatGPT</a>
   <button class="btn" data-a="ai-paste">Paste the answer</button>
@@ -2254,7 +2273,7 @@ function writeHtml() {
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}</span>` : e.practice || e.kind ? `<span class="tiny">${esc(e.practice || e.kind)}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">What surprised you · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">What surprised you · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
   <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
@@ -2697,7 +2716,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>1.9.0: entries written in the old Witness Journal app now appear in Practice › Write › Entries. This happens once; the old journal is left as it was.</li><li>1.9.0: tapping a tab at the bottom always opens that tab’s home. Back buttons inside pages still go one step up.</li><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>1.9.1: the photo AIs use the models Gemini, Groq and OpenRouter serve now. Gemini, like the other two, finds a new model by itself if one is retired.</li><li>1.9.1: with no AI keys set, the photo screen simply offers to paste the prompt into Claude. It no longer reads as if an estimate was tried.</li><li>1.9.1: journal entries brought over from the old Witness Journal are marked “from Witness Journal” in Entries.</li><li>1.9.0: entries written in the old Witness Journal app now appear in Practice › Write › Entries. This happens once; the old journal is left as it was.</li><li>1.9.0: tapping a tab at the bottom always opens that tab’s home. Back buttons inside pages still go one step up.</li><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
@@ -2820,6 +2839,7 @@ function importOldJournal() {
     if (!e.id) e.id = uid();
     if (!Array.isArray(e.tags)) e.tags = [];
     if (!e.updated) e.updated = e.created;
+    e.from = 'witnessJournal';
     S.witness.entries.push(e); have.add(e.id); haveSig.add(sig(e)); added++;
   });
   if (added) S.witness.entries.sort((a, b) => (validDate(b.created) ? new Date(b.created) : 0) - (validDate(a.created) ? new Date(a.created) : 0));
@@ -2828,6 +2848,19 @@ function importOldJournal() {
   if (added) setTimeout(() => toast(added === 1 ? '1 entry from your old Witness Journal is now in Write.' : added + ' entries from your old Witness Journal are now in Write.', 6000), 2500);
 }
 try { importOldJournal(); } catch (e) {}
+/* 1.9.1: entries the 1.9.0 import brought across get their small "from Witness Journal" tag. They're found again by
+   matching the old journal (which is never changed), the same way the import matched them. Runs once. */
+function tagImportedJournal() {
+  if (!S.imports || !S.imports.witnessJournalV1 || S.imports.witnessJournalTagged) return;
+  let old = null; try { old = JSON.parse(localStorage.getItem('witnessJournal.v1') || 'null'); } catch (e) { old = null; }
+  const list = old && Array.isArray(old.entries) ? old.entries.filter(x => x && typeof x === 'object') : [];
+  const txt = e => ['direct', 'story', 'nextStep', 'wonder'].map(k => String(e[k] || '').trim()).join('|');
+  const oneText = e => ['text', 'body', 'content', 'note', 'entry'].map(k => typeof e[k] === 'string' ? e[k].trim() : '').find(Boolean) || '';
+  const ids = new Set(list.map(x => x.id).filter(Boolean)), texts = new Set(list.map(x => txt(x)).concat(list.map(x => oneText(x) ? oneText(x) + '|||' : '')).filter(t => t.replace(/\|/g, '')));
+  if (S.imports.witnessJournalV1Added) S.witness.entries.forEach(e => { if (e && !e.from && ((e.id && ids.has(e.id)) || texts.has(txt(e)))) e.from = 'witnessJournal'; });
+  S.imports.witnessJournalTagged = 1; saveNow();
+}
+try { tagImportedJournal(); } catch (e) {}
 applyTextSize();
 /* after an update: one quiet line, once */
 if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) setTimeout(() => toast('Prakash has been updated. What’s new is in You › About Prakash.', 6000), 1500);
