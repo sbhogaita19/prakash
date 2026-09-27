@@ -260,7 +260,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.8.4';
+const VERSION = '1.9.0';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -484,7 +484,14 @@ function render() {
   syncWake();
 }
 function go(t, v) { if (v) view[t] = v; if (t === 'train' && tab !== 'train' && typeof woAway !== 'undefined') woAway = false; tab = t; render(); window.scrollTo(0, 0); }
-$('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (!b) return; if (b.dataset.tab === tab && view[tab]) { const home = { food: 'day', train: 'home', practice: view.practice, you: 'home' }[tab]; view[tab] = home; } go(b.dataset.tab); });
+// a tab tap always lands on that tab's home screen; back buttons inside pages still go one level up
+function tabHome(t) {
+  if (t === 'food') { view.food = 'day'; if (typeof foodDate !== 'undefined') foodDate = todayKey(); }
+  if (t === 'train') view.train = 'home';   // a workout in progress still opens its player, as before
+  if (t === 'you') view.you = 'home';
+  if (t === 'practice') { if (typeof jSpeakStop === 'function') jSpeakStop(); journalMode = 'home'; journalEdit = null; listenCh = null; const v = practiceViews(); view.practice = (v[0] || ['sit'])[0]; }
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (!b) return; tabHome(b.dataset.tab); go(b.dataset.tab); });
 let tickers = [];
 function ticker(fn, ms) { fn(); tickers.push(setInterval(fn, ms || 1000)); }
 function clearTickers() { tickers.forEach(clearInterval); tickers = []; }
@@ -2690,7 +2697,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>1.9.0: entries written in the old Witness Journal app now appear in Practice › Write › Entries. This happens once; the old journal is left as it was.</li><li>1.9.0: tapping a tab at the bottom always opens that tab’s home. Back buttons inside pages still go one step up.</li><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
@@ -2792,6 +2799,35 @@ on('tour-next', () => showTour(tourStep + 1));
 on('tour-done', () => { S.profile.tourDone = true; save(); closeSheet(); });
 /* ================= BOOT ================= */
 S = load();
+/* 1.9.0: entries written in the old standalone Witness Journal (localStorage "witnessJournal.v1") come across once.
+   Only entries not already here are added; the old key is only read, never changed or deleted. */
+function importOldJournal() {
+  if (S.imports && S.imports.witnessJournalV1) return;
+  let old = null; try { old = JSON.parse(localStorage.getItem('witnessJournal.v1') || 'null'); } catch (e) { old = null; }
+  const list = old && Array.isArray(old.entries) ? old.entries : [];
+  const words = e => ['direct', 'story', 'nextStep', 'wonder'].some(k => String(e[k] || '').trim());
+  const sig = e => (validDate(e.created) ? new Date(e.created).toISOString() : '') + '|' + ['direct', 'story', 'nextStep', 'wonder'].map(k => String(e[k] || '').trim()).join('|');
+  const have = new Set(S.witness.entries.map(e => e && e.id).filter(Boolean)), haveSig = new Set(S.witness.entries.filter(Boolean).map(sig));
+  let added = 0;
+  list.forEach(x => {
+    if (!x || typeof x !== 'object') return;
+    const e = JSON.parse(JSON.stringify(x));
+    if (!e.created) e.created = e.createdAt || e.date || e.updated || '';
+    // an entry kept as one block of text goes into the first question, so its words aren't lost
+    if (!words(e)) { const t = ['text', 'body', 'content', 'note', 'entry'].map(k => typeof e[k] === 'string' ? e[k].trim() : '').find(Boolean); if (t) e.direct = t; }
+    if (!validDate(e.created) && !words(e)) return;   // the same rule as migrate(): an empty shell with no date is dropped
+    if ((e.id && have.has(e.id)) || haveSig.has(sig(e))) return;
+    if (!e.id) e.id = uid();
+    if (!Array.isArray(e.tags)) e.tags = [];
+    if (!e.updated) e.updated = e.created;
+    S.witness.entries.push(e); have.add(e.id); haveSig.add(sig(e)); added++;
+  });
+  if (added) S.witness.entries.sort((a, b) => (validDate(b.created) ? new Date(b.created) : 0) - (validDate(a.created) ? new Date(a.created) : 0));
+  S.imports = Object.assign({}, S.imports, { witnessJournalV1: new Date().toISOString(), witnessJournalV1Added: added });
+  saveNow();
+  if (added) setTimeout(() => toast(added === 1 ? '1 entry from your old Witness Journal is now in Write.' : added + ' entries from your old Witness Journal are now in Write.', 6000), 2500);
+}
+try { importOldJournal(); } catch (e) {}
 applyTextSize();
 /* after an update: one quiet line, once */
 if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) setTimeout(() => toast('Prakash has been updated. What’s new is in You › About Prakash.', 6000), 1500);
