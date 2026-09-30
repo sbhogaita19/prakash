@@ -125,6 +125,11 @@ html.big-text .rings3-keys .rs{white-space:nowrap}
 .searchbar input{min-height:44px}
 .searchbar label{min-width:0}
 .searchbar .iconbtn{width:48px}
+.ac-wrap{position:relative}
+.ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;background:var(--card);border:1px solid var(--hair);border-radius:14px;padding:0 14px;overflow-y:auto;overscroll-behavior:auto;box-shadow:0 12px 30px #0008}
+.ac .ac-opt{cursor:pointer;min-height:56px}
+.ac .ac-opt[aria-selected=true]{background:var(--raise);margin:0 -14px;padding:0 14px}
+.ac .ac-note{padding:12px 0;list-style:none}
 .link{min-width:44px}
 .stop-open{background:none;border:0;color:var(--ink);font:inherit;cursor:pointer;padding:8px;min-height:44px;width:100%}
 .set-hint{grid-column:1/-1;margin:-4px 0 6px;color:var(--warn-ink)}
@@ -291,7 +296,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.9.12';
+const VERSION = '1.9.13';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -365,7 +370,7 @@ function defaults() {
       modules: { food: true, train: true, body: true, mind: true, spiritual: true }
     },
     days: {}, weights: [], waists: [], photos: [], workouts: [], meditations: [],
-    bloodPressures: [], events: [], foodFavourites: [], dishes: [],
+    bloodPressures: [], events: [], foodFavourites: [], dishes: [], foundFoods: [], myStaples: [],
     witness: { entries: [], readings: [] },
     talks: { heard: {}, themes: {}, notes: {} },
     remember: { on: true, from: '08:00', to: '22:00', schedule: null, waitNote: '' },
@@ -381,7 +386,9 @@ function migrate(s) {
   s.profile = Object.assign({}, d.profile, s.profile || {});
   s.profile.modules = Object.assign({}, d.profile.modules, s.profile.modules || {});
   for (const k of Object.keys(d)) if (s[k] === undefined) s[k] = d[k];
-  ['weights', 'waists', 'photos', 'workouts', 'meditations', 'bloodPressures', 'events', 'foodFavourites', 'dishes'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+  ['weights', 'waists', 'photos', 'workouts', 'meditations', 'bloodPressures', 'events', 'foodFavourites', 'dishes', 'foundFoods', 'myStaples'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+  // foods found online by the old packet search (and its barcodes) move into your found foods, so they keep working offline
+  if (!s.foundMoved) { try { const oc = JSON.parse(localStorage.getItem('prakash-off-cache-en') || '{}') || {}, seen = new Set(s.foundFoods.map(x => (x.name + '|' + (x.brand || '')).toLowerCase())); Object.keys(oc).sort((a, b) => oc[b].at - oc[a].at).forEach(q => ((oc[q] || {}).c || []).forEach(c => { if (!c || !c.name || !(+c.k > 0)) return; const key = (c.name + '|' + (c.brand || '')).toLowerCase(); if (seen.has(key)) return; seen.add(key); const x = Object.assign({}, c, { at: oc[q].at || 0 }); if (q.charAt(0) === '#') x.code = q.slice(1); s.foundFoods.push(x); })); s.foundFoods = s.foundFoods.slice(0, 300); } catch (e) {} s.foundMoved = 1; }
   if (!s.witness) s.witness = { entries: [], readings: [] };
   if (!Array.isArray(s.witness.entries)) s.witness.entries = [];
   if (!Array.isArray(s.witness.readings)) s.witness.readings = [];
@@ -411,7 +418,7 @@ function migrate(s) {
 function load() { try { const raw = localStorage.getItem(KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {} return defaults(); }
 let S;
 let saveT = null;
-function saveNow() { clearTimeout(saveT); saveT = null; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('The phone is out of space for Prakash. Download a backup, then delete old photos.'); } }
+function saveNow() { clearTimeout(saveT); saveT = null; staplesMemo = null; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('The phone is out of space for Prakash. Download a backup, then delete old photos.'); } }
 function save() { clearTimeout(saveT); saveT = setTimeout(saveNow, 250); }
 window.addEventListener('pagehide', saveNow);
 document.addEventListener('visibilitychange', () => { if (document.hidden && saveT) saveNow(); });
@@ -573,7 +580,29 @@ const BASICS = [
   ['Digestive biscuit', 480, 7, 21, 63, 15, 'biscuit', 3.5], ['Rich tea biscuit', 450, 7, 15, 72, 8, 'biscuit', 2], ['Crisps', 530, 6, 33, 52, 25, 'bag', 4.5], ['Milk chocolate', 530, 7.5, 30, 57, 25, '4 squares', 2],
   ['Cake, sponge', 380, 5, 18, 50, 60, 'slice', 1], ['Tea with milk', 12, 0.8, 0.4, 1.2, 250, 'mug', 0], ['Coffee with milk', 30, 2, 1.5, 2.5, 250, 'mug', 0], ['Orange juice', 45, 0.7, 0.2, 10, 200, 'glass', 0.2],
   ['Cola', 42, 0, 0, 10.6, 330, 'can', 0], ['Beer', 43, 0.5, 0, 3.6, 568, 'pint', 0], ['Wine', 85, 0.1, 0, 2.6, 175, 'glass', 0],
+  // more everyday and Indian foods, typical home values
+  ['Dal, plain', 100, 6, 2.5, 14, 200, 'bowl', 3], ['Phulka (no ghee)', 260, 9, 1.5, 52, 30, 'phulka', 7], ['Roti with ghee', 340, 8.5, 9, 45, 45, 'roti', 6.5], ['Brown rice, cooked', 123, 2.7, 1, 26, 180, 'bowl', 1.6],
+  ['Vegetable pulao', 150, 3, 4, 26, 200, 'plate', 1.5], ['Vegetable biryani', 160, 3.5, 5.5, 25, 250, 'plate', 2], ['Rasam', 30, 1, 1, 4.5, 200, 'bowl', 0.6], ['Uttapam', 170, 4.5, 5, 26, 120, 'uttapam', 2],
+  ['Medu vada', 290, 9, 17, 26, 45, 'vada', 4], ['Coconut chutney', 200, 2.5, 18, 8, 30, '2 tbsp', 4], ['Pav bhaji', 150, 3.5, 6.5, 20, 250, 'plate with 2 pav', 3], ['Chole bhature', 280, 7, 14, 32, 300, 'plate', 5],
+  ['Paneer tikka', 230, 15, 16, 6, 150, 'portion', 1], ['Matar paneer', 160, 7.5, 11, 8, 200, 'bowl', 2.5], ['Baingan bharta', 90, 2, 6, 8, 150, 'bowl', 3.5], ['Pakora, vegetable', 280, 6, 17, 26, 30, 'pakora', 3],
+  ['Chivda / namkeen', 480, 10, 28, 48, 30, 'small bowl', 5], ['Besan ladoo', 480, 9, 27, 50, 35, 'ladoo', 3], ['Chaas (buttermilk)', 25, 1.5, 0.9, 2.5, 250, 'glass', 0], ['Papad, roasted', 370, 25, 3, 60, 12, 'papad', 10],
+  ['Mango pickle', 250, 1.5, 22, 12, 10, 'tsp', 2], ['Chai, no sugar', 22, 1.3, 1, 1.8, 150, 'cup', 0], ['Milk, semi-skimmed', 47, 3.5, 1.7, 4.8, 250, 'glass', 0], ['Oat milk', 45, 0.3, 1.5, 6.6, 250, 'glass', 0.8],
+  ['Egg, fried', 196, 13.6, 15, 0.8, 55, 'egg', 0], ['Omelette, 2 eggs', 155, 11, 12, 0.6, 120, 'omelette', 0], ['Toast with butter', 330, 8, 14, 42, 45, 'slice', 2.5], ['Muesli', 370, 10, 6, 66, 45, 'bowl', 7.5],
+  ['Granola', 450, 10, 18, 62, 45, 'bowl', 6.5], ['Chicken breast, cooked', 165, 31, 3.6, 0, 120, 'breast', 0], ['Chicken curry', 150, 14, 9, 4, 250, 'bowl', 1], ['White fish, cooked', 105, 23, 1, 0, 140, 'fillet', 0],
+  ['Quinoa, cooked', 120, 4.4, 1.9, 21, 150, 'bowl', 2.8], ['Cucumber', 15, 0.7, 0.1, 3.6, 100, 'quarter cucumber', 0.5], ['Carrot', 41, 0.9, 0.2, 10, 80, 'carrot', 2.8], ['Broccoli', 34, 2.8, 0.4, 7, 80, 'portion', 2.6],
+  ['Blueberries', 57, 0.7, 0.3, 14, 80, 'handful', 2.4], ['Peanuts', 567, 26, 49, 16, 28, 'small handful', 8.5], ['Cashews', 553, 18, 44, 30, 28, 'small handful', 3.3], ['Dark chocolate, 70%', 600, 7.8, 43, 46, 20, '2 squares', 11],
+  ['Protein bar', 360, 30, 12, 35, 60, 'bar', 5],
 ].map(b => ({ name: b[0], per: '100g', k: b[1], p: b[2], f: b[3], c: b[4], serveGrams: b[5], serveLabel: b[6], b: b[7], src: 'Basic' }));
+/* the staples table: the built-in foods above, with your own changes and additions (Settings › Food lookup) laid over them.
+   It is only a quiet lookup index now, never shown as a list while logging. */
+let staplesMemo = null;
+function staples() {
+  if (staplesMemo) return staplesMemo;
+  const mine = (S && S.myStaples) || [], over = {}; mine.forEach(x => { if (x.of) over[x.of.toLowerCase()] = x; });
+  const fix = x => Object.assign({ per: '100g', f: 0, c: 0, b: 0 }, x, { src: 'Basic' });
+  staplesMemo = [...BASICS.map(b => { const o = over[b.name.toLowerCase()]; if (!o) return b; if (o.hidden) return null; const c = fix(o); delete c.id; return c; }).filter(Boolean), ...mine.filter(x => !x.of).map(x => { const c = fix(x); delete c.id; return c; })];
+  return staplesMemo;
+}
 
 const QUOTES = [
   { t: 'Let each ordinary act have your whole attention.', b: 'after Zen' },
@@ -1033,7 +1062,7 @@ const AI_TIMEOUT = 8000;
 const GROQ_MODELS = ['qwen/qwen3.8-27b', 'qwen/qwen3.6-27b'];
 // Checked September 2026: OpenRouter's free router picks a free model that can see images; then free vision models by name.
 const OR_MODELS = ['openrouter/free', 'qwen/qwen3.8-27b:free', 'google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free'];
-const AI_KEYS = ['groqKey', 'groqModel', 'openrouterKey', 'openrouterModel'];   // with geminiKey/geminiModel: kept out of backups
+const AI_KEYS = ['groqKey', 'groqModel', 'openrouterKey', 'openrouterModel', 'usdaKey'];   // with geminiKey/geminiModel: kept out of backups
 function aiKey(name) { return cleanKey(S.profile[name + 'Key']); }
 function anyAiKey() { return !!(aiKey('gemini') || aiKey('groq') || aiKey('openrouter')); }
 function withTimeout(ms, fn) {
@@ -1166,26 +1195,133 @@ on('say-open', b => { const k = b.dataset.k || foodDate, m = nowMins(); const sl
 on('say-slot', b => { if (!ADD) return; const t = $('#say-t'); if (t) ADD.q = t.value; ADD.slot = b.dataset.s; addRender(); });
 function openAdd(k, slot) {
   const d = day(k);
-  ADD = { k, slot, q: '', list: 'recent', mode: 'list', added: [], reason: '', breath: S.profile.breathBeforeMeals && !mealFoods(d, slot).length, online: null, onlineMsg: '', cand: null, qty: 1, unit: 'portion', est: null, scanMsg: '' };
+  ADD = { k, slot, q: '', list: 'recent', mode: 'list', added: [], reason: '', breath: S.profile.breathBeforeMeals && !mealFoods(d, slot).length, acShow: false, acActive: null, acOnline: null, cand: null, qty: 1, unit: 'portion', est: null, scanMsg: '' };
   openSheet('', { full: true, label: 'Add to ' + MEAL_NAME[slot], noTop: true, onClose: () => { stopScan(); ADD = null; render(); } });
   addRender();
 }
 function addTop(title, back) { return `<div class="sheet-top">${back ? `<button class="link" data-a="${back}">‹ Back</button>` : '<span style="width:60px"></span>'}<h2>${esc(title)}</h2><button class="link" data-a="sheet-close">Done</button></div>`; }
 function addItemsNow() {
-  const a = ADD, q = a.q.trim().toLowerCase(), hist = historyFoods();
-  let items = [];
-  if (q) {
-    // your own foods first, then the phone's staples; each ranked by how well the words match
-    const qt = toks(q), score = n => qt.length ? matchScore(qt, n) || (n.toLowerCase().includes(q) ? 50 : 0) : 0;
-    const group = (list, toC, tag, max) => list.map(x => ({ x, s: score(x.name || '') })).filter(o => o.s > 0).sort((a, b) => b.s - a.s).slice(0, max).map(o => ({ c: toC(o.x), tag }));
-    items = [...group(S.foodFavourites, candFromEntry, 'Favourite', 8), ...group(hist, candFromEntry, 'Had before', 10), ...group(S.dishes, x => x, 'My dish', 8), ...group(BASICS, x => x, 'Basic', 12)];
-    const seen = new Set(); items = items.filter(i => { const n = i.c.name.toLowerCase(); if (seen.has(n)) return false; seen.add(n); return true; });
-  } else if (a.list === 'recent') items = hist.slice(0, 25).map(f => ({ c: candFromEntry(f) }));
-  else if (a.list === 'fav') items = S.foodFavourites.map(f => ({ c: candFromEntry(f) }));
-  else if (a.list === 'dish') items = S.dishes.map(x => ({ c: x }));
-  else items = BASICS.map(x => ({ c: x }));
-  return items;
+  const a = ADD;
+  if (a.list === 'fav') return S.foodFavourites.map(f => ({ c: candFromEntry(f) }));
+  if (a.list === 'dish') return S.dishes.map(x => ({ c: x }));
+  return historyFoods().slice(0, 25).map(f => ({ c: candFromEntry(f) }));
 }
+/* ---------- search as you type ----------
+   From two letters, suggestions sit under the box: your dishes, then what you've had (most recent first),
+   then foods found online before, then the staples table as a quiet index. A tap only fills the draft. */
+function acQuery(q) {
+  // "2 rotis", "a bowl of dal": the count and the unit word come off, and the count goes into the draft
+  const pt = parseSentence(q)[0]; let qty = null, name = q;
+  if (pt) { qty = pt.qty; name = pt.name + (/\s$/.test(q) ? ' ' : ''); }
+  return { qty, name };
+}
+function acScore(name, qt, last) {
+  const ct = toks(name); if (!ct.length) return 0;
+  const hit = w => ct.includes(w) || (ALIAS[w] || []).some(x => toks(x).every(y => ct.includes(y))) || (w.length >= 3 && ct.some(c => c.startsWith(w)));
+  if (!qt.every(hit)) return 0;
+  if (last) {
+    // the word still being typed: the start of any word in the name, or of a word it's also known by
+    const alts = [last, ...Object.keys(ALIAS).filter(k => k.startsWith(last)).flatMap(k => [k, ...ALIAS[k]]).flatMap(toks)];
+    if (!alts.some(w => ct.some(c => c.startsWith(w)))) return 0;
+  }
+  // names that start with what was typed first come first: "dal t" is dal tadka before toor dal
+  const words = qt.length + (last ? 1 : 0), lead = qt[0] || last, first = ct[0].startsWith(lead) ? 8 : (ALIAS[lead] || []).some(x => toks(x)[0] === ct[0]) ? 4 : 0;
+  const plain = qt.every(w => ct.includes(w)) && (!last || ct.some(c => c.startsWith(last))) ? 3 : 0;   // the word itself beats a word it's also known by
+  return 100 - Math.min(30, Math.max(0, ct.length - words) * 5) + first + plain;
+}
+function acItems(q) {
+  const { qty, name } = acQuery(q), raw = String(name || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  if (raw.replace(/\s/g, '').length < 2) return [];
+  const ws = raw.trim().split(/\s+/), typing = !/\s$/.test(raw), lastRaw = typing ? ws.pop() : '';
+  const qt = toks(ws.join(' ')), last = lastRaw && !STOP.has(lastRaw) ? lastRaw : '', flat = raw.trim();
+  if (!qt.length && !last) return [];
+  const score = n => acScore(n || '', qt, last) || (flat.length >= 4 && String(n || '').toLowerCase().includes(flat) ? 50 : 0);
+  const byScore = (list, toC, tag, max) => list.map(x => ({ x, s: score(x.name) })).filter(o => o.s > 0).sort((a, b) => b.s - a.s).slice(0, max).map(o => ({ c: toC(o.x), tag, qty }));
+  const byRecent = (list, toC, tag, max) => list.filter(x => score(x.name) > 0).slice(0, max).map(x => ({ c: toC(x), tag, qty }));
+  const found = S.foundFoods.slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+  const all = [...byScore(S.dishes, x => x, 'My dish', 3), ...byScore(S.foodFavourites, candFromEntry, 'Favourite', 2), ...byRecent(historyFoods(), candFromEntry, 'Had before', 4), ...byRecent(found, x => x, 'Found before', 3), ...byScore(staples(), x => x, 'Staple', 8)];
+  const seen = new Set();
+  return all.filter(i => { const n = i.c.name.toLowerCase(); if (seen.has(n)) return false; seen.add(n); return true; }).slice(0, 7);
+}
+function lookupKeys() { return { usda: cleanKey(S.profile.usdaKey) }; }
+function onlineLookupReady() { return !!lookupKeys().usda; }
+function acNote() {
+  if (navigator.onLine === false) return 'Offline · your foods and the staples only';
+  if (!onlineLookupReady()) return 'Add a key in Settings for more foods';
+  return '';
+}
+function acRow(it, i) {
+  const c = it.c; let amt, v;
+  if (it.qty != null) { const pc = perFromCand(c); amt = fmtQ(it.qty) + ' × ' + unitName(pc.unit); v = { kcal: pc.per.k * it.qty, protein: pc.per.p * it.qty }; }
+  else { const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); amt = amountLabel(c, am.qty, am.unit); v = calc(c, am.qty, am.unit); }
+  return `<li class="li ac-opt" role="option" id="ac-${i}" aria-selected="${ADD.acActive === i}" data-a="ac-pick" data-i="${i}"><span class="t"><strong>${esc(c.name)}</strong><span>${it.tag ? esc(it.tag) + ' · ' : ''}${esc(amt)} · ${shortMacro(v)}</span></span></li>`;
+}
+function acOnlineNow() { const a = ADD; return a.acOnline && a.acOnline.q === a.q.trim() ? a.acOnline : null; }
+function acOptions() { const o = acOnlineNow(); return [...(ADD._ac || []), ...((o && o.list) || []).map(c => ({ c, tag: c.brand || c.src, online: true }))]; }
+function acHtml() {
+  const a = ADD, q = a.q.trim(), items = a._ac || [], o = acOnlineNow(), on = onlineLookupReady() && navigator.onLine !== false;
+  let rows = items.map(acRow).join('');
+  if (o && o.list) rows += o.list.map((c, j) => acRow({ c, tag: c.brand || c.src }, items.length + j)).join('');
+  let foot = '';
+  if (o && o.busy) foot = `<li class="ac-note" role="presentation"><span class="tiny">Searching online…</span></li>`;
+  else if (o && o.msg) foot = `<li class="ac-note" role="presentation"><span class="tiny">${esc(o.msg)}</span></li>`;
+  else if (on && !o) foot = `<li class="li ac-opt" role="option" id="ac-online" aria-selected="${a.acActive === 'online'}" data-a="ac-online"><span class="t"><strong style="font-weight:400">Search online for “${esc(q)}”</strong></span></li>`;
+  else if (!on) foot = `<li class="ac-note" role="presentation"><span class="tiny">${esc(acNote())}</span></li>`;
+  return (rows || `<li class="ac-note" role="presentation"><span class="tiny">Nothing saved by that name.</span></li>`) + foot;
+}
+function acOpen() { const a = ADD; return !!(a && a.mode === 'list' && a.acShow && a.q.trim().length >= 2 && !isMulti(a.q.trim())); }
+function acRefresh() {
+  const a = ADD, box = $('#add-ac'), qi = $('#add-q'); if (!a || !box || !qi) return;
+  if (!acOpen()) { box.hidden = true; box.innerHTML = ''; a._ac = []; a.acActive = null; qi.setAttribute('aria-expanded', 'false'); qi.removeAttribute('aria-activedescendant'); return; }
+  a._ac = acItems(a.q); const o = acOnlineNow();
+  if (o && o.list) { const got = new Set(o.list.map(c => c.name.toLowerCase())); a._ac = a._ac.filter(i => !got.has(i.c.name.toLowerCase())); }   // what was just found shows once, as found
+  box.innerHTML = acHtml(); box.hidden = false; qi.setAttribute('aria-expanded', 'true');
+  const act = a.acActive != null ? $('#ac-' + a.acActive) : null;
+  if (act) { qi.setAttribute('aria-activedescendant', act.id); act.scrollIntoView({ block: 'nearest' }); } else qi.removeAttribute('aria-activedescendant');
+  acFit();
+}
+// the list never runs under the keyboard: it is only as tall as the room left below the box, and scrolls inside only if it must
+function acFit() {
+  const box = $('#add-ac'), qi = $('#add-q'); if (!box || box.hidden || !qi) return;
+  const vv = window.visualViewport, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight, top = qi.getBoundingClientRect().bottom;
+  box.style.maxHeight = Math.max(200, Math.floor(bottom - top - 16)) + 'px';
+}
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (ADD && ADD.mode === 'list') acFit(); });
+// a tap anywhere outside the box and its list closes the list; the words typed stay
+document.addEventListener('pointerdown', e => { if (!ADD || !ADD.acShow || !e.target.closest) return; if (e.target.closest('#add-ac') || e.target.closest('#add-q')) return; ADD.acShow = false; acRefresh(); }, true);
+function isMulti(q) {
+  if (/[,;\n+&]/.test(q)) return true;
+  if (!/\b(and|with|plus)\b/i.test(q)) return false;
+  return !matchLocal(q) && parseSentence(q).length > 1 && parseSentence(q).every(p => matchLocal(p.name));
+}
+function acKey(e) {
+  const a = ADD; if (!a) return;
+  if (e.key === 'Escape' && acOpen()) { e.preventDefault(); e.stopPropagation(); a.acShow = false; acRefresh(); return; }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
+  if (!acOpen()) { if (e.key === 'Enter') { e.preventDefault(); refreshAddResults(); e.target.blur(); } return; }   // Enter never adds anything by itself
+  const ids = [...acOptions().map((x, i) => i), ...($('#ac-online') ? ['online'] : [])];
+  if (e.key === 'Enter') { e.preventDefault(); if (a.acActive == null) return; const el = $('#ac-' + a.acActive); if (el) el.click(); return; }
+  e.preventDefault(); if (!ids.length) return;
+  const i = ids.indexOf(a.acActive), n = e.key === 'ArrowDown' ? (i + 1) % ids.length : (i <= 0 ? ids.length - 1 : i - 1);
+  a.acActive = ids[n]; acRefresh();
+}
+on('ac-pick', b => {
+  const a = ADD, it = acOptions()[+b.dataset.i]; if (!it) return;
+  if (it.online) keepFound([it.c]);
+  a.acShow = false; a.acActive = null;
+  const src = it.online ? (it.c.brand ? it.c.brand + ' · ' + it.c.src : it.c.src) : it.tag === 'Staple' ? 'Staple · typical values' : it.tag;
+  openDraft([draftItem(it.c, { qty: it.qty != null ? it.qty : undefined, src })], 'list');
+});
+on('ac-online', async () => {
+  const a = ADD, q = a.q.trim(), query = acQuery(q).name.trim() || q; if (!query) return;
+  const o = a.acOnline = { q, busy: true, list: null, msg: '' }; a.acActive = null; acRefresh();
+  const r = await foodSearchOnline(query, 8);
+  if (ADD !== a || a.acOnline !== o) return;
+  o.busy = false;
+  if (r.list.length) { o.list = r.list; keepFound(r.list); }
+  else o.msg = r.offline ? 'Offline · your foods and the staples only' : r.reached ? 'Nothing found online for “' + query + '”.' : 'The food search didn’t answer. Your foods and the staples still work.';
+  acRefresh();
+});
 /* "dal" typed on its own is a general word: a named dish it matched is only a guess, and is shown as one */
 const PLAIN_WORDS = new Set(['cooked', 'dry', 'raw', 'plain', 'boiled', 'fresh', 'homemade', 'bowl', 'cup', 'mug', 'glass', 'plate', 'portion', 'piece', 'slice', 'small', 'medium', 'large']);
 function isGuess(said, name) {
@@ -1196,7 +1332,7 @@ function isGuess(said, name) {
 function addRow(it, i, src) { const c = it.c, am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c), v = calc(c, am.qty, am.unit); return `<li class="li"><button class="t" data-a="add-quick" data-hold="add-pick" data-src="${src}" data-i="${i}" aria-label="Add ${esc(c.name)}, ${esc(amountLabel(c, am.qty, am.unit))}">${it.guess ? `<span class="guess">Did you mean…?</span>` : ''}<strong>${esc(c.name)}</strong><span>${it.tag ? esc(it.tag) + ' · ' : ''}${esc(amountLabel(c, am.qty, am.unit))} · ${shortMacro(v)}</span></button><button class="round" data-a="add-pick" data-src="${src}" data-i="${i}" aria-label="Change the amount of ${esc(c.name)}" style="font-size:20px">⋯</button></li>`; }
 function addResultsHtml() {
   const a = ADD, q = a.q.trim();
-  if (q && looksLikeSentence(q)) {
+  if (q && isMulti(q)) {
     const parts = parseSentence(q), miss = []; a._items = [];
     parts.forEach(pt => { const m = matchLocal(pt.name); if (!m) { miss.push(pt); return; } const c = { ...m.c }, am = pt.qty != null ? defaultAmt(c) : (c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c)); if (pt.qty != null) { am.qty = am.unit === 'g' ? pt.qty * 100 : pt.qty; } c._qty = am.qty; c._unit = am.unit; a._items.push({ c, tag: '“' + pt.raw + '”', guess: isGuess(pt.name, c.name) }); });
     return `<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('')}</ul>
@@ -1204,21 +1340,21 @@ function addResultsHtml() {
     ${a._items.length > 1 ? `<button class="btn primary" data-a="add-all" style="width:100%;margin-top:10px">Add all ${a._items.length}</button>` : ''}`;
   }
   a._items = addItemsNow();
-  const emptyMsg = { recent: 'Foods you add appear here, ready to add again with one tap.', fav: 'Tap any food you have logged, then “Add to favourites”.', dish: 'Your own recipes live here. Make one from its ingredients, or photo a dish and tick “Save as my dish”.', basics: '' }[a.list];
-  return `${!q && a.list === 'dish' ? '<button class="btn" data-a="rec-new" style="width:100%;margin-bottom:6px">Make a new dish from its ingredients</button>' : ''}<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('') || (q ? '<p class="tiny" style="padding:8px 0">Nothing saved by that name.</p>' : `<p class="tiny" style="padding:12px 0">${emptyMsg}</p>`)}</ul>
-  ${q ? `${a.online ? `<h3 style="margin:10px 0 4px">From Open Food Facts</h3><ul class="list">${a.online.map((c, i) => addRow({ c, tag: c.brand || 'Open Food Facts' }, i, 'o')).join('')}</ul>` : ''}${a.onlineMsg ? `<p class="tiny" style="margin:6px 0">${esc(a.onlineMsg)}</p>` : ''}${a.online && a.online.length ? '' : a.onlineFor === q && !a.online ? '' : `<button class="btn" data-a="add-online" style="width:100%;margin-top:8px">${a.onlineFor === q ? 'Try Open Food Facts again' : 'Look up “' + esc(q) + '” in Open Food Facts'}</button>`}` : ''}`;
+  const emptyMsg = { recent: 'Foods you add appear here, ready to add again with one tap. To find any food, start typing its name.', fav: 'Tap any food you have logged, then “Add to favourites”.', dish: 'Your own recipes live here. Make one from its ingredients, or photo a dish and tick “Save as my dish”.' }[a.list];
+  return `${a.list === 'dish' ? '<button class="btn" data-a="rec-new" style="width:100%;margin-bottom:6px">Make a new dish from its ingredients</button>' : ''}<ul class="list">${a._items.map((it, i) => addRow(it, i, 'l')).join('') || `<p class="tiny" style="padding:12px 0">${emptyMsg}</p>`}</ul>`;
 }
 function addRender() {
   if (!ADD) return;
   const a = ADD, nm = MEAL_NAME[a.slot].replace('Snacks', 'snacks').toLowerCase();
   let h = '';
   if (a.mode === 'list') {
-    const emptyTabs = !a.q.trim();
+    if (!['recent', 'fav', 'dish'].includes(a.list)) a.list = 'recent';
+    const emptyTabs = !isMulti(a.q.trim());
     h = addTop('Add to ' + nm) + `<div class="stack">
     ${a.breath ? `<div><p class="journal-q" style="font-size:19px">One slow breath. What's asking for food?</p><div class="chips" style="margin-top:8px">${REASONS.map(r => `<button class="chip" data-a="add-reason" data-r="${r}" aria-pressed="${a.reason === r}">${r}</button>`).join('')}</div></div>` : ''}
     ${a.added.length ? `<div class="okbox small">Added to ${nm}: ${esc(a.added.join(', '))}</div>` : ''}
     ${sayHtml()}
-    <div class="seg${emptyTabs ? '' : ' hidden'}" id="add-tabs" role="tablist" aria-label="Food lists">${[['recent', 'Recent'], ['fav', 'Favourites'], ['dish', 'My dishes'], ['basics', 'Basics']].map(x => `<button role="tab" id="add-tab-${x[0]}" aria-controls="add-res" data-a="add-list" data-l="${x[0]}" aria-selected="${a.list === x[0]}" tabindex="${a.list === x[0] ? 0 : -1}">${x[1]}</button>`).join('')}</div>
+    <div class="seg${emptyTabs ? '' : ' hidden'}" id="add-tabs" role="tablist" aria-label="Food lists">${[['recent', 'Recent'], ['fav', 'Favourites'], ['dish', 'My dishes']].map(x => `<button role="tab" id="add-tab-${x[0]}" aria-controls="add-res" data-a="add-list" data-l="${x[0]}" aria-selected="${a.list === x[0]}" tabindex="${a.list === x[0] ? 0 : -1}">${x[1]}</button>`).join('')}</div>
     <div id="add-res"${emptyTabs ? ` role="tabpanel" aria-labelledby="add-tab-${a.list}"` : ''}>${addResultsHtml()}</div>
     </div>`;
   } else if (a.mode === 'say') {
@@ -1231,7 +1367,7 @@ function addRender() {
   } else if (a.mode === 'show') {
     h = addTop('Show it', 'add-back') + `<div class="stack">
     <button class="card showit" data-a="add-photo"><span aria-hidden="true" style="font-size:30px">🍛</span><span><strong>A plate of food</strong><span class="tiny" style="display:block">${anyAiKey() ? 'AI works out what’s on it' : 'Photo it, then ask any AI or enter the numbers'}</span></span></button>
-    <button class="card showit" data-a="add-scan"><span aria-hidden="true" style="font-size:30px">▥</span><span><strong>A barcode</strong><span class="tiny" style="display:block">Looks the packet up in Open Food Facts</span></span></button>
+    <button class="card showit" data-a="add-scan"><span aria-hidden="true" style="font-size:30px">▥</span><span><strong>A barcode</strong><span class="tiny" style="display:block">${onlineLookupReady() ? 'Looks the packet up online' : 'Looked up online, with a key in Settings'}</span></span></button>
     ${S.profile.geminiKey ? `<label class="card showit filebtn" style="cursor:pointer"><span aria-hidden="true" style="font-size:30px">🏷</span><span><strong>A nutrition label</strong><span class="tiny" style="display:block">Gemini reads the numbers off the packet</span></span><input type="file" accept="image/*" capture="environment" data-label></label>` : ''}
     ${a.labelBusy ? `<p class="small">${esc(a.labelBusy)}</p>` : ''}${a.scanMsg && !a.notFound ? `<p class="small">${esc(a.scanMsg)}</p>` : ''}
     <p class="tiny">Nothing is added until you’ve seen it.</p></div>`;
@@ -1244,7 +1380,7 @@ function addRender() {
     ${a.unit !== 'g' ? `<div class="chips" role="group" aria-label="Portion">${DR_CHIPS.map(q => `<button class="chip" data-a="add-chip" data-q="${q}" aria-pressed="${a.qty === q}" aria-label="${fmtQ(q)} × ${esc(a.unit === 'serving' ? (c.serveLabel || 'serving') : (c.portionLabel || 'portion'))}">${qLabel(q)}</button>`).join('')}</div>` : ''}
     <button class="btn primary big" data-a="add-commit">Add to ${esc(nm)}</button>
     ${c.recipe ? '<button class="btn" data-a="rec-edit">Change the recipe</button>' : ''}
-    ${c.per === '100g' ? `<p class="tiny">${esc(c.src === 'Basic' ? 'Typical values' : 'From the packet label via Open Food Facts')}, per 100 g: ${n0(c.k)} cal, ${n1(c.p)} g protein.</p>` : ''}</div>`;
+    ${c.per === '100g' ? `<p class="tiny">${esc(c.src === 'Basic' ? 'Typical values' : c.src === 'USDA' ? 'From USDA FoodData Central' : c.src === 'Open Food Facts' ? 'From the packet label' : 'Your numbers')}, per 100 g: ${n0(c.k)} cal, ${n1(c.p)} g protein.</p>` : ''}</div>`;
   } else if (a.mode === 'scan') {
     h = addTop('Scan a barcode', 'add-back') + `<div class="stack"><video id="scan-cam" autoplay playsinline muted style="width:100%;border-radius:14px;background:#000;min-height:220px"></video>
     <p class="tiny">Hold the barcode steady in the frame. It's picked up by itself.</p>
@@ -1259,7 +1395,12 @@ function addRender() {
   }
   const b = sheetBody(h); if (!b) return;
   const qi = $('#add-q', b);
-  if (qi) { qi.oninput = e => { a.q = e.target.value; a.online = null; a.onlineMsg = ''; a.onlineFor = ''; if (offCtl) offCtl.abort(); clearTimeout(a._ot); clearTimeout(a._t); a._t = setTimeout(() => { refreshAddResults(); autoOnline(); }, 150); }; qi.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); refreshAddResults(); qi.blur(); } }; }   // Enter only shows the matches; nothing is added without a tap
+  if (qi) {
+    qi.oninput = e => { const was = isMulti(a.q.trim()); a.q = e.target.value; a.acShow = true; a.acActive = null; a.acOnline = null; acRefresh(); if (was !== isMulti(a.q.trim())) { clearTimeout(a._t); a._t = setTimeout(refreshAddResults, 150); } };
+    qi.onfocus = () => { if (!a.acShow && a.q.trim().length >= 2) { a.acShow = true; acRefresh(); } };
+    qi.onkeydown = acKey;   // Enter only picks a highlighted suggestion; nothing is added without seeing it
+    if (a.acShow) acRefresh();
+  }
   const qq = $('#add-qty', b); if (qq) qq.oninput = e => { const v = num(e.target.value); if (v != null && v > 0) { a.qty = v; const s = $('.big-num', b); const val = calc(a.cand, a.qty, a.unit); if (s) s.firstChild.nodeValue = big(val.kcal) + ' '; } };
   if (a.mode === 'scan') startScan();
   if (a.mode === 'say') { const t = $('#say-t', b); if (t) { t.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); A['say-go'](); } }); t.addEventListener('input', () => { a.q = t.value; }); } }
@@ -1268,8 +1409,8 @@ function addRender() {
 
   if (a.mode === 'recipe') bindRecipe(b);
 }
-function refreshAddResults() { const r = $('#add-res'); if (!r || !ADD || ADD.mode !== 'list') return addRender(); r.innerHTML = addResultsHtml(); const tabs = $('#add-tabs'), on = !ADD.q.trim(); if (tabs) tabs.classList.toggle('hidden', !on); if (on) { r.setAttribute('role', 'tabpanel'); r.setAttribute('aria-labelledby', 'add-tab-' + ADD.list); } else { r.removeAttribute('role'); r.removeAttribute('aria-labelledby'); } }
-function addItem(src, i) { const a = ADD; if (src === 'o') return a.online[i]; const it = a._items[i]; return it && it.c; }
+function refreshAddResults() { const r = $('#add-res'); if (!r || !ADD || ADD.mode !== 'list') return addRender(); r.innerHTML = addResultsHtml(); acRefresh(); const tabs = $('#add-tabs'), on = !isMulti(ADD.q.trim()); if (tabs) tabs.classList.toggle('hidden', !on); if (on) { r.setAttribute('role', 'tabpanel'); r.setAttribute('aria-labelledby', 'add-tab-' + ADD.list); } else { r.removeAttribute('role'); r.removeAttribute('aria-labelledby'); } }
+function addItem(src, i) { const it = ADD._items[i]; return it && it.c; }
 on('add-reason', b => { ADD.reason = ADD.reason === b.dataset.r ? '' : b.dataset.r; addRender(); });
 on('add-list', b => { ADD.list = b.dataset.l; $$('#add-tabs button').forEach(x => { x.setAttribute('aria-selected', String(x === b)); x.tabIndex = x === b ? 0 : -1; }); const r = $('#add-res'); if (r) r.setAttribute('aria-labelledby', b.id); refreshAddResults(); });
 document.addEventListener('keydown', e => {
@@ -1278,7 +1419,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') j = (i + 1) % tabs.length; else if (e.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length; else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = tabs.length - 1;
   if (j == null) return; e.preventDefault(); tabs[j].focus(); tabs[j].click();
 });
-on('say-part', b => { ADD.q = b.dataset.t; ADD.online = null; ADD.onlineMsg = ''; ADD.onlineFor = ''; addRender(); autoOnline(); const qi = $('#add-q'); if (qi) qi.focus(); });
+on('say-part', b => { ADD.q = b.dataset.t; ADD.acOnline = null; ADD.acShow = true; ADD.acActive = null; addRender(); const qi = $('#add-q'); if (qi) qi.focus(); });
 on('add-all', () => {
   const a = ADD, d = day(a.k), items = (a._items || []).map(it => it.c); if (!items.length) return;
   const es = items.map(c => { const clean = { ...c }; const qty = c._qty, unit = c._unit; delete clean._qty; delete clean._unit; return makeEntry(clean, qty, unit, a.slot, a.reason ? { trigger: a.reason } : null); });
@@ -1294,7 +1435,7 @@ document.addEventListener('click', e => { if (holdFired && e.target.closest && e
 document.addEventListener('contextmenu', e => { const el = e.target.closest && e.target.closest('[data-hold]'); if (!el) return; e.preventDefault(); clearTimeout(holdT); if (holdFired !== el) { holdFired = el; A[el.dataset.hold] && A[el.dataset.hold](el); } });
 on('add-back', () => { stopScan(); ADD.mode = ['scan', 'photo'].includes(ADD.mode) && ADD.fromShow ? 'show' : 'list'; addRender(); });
 on('show-it', () => { ADD.mode = 'show'; ADD.fromShow = true; ADD.scanMsg = ''; ADD.notFound = ''; ADD.labelBusy = ''; addRender(); });
-on('add-pick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; if (b.dataset.src === 'o') { openDraft([draftItem(c, { src: c.brand || 'Open Food Facts' })], 'list'); return; } ADD.cand = c; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); ADD.qty = am.qty; ADD.unit = am.unit; ADD.mode = 'amount'; addRender(); });
+on('add-pick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; ADD.cand = c; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); ADD.qty = am.qty; ADD.unit = am.unit; ADD.mode = 'amount'; addRender(); });
 on('add-quick', b => { const c = addItem(b.dataset.src, +b.dataset.i); if (!c) return; const am = c._qty != null ? { qty: c._qty, unit: c._unit } : defaultAmt(c); commitFood(c, am.qty, am.unit); });
 on('add-unit', b => { const c = ADD.cand; ADD.unit = b.dataset.u; ADD.qty = ADD.unit === 'g' ? (c.serveGrams || 100) : 1; addRender(); });
 on('add-chip', b => { ADD.qty = +b.dataset.q; addRender(); });
@@ -1307,65 +1448,47 @@ function commitFood(c, qty, unit) {
   a.added.push(c.name); a.breath = false; a.mode = 'list'; addRender();
   undoBar(c.name + ' added.', () => { d.foods = d.foods.filter(x => x.id !== e.id); a.added = a.added.filter((x, i) => i !== a.added.lastIndexOf(c.name)); save(); addRender(); render(); }, 5000);
 }
-/* searches made online are kept, so they still work with no signal */
-const OFF_KEY = 'prakash-off-cache-en'; try { localStorage.removeItem('prakash-off-cache'); } catch (e) {}
-function offCacheGet() { try { return JSON.parse(localStorage.getItem(OFF_KEY) || '{}') || {}; } catch (e) { return {}; } }
-function offCachePut(q, list) { if (!list || !list.length) return; const c = offCacheGet(); c[q.toLowerCase().trim()] = { at: Date.now(), c: list.slice(0, 15) }; const ks = Object.keys(c).sort((a, b) => c[b].at - c[a].at); ks.slice(60).forEach(k => delete c[k]); try { localStorage.setItem(OFF_KEY, JSON.stringify(c)); } catch (e) {} }
-function offCacheFind(q) { q = q.toLowerCase().trim(); const c = offCacheGet(); if (c[q]) return c[q].c; const words = q.split(/\s+/).filter(Boolean), seen = new Set(), out = []; Object.values(c).forEach(e => e.c.forEach(x => { const n = (x.name + ' ' + (x.brand || '')).toLowerCase(); if (words.every(w => n.includes(w)) && !seen.has(n)) { seen.add(n); out.push(x); } })); return out.slice(0, 15); }
-/* Open Food Facts lookup.
-   1. search.openfoodfacts.org, their fast search service (the old cgi search is slow and often busy)
-   2. the old search, as a fallback
-   Every try has a time limit, so nothing hangs. Results that aren't in English go last, UK products first. */
-const OFF_FIELDS = 'code,product_name,product_name_en,generic_name_en,lang,brands,nutriments,serving_size,countries_tags';
-function offTimed(url, ms, signal) { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); if (signal) signal.addEventListener('abort', () => c.abort()); return fetch(url, { headers: { Accept: 'application/json' }, signal: c.signal }).finally(() => clearTimeout(t)); }
-async function offSearch(query, n, signal) {
-  const q = encodeURIComponent(query);
-  const tries = [
-    ['https://search.openfoodfacts.org/search?q=' + q + '&langs=en&page_size=' + (n * 2) + '&fields=' + OFF_FIELDS, 7000, j => j.hits || []],
-    ['https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + q + '&search_simple=1&action=process&json=1&lc=en&sort_by=unique_scans_n&page_size=' + (n * 2) + '&fields=' + OFF_FIELDS, 12000, j => j.products || []]];
-  let busy = false, reached = false;
-  for (const [u, ms, pick] of tries) {
-    if (signal && signal.aborted) return { list: [], reached, busy };
-    try { const r = await offTimed(u, ms, signal); reached = true; if (!r.ok) { busy = true; continue; } const list = offResults({ products: pick(await r.json()) }, n, query); if (list.length) return { list, reached, busy: false }; }
-    catch (e) { if (e && e.name === 'AbortError' && !(signal && signal.aborted)) busy = true; }
-  }
-  return { list: [], reached, busy };
+/* ---------- food search online: only when you tap for it, and only with your own key ----------
+   USDA FoodData Central (free key, api.data.gov). The key stays on this phone and goes only to USDA's food search.
+   Every call has a time limit and is tried once: no retry loops.
+   Whatever is found is kept in your found foods, so the same food works offline next time. */
+function keepFound(list) {
+  const now = Date.now(), key = c => (c.name + '|' + (c.brand || '')).toLowerCase();
+  const fresh = list.filter(c => c && c.name && +c.k > 0).map((c, i) => { const x = { ...c, at: now - i }; delete x._qty; delete x._unit; return x; });
+  if (!fresh.length) return;
+  const ks = new Set(fresh.map(key));
+  S.foundFoods = [...fresh, ...S.foundFoods.filter(c => !ks.has(key(c)))].slice(0, 300); save();
 }
-// looks online by itself when your own foods don't have it: after a short pause in typing, once per search
-let offCtl = null;
-function autoOnline() {
-  const a = ADD; if (!a || a.mode !== 'list') return; const q = a.q.trim();
-  if (q.length < 3 || looksLikeSentence(q) || a.onlineFor === q) return;
-  if ((a._items || []).length >= 4) return;
-  clearTimeout(a._ot); a._ot = setTimeout(() => { if (ADD === a && a.q.trim() === q) A['add-online'](); }, 700);
-}
-on('add-online', async () => {
-  const a = ADD, query = a.q.trim(); if (!query) return;
-  a.onlineFor = query; a.online = null; a.onlineMsg = 'Looking in Open Food Facts…'; refreshAddResults();
-  if (offCtl) offCtl.abort(); const ctl = offCtl = new AbortController();
-  if (navigator.onLine === false) { const kept = offCacheFind(query); a.online = kept; a.onlineMsg = kept.length ? 'No connection, so these are from searches you’ve made before.' : 'No connection. Your own foods and the staples still work.'; refreshAddResults(); return; }
-  const slow = setTimeout(() => { if (ADD === a && a.onlineFor === query && !a.online) { a.onlineMsg = 'Still looking… Open Food Facts is slow today.'; refreshAddResults(); } }, 4000);
-  const r = await offSearch(query, 12, ctl.signal); clearTimeout(slow);
-  if (ADD !== a || a.onlineFor !== query || ctl.signal.aborted) return;
-  if (!r.list.length) { const kept = offCacheFind(query); if (kept.length && !r.reached) { a.online = kept; a.onlineMsg = 'No connection, so these are from searches you’ve made before.'; refreshAddResults(); return; }
-    a.online = []; a.onlineMsg = r.busy ? 'Open Food Facts didn’t answer in time. Tap to try again, or photo the packet.' : !r.reached ? 'Couldn’t reach Open Food Facts. Check the internet connection.' : 'Open Food Facts has nothing called “' + query + '” with calories. Try fewer words, or photo the label.'; refreshAddResults(); return; }
-  a.online = r.list; offCachePut(query, a.online); a.onlineMsg = 'From packet labels, via Open Food Facts. Tap one to check it before it’s added.'; refreshAddResults();
-});
-function offIsEnglish(prod) { return !!(String(prod.product_name_en || '').trim() || prod.lang === 'en'); }
-function offResults(j, n, query) {
-  const qt = query ? toks(query) : [], uk = p => (p.countries_tags || []).some(t => /united-kingdom/.test(t)) ? 1 : 0;
-  const rank = p => offIsEnglish(p) * 4 + uk(p) * 2 + (qt.length && matchScore(qt, (p.product_name_en || p.product_name || '')) ? 3 : 0);
-  const ps = (j.products || []).map((p, i) => ({ p, i, r: rank(p) })).sort((a, b) => b.r - a.r || a.i - b.i).map(o => o.p);
-  const seen = new Set(); return ps.map(offCand).filter(c => { if (!c) return false; const k = (c.name + '|' + c.brand).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, n);
-}
-function parseServing(s) { const m = String(s || '').match(/(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i); return m ? parseFloat(m[1]) : 0; }
-function offCand(prod) {
-  const n = prod.nutriments || {}, kj = Number(n['energy-kj_100g']) || (n['energy_unit'] !== 'kcal' ? Number(n['energy_100g']) : 0), k = Number(n['energy-kcal_100g']) || (kj > 0 ? Math.round(kj / 4.184) : 0);
-  let name = String(prod.product_name_en || prod.product_name || prod.generic_name_en || '').trim(); const brand = String(Array.isArray(prod.brands) ? prod.brands[0] || '' : prod.brands || '').split(',')[0].trim();
-  if (!name || !isFinite(k) || k <= 0) return null;
-  const c = { name, brand, per: '100g', k, p: +n['proteins_100g'] || 0, f: +n['fat_100g'] || 0, c: +n['carbohydrates_100g'] || 0, b: +n['fiber_100g'] || 0, src: 'Open Food Facts' };
-  const sg = parseServing(prod.serving_size); if (sg) { c.serveGrams = sg; c.serveLabel = 'serving (' + prod.serving_size + ')'; }
+function netTimed(url, opts, ms) { const c = new AbortController(), t = setTimeout(() => c.abort(), ms || 8000); return fetch(url, Object.assign({}, opts, { signal: c.signal })).finally(() => clearTimeout(t)); }
+const tidyName = s => { s = String(s || '').trim(); if (s && s === s.toUpperCase()) s = s.toLowerCase().replace(/(^|[\s,(/-])([a-z])/g, (m, a, b) => a + b.toUpperCase()); return s.charAt(0).toUpperCase() + s.slice(1); };
+function usdaCand(f) {
+  const val = (ids, nums) => { const n = (f.foodNutrients || []).find(x => ids.includes(+x.nutrientId) || nums.includes(String(x.nutrientNumber))); return n ? +n.value || 0 : 0; };
+  let k = val([1008], ['208']) || val([2047], ['957']) || val([2048], ['958']); if (!k) { const kj = val([1062], ['268']); if (kj) k = Math.round(kj / 4.184); }
+  const name = tidyName(f.description); if (!name || !(k > 0)) return null;
+  const c = { name, brand: tidyName(f.brandName || f.brandOwner || ''), per: '100g', k: n0(k), p: n1(val([1003], ['203'])), f: n1(val([1004], ['204'])), c: n1(val([1005], ['205'])), b: n1(val([1079], ['291'])), src: 'USDA', fdcId: f.fdcId };
+  if (f.gtinUpc) c.code = String(f.gtinUpc);
+  if (+f.servingSize > 0 && /^(g|grm|ml|mlt)$/i.test(f.servingSizeUnit || '')) { c.serveGrams = +f.servingSize; c.serveLabel = f.householdServingFullText ? 'serving (' + f.householdServingFullText + ')' : 'serving (' + n0(f.servingSize) + ' g)'; }
+  else { const m = (f.foodMeasures || []).find(x => +x.gramWeight > 0 && x.disseminationText && !/quantity not specified/i.test(x.disseminationText)); if (m) { c.serveGrams = +m.gramWeight; c.serveLabel = String(m.disseminationText).toLowerCase(); } }
   return c;
+}
+async function usdaSearch(query, n, upc) {
+  const key = lookupKeys().usda; if (!key) return null;
+  const types = upc ? ['Branded'] : ['Foundation', 'SR Legacy', 'Survey (FNDDS)', 'Branded'];
+  const r = await netTimed('https://api.nal.usda.gov/fdc/v1/foods/search?api_key=' + encodeURIComponent(key) + '&query=' + encodeURIComponent(query) + '&pageSize=' + (upc ? 10 : n * 2) + '&dataType=' + encodeURIComponent(types.join(',')), { headers: { Accept: 'application/json' } }, 9000);
+  if (!r.ok) { const e = Error('usda ' + r.status); e.status = r.status; throw e; }
+  let foods = (await r.json()).foods || [];
+  if (upc) { const z = s => String(s || '').replace(/^0+/, ''); foods = foods.filter(f => z(f.gtinUpc) === z(upc)); }
+  // plain foods before branded packets, then how well the words match
+  const qt = toks(query), rank = f => (f.dataType === 'Branded' ? 0 : 4) + (qt.length && matchScore(qt, f.description || '') ? 3 : 0);
+  const seen = new Set();
+  return foods.map((f, i) => ({ f, i, r: rank(f) })).sort((a, b) => b.r - a.r || a.i - b.i).map(o => usdaCand(o.f)).filter(c => { if (!c) return false; const k = (c.name + '|' + c.brand).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, n);
+}
+// one search on USDA. Never throws.
+async function foodSearchOnline(query, n) {
+  if (navigator.onLine === false) return { list: [], offline: true };
+  let reached = false;
+  try { const list = await usdaSearch(query, n); if (list) { reached = true; if (list.length) return { list: list.slice(0, n), reached }; } } catch (e) { if (e && e.status) reached = true; }
+  return { list: [], reached };
 }
 /* barcode */
 let scanStream = null, scanTimer = null;
@@ -1382,15 +1505,19 @@ on('add-scan', () => { ADD.mode = 'scan'; ADD.scanMsg = ''; ADD.notFound = ''; A
 on('scan-lookup', () => lookupBarcode(($('#scan-code') || {}).value));
 async function lookupBarcode(code) {
   const a = ADD; code = String(code || '').replace(/\D/g, ''); if (!code) { toast('Type the barcode number first.'); return; }
-  a.scanMsg = 'Looking up ' + code + '…'; stopScan(); addRender();
-  try {
-    const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + code + '.json?lc=en&fields=' + OFF_FIELDS); const j = await r.json();
-    const c = j && j.status === 1 && j.product ? offCand(j.product) : null;
-    if (c) offCachePut('#' + code, [c]);
-    if (ADD !== a) return;
-    if (!c) { const kept = offCacheGet()['#' + code]; if (kept) { openDraft([draftItem(kept.c[0], { src: kept.c[0].src || 'Saved from before' })], 'list'); return; } a.notFound = code; a.scanMsg = 'Open Food Facts doesn’t have ' + code + ' yet.'; addRender(); return; }
-    openDraft([draftItem(c, { src: c.brand || 'Open Food Facts' })], 'list');
-  } catch (e) { const kept = offCacheGet()['#' + code]; if (kept && ADD === a) { openDraft([draftItem(kept.c[0], { src: kept.c[0].src || 'Saved from before' })], 'list'); return; } a.scanMsg = 'Barcode look-up needs the internet. Try again when online.'; addRender(); }
+  stopScan(); const z = s => String(s || '').replace(/^0+/, '');
+  const kept = S.foundFoods.find(c => c.code && z(c.code) === z(code));
+  if (kept) { openDraft([draftItem(kept, { src: 'Found before' })], 'list'); return; }
+  const none = msg => { if (ADD !== a) return; a.notFound = code; a.scanMsg = msg; addRender(); };
+  if (!onlineLookupReady()) return none('Barcodes are looked up online. Add a key in Settings for that, or photo the label.');
+  if (navigator.onLine === false) return none('Offline · barcodes are looked up online. You can photo the label or enter it yourself.');
+  a.scanMsg = 'Looking up ' + code + '…'; addRender();
+  let list = [], reached = false;
+  try { const r = await usdaSearch(code, 1, code); if (r) { reached = true; list = r; } } catch (e) { if (e && e.status) reached = true; }
+  if (ADD !== a) return;
+  if (!list.length) return none(reached ? 'No packet found for ' + code + '. You can photo the label or enter it yourself.' : 'The food search didn’t answer. You can photo the label or enter it yourself.');
+  const c = { ...list[0], code }; keepFound([c]);
+  openDraft([draftItem(c, { src: c.brand ? c.brand + ' · ' + c.src : c.src })], 'list');
 }
 
 /* ---------- photo / describe a dish, with Gemini ---------- */
@@ -1643,7 +1770,8 @@ function recIngredientPool() {
   const seen = new Set(), out = [];
   const push = c => { const k = c.name.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push(c); };
   historyFoods().forEach(f => { if (f.base && f.base.per === '100g') push({ ...f.base }); });
-  BASICS.forEach(push);
+  S.foundFoods.forEach(c => { if (c.per === '100g') push(c); });
+  staples().forEach(push);
   return out;
 }
 on('rec-new', () => { ADD.rec = { name: ADD.q.trim(), portions: 4, ings: [], q: '', online: null, msg: '' }; ADD.mode = 'recipe'; addRender(); });
@@ -1660,7 +1788,7 @@ function recipeHtml() {
   <h3>Ingredients, for the whole pot</h3>
   ${rec.ings.length ? `<div>${rec.ings.map(ingRow).join('')}</div>` : '<p class="tiny">Add what goes in, with rough weights. Don’t forget the oil or ghee.</p>'}
   <div class="searchbar"><label><input id="rec-q" type="search" enterkeyhint="search" placeholder="Add an ingredient" value="${esc(rec.q)}" aria-label="Search for an ingredient" autocomplete="off"></label></div>
-  <div id="rec-res">${q ? `<ul class="list">${local.map((c, ix) => resRow(c, ix, 'l')).join('')}</ul>${rec.online ? `<ul class="list">${rec.online.map((c, ix) => resRow(c, ix, 'o')).join('')}</ul>` : `<button class="btn" data-a="rec-online" style="width:100%">Search online for “${esc(rec.q.trim())}”</button>`}${rec.msg ? `<p class="tiny">${esc(rec.msg)}</p>` : ''}` : ''}</div>
+  <div id="rec-res">${q ? `<ul class="list">${local.map((c, ix) => resRow(c, ix, 'l')).join('')}</ul>${rec.online ? `<ul class="list">${rec.online.map((c, ix) => resRow(c, ix, 'o')).join('')}</ul>` : (onlineLookupReady() && navigator.onLine !== false ? `<button class="btn" data-a="rec-online" style="width:100%">Search online for “${esc(rec.q.trim())}”</button>` : `<p class="tiny">${esc(acNote())}</p>`)}${rec.msg ? `<p class="tiny">${esc(rec.msg)}</p>` : ''}` : ''}</div>
   <details class="fold"><summary class="small">Not listed? Enter it yourself</summary><div class="stack"><div><label class="lab" for="rc-n">Ingredient</label><input class="input" id="rc-n"></div><div class="grid2"><div><label class="lab" for="rc-k">Calories per 100 g</label><input class="input" id="rc-k" inputmode="decimal"></div><div><label class="lab" for="rc-p">Protein per 100 g</label><input class="input" id="rc-p" inputmode="decimal"></div></div><div><label class="lab" for="rc-g">Grams in the pot</label><input class="input" id="rc-g" inputmode="decimal" value="100"></div><button class="btn" data-a="rec-custom">Add ingredient</button></div></details>
   ${rec.ings.length ? `<section class="card stack" style="gap:4px"><span class="eyebrow">Each portion</span><div class="big-num">${big(t.kcal)} calories</div><p class="small muted">${t.protein} g protein · ${t.fat} g fat · ${t.carbs} g carbs · ${t.fibre} g fibre</p><p class="tiny">The whole pot: ${big(t.all)} calories.</p></section>
   <button class="btn primary big" data-a="rec-save" data-add="1">Save, and add a portion to ${esc(MEAL_NAME[ADD.slot].toLowerCase())}</button><button class="btn" data-a="rec-save">Just save it</button>` : ''}
@@ -1677,10 +1805,11 @@ on('rec-del', b => { ADD.rec.ings.splice(+b.dataset.i, 1); addRender(); });
 on('rec-add', b => { const rec = ADD.rec, c = (b.dataset.src === 'o' ? rec.online : rec._local)[+b.dataset.i]; if (!c) return; const g = /oil|ghee|butter/i.test(c.name) ? 15 : (c.serveGrams || 100); rec.ings.push({ name: c.name, k: c.k, p: c.p, f: c.f || 0, c: c.c || 0, b: c.b || 0, grams: g }); rec.q = ''; rec.online = null; addRender(); });
 on('rec-custom', () => { const nm = $('#rc-n').value.trim(), k = num($('#rc-k').value), p = num($('#rc-p').value) || 0, g = num($('#rc-g').value) || 100; if (!nm || !k) { toast('Add the name and calories per 100 g.'); return; } ADD.rec.ings.push({ name: nm, k, p, f: 0, c: 0, b: 0, grams: g }); addRender(); });
 on('rec-online', async () => {
-  const rec = ADD.rec, query = rec.q.trim(); if (!query) return; rec.msg = 'Searching Open Food Facts…'; addRender();
-  try { let j = null; for (const u of offSearchUrls(query, 10)) { try { const r = await fetch(u, { headers: { Accept: 'application/json' } }); if (r.ok) { j = await r.json(); if ((j.products || []).length) break; } } catch (x) {} } if (!j) throw Error('offline'); rec.online = offResults(j, 10); offCachePut(query, rec.online); rec.msg = rec.online.length ? '' : 'Nothing with nutrition values matched. Enter it yourself below.'; }
-  catch (e) { const kept = offCacheFind(query); if (kept.length) { rec.online = kept; rec.msg = 'No connection, so these are from searches you’ve made before.'; } else rec.msg = 'Couldn’t reach Open Food Facts. Enter it yourself below.'; }
-  if (ADD && ADD.rec === rec) addRender();
+  const rec = ADD.rec, query = rec.q.trim(); if (!query) return; rec.msg = 'Searching online…'; addRender();
+  const r = await foodSearchOnline(query, 10); if (!ADD || ADD.rec !== rec) return;
+  rec.online = r.list.filter(c => c.per === '100g'); if (rec.online.length) keepFound(rec.online);
+  rec.msg = rec.online.length ? '' : r.offline ? 'Offline · enter it yourself below.' : r.reached ? 'Nothing found online. Enter it yourself below.' : 'The food search didn’t answer. Enter it yourself below.';
+  addRender();
 });
 on('rec-save', b => {
   const rec = ADD.rec, name0 = (rec.name || '').trim(); if (!name0) { toast('Give the dish a name.'); const n = $('#rec-name'); if (n) n.focus(); return; }
@@ -1788,7 +1917,7 @@ on('dr-log', async () => {
   if (!done.length) { toast('Add the calories for at least one item.'); return; }
   day0.silent = false; save();
   if (d.photoUrl) URL.revokeObjectURL(d.photoUrl); d.items.forEach(it => { if (it.photoUrl) URL.revokeObjectURL(it.photoUrl); });
-  a.added.push(...done.map(e => e.name)); a.draft = null; a.est = null; a.q = ''; a.online = null; a.onlineMsg = ''; a.mode = 'list'; addRender(); render();
+  a.added.push(...done.map(e => e.name)); a.draft = null; a.est = null; a.q = ''; a.acOnline = null; a.acShow = false; a.mode = 'list'; addRender(); render();
   const ids = new Set(done.map(e => e.id));
   undoBar((done.length === 1 ? done[0].name + ' added.' : done.length + ' foods added.') + (left.length ? ' Left out, no calories: ' + left.join(', ') + '.' : ''), () => { day0.foods = day0.foods.filter(f => !ids.has(f.id)); a.added = a.added.filter(n => !done.some(e => e.name === n)); save(); addRender(); render(); }, 6000);
 });
@@ -1818,7 +1947,7 @@ function matchScore(qt, name) {
 // your own dishes first, then what you've had before (most recent first), then the built-in staples
 function matchLocal(name) {
   const qt = toks(name); if (!qt.length) return null;
-  const groups = [[S.dishes, x => x, 'My dish'], [historyFoods(), candFromEntry, 'From your meals'], [BASICS, x => x, 'Basic']];
+  const groups = [[S.dishes, x => x, 'My dish'], [historyFoods(), candFromEntry, 'From your meals'], [S.foundFoods, x => x, 'Found before'], [staples(), x => x, 'Staple · typical values']];
   for (const [list, toC, tag] of groups) { let best = null, bs = 0; for (const x of list) { const s = matchScore(qt, x.name); if (s > bs) { bs = s; best = x; } } if (best) return { c: toC(best), tag }; }
   return null;
 }
@@ -1836,19 +1965,37 @@ on('say-go', () => {
   openDraft(items, 'list');
   if (!unmatched.length) return;
   const settle = msg => { unmatched.forEach(it => { it.pending = false; }); a.draft && (a.draft.msg = msg || ''); pickQuestion(a.draft); if (ADD === a && a.mode === 'draft') addRender(); };
-  if (!S.profile.geminiKey || navigator.onLine === false) { settle(''); return; }
-  const p = S.profile, list = unmatched.map((it, i) => `${i + 1}. "${it.part.raw}"`).join('\n');
-  gemini([{ text: `Estimate nutrition for foods one person ate${p.vegetarian ? ' (they are vegetarian' + (p.eggFree ? ', no eggs' : '') + ')' : ''}. They cook at home in the UK, often Indian dishes.
+  // not in your foods or the staples: Gemini, then the closest USDA food; anything left you fill in
+  if (navigator.onLine === false || (!S.profile.geminiKey && !onlineLookupReady())) { settle(''); return; }
+  if (!S.profile.geminiKey && a.draft) { a.draft.msg = 'Looking this up online…'; addRender(); }
+  (async () => {
+    const k = lookupKeys(); let left = unmatched.slice(), gErr = '';
+    const still = () => left.filter(it => it.empty);
+    if (left.length && S.profile.geminiKey) { try { await sayGemini(a, left); } catch (e) { gErr = geminiErr(e) + ' Enter the numbers for anything not found.'; } left = still(); }
+    if (left.length && k.usda) {
+      await Promise.all(left.map(async it => { try { const l = await usdaSearch(it.part.name, 1); if (l && l[0]) { fillFound(it, l[0]); it.note = 'The closest food found online. Check it, change it or remove it.'; keepFound(l); } } catch (e) {} }));
+      left = still();
+    }
+    settle(left.length ? gErr : '');
+  })();
+});
+// an online answer fills a waiting draft item, in its own unit
+function fillFound(it, c) {
+  const stated = it.part.qty, d = draftItem(c, { qty: stated != null ? stated : undefined });
+  Object.assign(it, { name: d.name, per: d.per, unit: d.unit, qty: d.qty, src: c.src, cand: d.cand, empty: false, note: '', countAsk: stated == null && COUNTABLE.test(it.part.name) });
+}
+function sayGemini(a, left) {
+  const p = S.profile, list = left.map((it, i) => `${i + 1}. "${it.part.raw}"`).join('\n');
+  return gemini([{ text: `Estimate nutrition for foods one person ate${p.vegetarian ? ' (they are vegetarian' + (p.eggFree ? ', no eggs' : '') + ')' : ''}. They cook at home in the UK, often Indian dishes.
 For each phrase below give: said (the phrase exactly), a short plain English name, qty and unit for the amount described (if no amount is given, assume one typical home portion: qty 1 and a unit like bowl, plate, piece or cup), and kcal, protein, carbs, fat and fibre for that WHOLE amount. addedFatGrams is the oil, ghee or butter used in cooking that amount (0 if none).
 ${list}` }], { schema: SAY_SCHEMA, onWait: () => { if (a.draft) { a.draft.msg = 'Google is busy. Trying again…'; if (ADD === a && a.mode === 'draft') addRender(); } } }).then(txt => {
     const j = JSON.parse(txt), got = j.items || [];
-    unmatched.forEach((it, i) => {
+    left.forEach((it, i) => {
       const g = got.find(x => (x.said || '').trim().toLowerCase() === it.part.raw.toLowerCase()) || got[i]; if (!g || !(+g.qty > 0)) return;
       const q = +g.qty; Object.assign(it, { name: g.name || it.name, qty: q, unit: g.unit || 'portion', per: { k: (+g.kcal || 0) / q, p: (+g.protein || 0) / q, c: (+g.carbs || 0) / q, f: (+g.fat || 0) / q, b: (+g.fibre || 0) / q }, src: 'Gemini estimate', empty: false, note: '', oilG: +g.addedFatGrams || 0, oilNow: +g.addedFatGrams || 0, countAsk: it.part.qty == null && COUNTABLE.test(it.part.name) });
     });
-    settle('');
-  }).catch(e => settle(geminiErr(e) + ' Enter the numbers for anything not found.'));
-});
+  });
+}
 /* the device's own speech-to-text */
 let sayRec = null;
 on('say-here', () => { if (!ADD) return; ADD.mode = 'say'; ADD.breath = false; addRender(); });
@@ -1859,7 +2006,7 @@ on('say-mic', b => {
   const r = new R(); sayRec = r; r.lang = 'en-GB'; r.interimResults = true; r.continuous = false;
   const box = $('#say-t') || $('#add-q'), before = box ? box.value.trim() : '', sayBox = !!box && box.id === 'say-t';
   b.setAttribute('aria-pressed', 'true'); b.querySelector('span').textContent = 'Listening…';
-  r.onresult = ev => { let s = ''; for (const res of ev.results) s += res[0].transcript; if (box) { box.value = (before ? before + ', ' : '') + s.trim(); ADD.q = box.value; if (!sayBox) { ADD.online = null; ADD.onlineMsg = ''; refreshAddResults(); } } };
+  r.onresult = ev => { let s = ''; for (const res of ev.results) s += res[0].transcript; if (box) { box.value = (before ? before + ', ' : '') + s.trim(); ADD.q = box.value; if (!sayBox) { ADD.acOnline = null; ADD.acShow = true; refreshAddResults(); } } };
   r.onerror = ev => { if (ev.error === 'not-allowed') toast('The microphone wasn’t allowed. You can type instead.'); else if (ev.error === 'network') toast('Speaking needs the internet on this phone. You can type instead.'); };
   r.onend = () => { sayRec = null; const btn = $('[data-a=say-mic]'); if (btn) { btn.setAttribute('aria-pressed', 'false'); btn.querySelector('span').textContent = 'Speak'; } };
   try { r.start(); } catch (e) { sayRec = null; }
@@ -1872,10 +2019,10 @@ function looksLikeSentence(q) {
 function sayHtml() {
   const a = ADD;
   return `<section class="stack" style="gap:6px"><label for="add-q" style="font-size:18px;font-weight:600">What did you have?</label>
-  <div class="searchbar"><label><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb8b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="add-q" type="search" enterkeyhint="done" placeholder="e.g. dal, or 2 rotis, dal, chai" value="${esc(a.q || '')}" autocomplete="off" aria-describedby="add-q-help"></label>
+  <div class="ac-wrap"><div class="searchbar"><label><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb8b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="add-q" type="search" enterkeyhint="done" placeholder="e.g. dal, or 2 rotis, dal, chai" value="${esc(a.q || '')}" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="add-ac" aria-describedby="add-q-help"></label>
   <button class="iconbtn" data-a="add-scan" aria-label="Scan a barcode"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M11 8v8M14 8v8M17 8v8"/></svg></button>
-  <button class="iconbtn" data-a="add-photo" aria-label="Photo of a dish"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button></div>
-  <div class="between" style="min-height:0"><span id="add-q-help" class="tiny">Tap a food to add it. Hold it to change the amount.</span><button class="link" data-a="say-here" style="flex:none;min-height:44px">Say it</button></div></section>`;
+  <button class="iconbtn" data-a="add-photo" aria-label="Photo of a dish"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button></div><ul class="list ac" id="add-ac" role="listbox" aria-label="Suggestions" hidden></ul></div>
+  <div class="between" style="min-height:0"><span id="add-q-help" class="tiny">Type two letters to find a food. Tap one below to add it; hold it to change the amount.</span><button class="link" data-a="say-here" style="flex:none;min-height:44px">Say it</button></div></section>`;
 }
 
 /* ---------- a photographed nutrition label ---------- */
@@ -1890,7 +2037,7 @@ async function readLabel(file) {
     if (!j.readable || !(+j.kcal100 > 0)) { a.labelBusy = ''; a.scanMsg = 'The label couldn’t be read. Try a closer, flatter photo, or enter it yourself.'; addRender(); return; }
     const c = { name: (j.name || 'Packet food').trim(), brand: j.brand || '', per: '100g', k: +j.kcal100, p: +j.protein100 || 0, f: +j.fat100 || 0, c: +j.carbs100 || 0, b: +j.fibre100 || 0, src: 'From the label' };
     if (+j.servingGrams > 0) { c.serveGrams = +j.servingGrams; c.serveLabel = j.servingLabel ? 'serving (' + j.servingLabel + ')' : 'serving (' + j.servingGrams + ' g)'; }
-    if (code) offCachePut('#' + code, [c]);
+    if (code) keepFound([{ ...c, code }]);
     a.labelBusy = ''; stopScan(); openDraft([draftItem(c, { src: 'Read from the label' })], 'list');
   } catch (e) { if (ADD === a) { a.labelBusy = ''; a.scanMsg = geminiErr(e); addRender(); } }
 }
@@ -2822,6 +2969,7 @@ function settingsHtml() {
   <button class="navrow" data-a="you" data-v="units"><span>Units<small>${p.weightUnit === 'st' ? 'Stones and pounds' : 'Kilograms'} · waist in ${p.waistUnit === 'cm' ? 'centimetres' : 'inches'}</small></span></button>
   <button class="navrow" data-a="you" data-v="gemini"><span>Connect Gemini<small>${p.geminiKey ? 'Connected' : 'Free. Fills in dishes from a photo'}</small></span></button>
   <button class="navrow" data-a="you" data-v="moreai"><span>Backup AIs for photos<small>${[p.groqKey && 'Groq', p.openrouterKey && 'OpenRouter'].filter(Boolean).join(' and ') || 'Optional. Groq and OpenRouter, if Gemini is busy'}</small></span></button>
+  <button class="navrow" data-a="you" data-v="lookup"><span>Food lookup<small>${p.usdaKey ? 'USDA key added · the staples table' : 'An optional key, and the staples table'}</small></span></button>
   <button class="navrow" data-a="you" data-v="music"><span>Meditation music<small>Gauri Shankar, Kundalini and the closing song</small></span></button>
   <button class="navrow" data-a="tour"><span>Show the tour<small>Thirty seconds on how Prakash works</small></span></button>
   <button class="navrow" data-a="setup-again"><span>Go through setup again<small>Your answers are kept and filled in</small></span></button></div></div>`;
@@ -2829,7 +2977,7 @@ function settingsHtml() {
 function unitsHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Units</h1><p class="muted small">Used everywhere: Body, goals, charts and setup. What you've already saved is kept and shown in the new units.</p><section class="card stack">${unitChips('unit-set')}</section></div>`; }
 on('unit-set', b => { S.profile[b.dataset.k] = b.dataset.u; save(); render(); });
 function goalsHtml() { return targetsHtml().replace(/^<div class="stack">[\s\S]*?<\/h1>/, `<div class="stack">${backBar('You', 'you-home')}<h1>Goals and your day</h1>`).replace(/<\/div>$/, '') + rhythmHtml().replace(/^<div class="stack">[\s\S]*?<\/p>/, '<h2 style="margin-top:8px">Your day</h2><p class="muted small">These times decide what Today shows, and when.</p>'); }
-const YOU_PARENT = { mirror: 'home', how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', moreai: 'settings', music: 'settings', targets: 'home', rhythm: 'home' };
+const YOU_PARENT = { mirror: 'home', how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', moreai: 'settings', lookup: 'settings', staples: 'lookup', music: 'settings', targets: 'home', rhythm: 'home' };
 on('you-up', () => go('you', YOU_PARENT[view.you] || 'home'));
 /* ---------- body ---------- */
 function lineChart(pts, unit, goal) {
@@ -3060,6 +3208,72 @@ function musicHtml() {
 on('music-open-gs', () => openSpotify(gsLink()));
 on('music-open-kd', () => openSpotify(kdLink()));
 
+/* ---------- food lookup: optional keys, and the staples table ---------- */
+function lookupHtml() {
+  const p = S.profile;
+  return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Food lookup</h1><p class="muted small">Typing in Food finds your dishes, what you’ve had and the staples on this phone, with no internet. A USDA key here adds one more line, “Search online”, used only when you tap it.</p>
+  <section class="card stack" style="gap:10px"><h2>USDA FoodData Central</h2><p class="small muted">Free. Plain foods and many packets, with barcodes. Get a key at <a href="https://fdc.nal.usda.gov/api-key-signup.html" target="_blank" rel="noopener">fdc.nal.usda.gov</a>; it comes by email.</p>
+  <div><label class="lab" for="lk-usda">USDA API key (optional)</label><input class="input" id="lk-usda" type="password" autocomplete="off" value="${esc(p.usdaKey || '')}"></div>
+  <div class="btns"><button class="btn primary" data-a="lk-save" data-k="usda">Save and test</button>${p.usdaKey ? '<button class="btn danger" data-a="lk-del" data-k="usda">Remove</button>' : ''}</div><div id="lk-usda-st" role="status"></div></section>
+  <ul class="small muted" style="padding-left:20px;margin:0"><li>The key stays on this phone and goes only to USDA’s food search. It is never put in a backup.</li><li>Anything found online is kept on this phone, so the same food works offline next time.</li></ul>
+  <button class="navrow" data-a="you" data-v="staples"><span>Staples table<small>${staples().length} foods on this phone. See, change or add</small></span></button></div>`;
+}
+on('lk-save', async b => {
+  const k = b.dataset.k, st = $('#lk-' + k + '-st'), say = t => { if (st) st.innerHTML = '<p class="small">' + esc(t) + '</p>'; };
+  const v = cleanKey($('#lk-usda').value); if (!v) { toast('Paste the key first.'); return; } S.profile.usdaKey = v; $('#lk-usda').value = v;
+  save(); if (navigator.onLine === false) { say('Saved on this phone. Offline, so it can’t be tested yet.'); return; }
+  say('Saved. Testing…');
+  try { const r = await usdaSearch('rice', 1); say(r && r.length ? 'Working. Found “' + r[0].name + '”.' : 'Saved. The test found nothing, but the key was accepted.'); }
+  catch (e) { say(e && (e.status === 401 || e.status === 403) ? 'Saved, but the food search didn’t accept this key. Check it and paste it again.' : e && e.status === 429 ? 'Saved. The food search is busy right now; try the test later.' : 'Saved. The food search couldn’t be reached just now; try the test later.'); }
+});
+on('lk-del', () => { delete S.profile.usdaKey; save(); render(); toast('Key removed from this phone.'); });
+let stEdit = null, stFind = '';
+function stapleRows() {
+  const mine = S.myStaples, over = {}; mine.forEach(x => { if (x.of) over[x.of.toLowerCase()] = x; });
+  return [...BASICS.map(b => { const o = over[b.name.toLowerCase()]; return { key: 'b:' + b.name, c: o ? Object.assign({}, b, o) : b, base: b, edited: !!o }; }), ...mine.filter(x => !x.of).map(x => ({ key: 'm:' + x.id, c: x, own: true }))];
+}
+function stapleLine(c) { return c.per === 'portion' ? 'per ' + unitName(c.portionLabel || 'piece') + ': ' + big(c.k) + ' cal · ' + n1(c.p) + ' g protein' : 'per 100 g: ' + big(c.k) + ' cal · ' + n1(c.p) + ' g protein' + (c.serveGrams ? ' · ' + esc(c.serveLabel || 'serving') + ' ' + n0(c.serveGrams) + ' g' : ''); }
+function stapleListHtml() {
+  const q = stFind.trim().toLowerCase(), rows = stapleRows().filter(r => !q || r.c.name.toLowerCase().includes(q));
+  return `<ul class="list">${rows.map(r => `<li class="li"><button class="t" data-a="st-edit" data-key="${esc(r.key)}"><strong>${esc(r.c.name)}</strong><span>${r.own ? 'Yours · ' : r.edited ? 'Changed · ' : ''}${stapleLine(r.c)}</span></button></li>`).join('') || '<p class="tiny" style="padding:10px 0">Nothing by that name. Add it below.</p>'}</ul>`;
+}
+function staplesHtml() {
+  if (stEdit) return stapleFormHtml();
+  return `<div class="stack">${backBar('Food lookup', 'you-up')}<h1>Staples table</h1><p class="muted small">The foods Prakash knows with no internet. Typing in Food finds them. Tap one to change its numbers, or add your own.</p>
+  <button class="btn" data-a="st-new">Add a food</button>
+  <div class="searchbar"><label><input id="st-q" type="search" placeholder="Find in the table" value="${esc(stFind)}" aria-label="Find in the staples table" autocomplete="off"></label></div>
+  <div id="st-list">${stapleListHtml()}</div></div>`;
+}
+function stapleFormHtml() {
+  const e = stEdit, c = e.c, piece = c.per === 'portion';
+  return `<div class="stack">${backBar('Staples table', 'st-cancel')}<h1>${e.key ? esc(c.name) : 'Add a food'}</h1>
+  <section class="card stack" style="gap:12px">
+  <div><label class="lab" for="st-n">Name</label><input class="input" id="st-n" value="${esc(c.name || '')}" placeholder="e.g. Methi thepla"></div>
+  <div><span class="lab">The numbers are for</span><div class="seg"><button data-a="st-per" data-p="100g" aria-selected="${!piece}">100 g</button><button data-a="st-per" data-p="portion" aria-selected="${piece}">One piece</button></div></div>
+  <div class="grid2"><div><label class="lab" for="st-k">Calories</label><input class="input" id="st-k" inputmode="decimal" value="${c.k != null ? esc(c.k) : ''}"></div><div><label class="lab" for="st-p">Protein, g</label><input class="input" id="st-p" inputmode="decimal" value="${c.p != null ? esc(c.p) : ''}"></div></div>
+  ${piece ? `<div><label class="lab" for="st-u">A piece is called</label><input class="input" id="st-u" value="${esc(c.portionLabel || '')}" placeholder="e.g. thepla"></div>`
+    : `<div class="grid2"><div><label class="lab" for="st-g">A usual serving, g</label><input class="input" id="st-g" inputmode="decimal" value="${c.serveGrams ? esc(c.serveGrams) : ''}"></div><div><label class="lab" for="st-u">Called</label><input class="input" id="st-u" value="${esc(c.serveLabel || '')}" placeholder="e.g. bowl"></div></div>`}
+  <button class="btn primary big" data-a="st-save">Save</button>
+  ${e.edited ? '<button class="btn" data-a="st-reset">Back to the usual values</button>' : ''}${e.own ? '<button class="btn danger" data-a="st-del">Remove it</button>' : ''}</section></div>`;
+}
+function stRead() { const e = stEdit, v = id => ($('#' + id) || {}).value; if (!e) return; e.c.name = (v('st-n') || '').trim(); e.c.k = num(v('st-k')); e.c.p = num(v('st-p')); if (e.c.per === 'portion') e.c.portionLabel = (v('st-u') || '').trim(); else { e.c.serveGrams = num(v('st-g')) || null; e.c.serveLabel = (v('st-u') || '').trim(); } }
+on('st-new', () => { stEdit = { key: '', own: true, c: { per: '100g', name: stFind.trim() } }; render(); });
+on('st-edit', b => { const r = stapleRows().find(x => x.key === b.dataset.key); if (!r) return; stEdit = { key: r.key, own: !!r.own, edited: !!r.edited, base: r.base, c: { ...r.c } }; render(); });
+on('st-per', b => { stRead(); stEdit.c.per = b.dataset.p; render(); });
+on('st-cancel', () => { stEdit = null; render(); });
+on('st-save', () => {
+  stRead(); const e = stEdit, c = e.c; if (!c.name) { toast('Give the food a name.'); return; } if (!(c.k >= 0) || c.k == null) { toast('Add the calories.'); return; }
+  const x = { id: c.id || uid(), name: c.name.charAt(0).toUpperCase() + c.name.slice(1), per: c.per, k: c.k, p: c.p || 0, f: 0, c: 0, b: 0 };
+  // a built-in food keeps its other numbers while the numbers are still per 100 g
+  if (e.base && c.per === e.base.per) Object.assign(x, { f: e.base.f || 0, c: e.base.c || 0, b: e.base.b || 0 });
+  if (c.per === 'portion') x.portionLabel = c.portionLabel || 'piece'; else if (c.serveGrams) { x.serveGrams = c.serveGrams; x.serveLabel = c.serveLabel || 'serving'; }
+  if (e.base) x.of = e.base.name;
+  S.myStaples = S.myStaples.filter(m => m.id !== x.id && !(x.of && m.of === x.of)); S.myStaples.push(x);
+  staplesMemo = null; save(); stEdit = null; render(); toast(x.name + ' saved in the staples table.');
+});
+on('st-reset', () => { const e = stEdit; S.myStaples = S.myStaples.filter(m => !(e.base && m.of === e.base.name)); staplesMemo = null; save(); stEdit = null; render(); toast('Back to the usual values.'); });
+on('st-del', () => { const e = stEdit; S.myStaples = S.myStaples.filter(m => m.id !== e.c.id); staplesMemo = null; save(); stEdit = null; render(); toast('Removed from the staples table.'); });
+document.addEventListener('input', e => { if (e.target && e.target.id === 'st-q') { stFind = e.target.value; const l = $('#st-list'); if (l) l.innerHTML = stapleListHtml(); } });
 /* ---------- backup ---------- */
 async function backupObject() {
   const out = JSON.parse(JSON.stringify(S)); delete out.profile.geminiKey; delete out.profile.geminiModel; delete out.closeOffer; AI_KEYS.forEach(k => delete out.profile[k]); delete out.needsWelcome;
@@ -3122,16 +3336,16 @@ on('fresh', async b => {
   await freshStart(); go('today'); toast('A fresh start.');
 });
 async function freshStart() {
-  const p = { ...S.profile }; S = defaults(); S.profile = Object.assign(S.profile, p); S.profile.setupDone = true; S.profile.onboardedV = 1;
+  const p = { ...S.profile }, mine = S.myStaples || []; S = defaults(); S.profile = Object.assign(S.profile, p); S.myStaples = mine; S.profile.setupDone = true; S.profile.onboardedV = 1;
   await pclear(); await wclear(); try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {} draft = null; saveNow();
 }
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>1.9.12: Energy in and out never guesses your weight. Until your weight, height and date of birth are in, it shows only the movement you logged and says what’s missing; the total and the difference appear, marked as an estimate, once they are.</li><li>1.9.12: in a workout, each set shows what you did last time, small and beside it (“last: 40 × 8”), and each exercise shows how it felt the last three times. Today’s boxes start empty; nothing is filled in for you.</li><li>1.9.12: Say it has its own button at the top of Food: speak or type what you had, then check it before anything is added.</li><li>1.9.12: Ask the mirror, in You: one question about your own logs, answered with facts and numbers only. Nothing is kept.</li><li>1.9.12: every talk has two plain lines: what it is, and which discourse and how long.</li><li>1.9.12: small fixes in the Sunday look-back: “1 day” instead of “1 days”, no more “0 of 0”, the heading stays on one line, and the day lists no longer repeat the averages shown above them.</li><li>1.9.11: the energy a workout uses now follows how long it took and how hard it felt. Your “Felt” answer for each exercise (Easy, About right or Hard) sets the effort; exercises not rated count as About right, and the kettlebell day counts a little higher.</li><li>1.9.10: Energy in and out shows every part of “out” on the card itself: resting, steps, training and meditation. With no steps entered yet, it says so, with an Add steps button.</li><li>1.9.9: a card on Today, Energy in and out: in is what your food diary holds; out is an estimate from your details plus steps or walks, workouts and the moving stages of Kundalini. The food diary still only records what you eat. The Sunday look-back shows the week’s average of both.</li><li>1.9.9: the Sunday look-back opens with the week in one view: food, training and walking, steps, meditation, the talks you heard, sleep and water, side by side, with your targets beside them as plain numbers.</li><li>1.9.9: a section on death, apart from the path: Osho’s The Art of Dying (English) and Main Mrityu Sikhata Hun (Hindi), ten talks each.</li><li>1.9.9: Osho’s talks now play inside Prakash itself: Play, Pause, back 15 s, forward 30 s. They keep going while you use the rest of the app and with the screen off, with controls on the lock screen, and each talk carries on from where you stopped. “Keep listening” folds a talk into a small bar above the tabs.</li><li>1.9.9: Listen is now one path, with Osho and Alan Watts only: 1 Awareness, 2 Witness, 3 Love, 4 Zen. Each step now has full series: Witness has the Ashtavakra Maha Geeta (Hindi) and The Empty Boat (Chuang Tzu); Love has the Sufis and more in Hindi; Zen has The Book of Nothing, Bodhidharma and No Water, No Moon. “Next on the path” shows the first talk you haven’t heard. What you’ve already heard is kept, including talks whose address changed.</li><li>1.9.8: the box you’re typing in stays above the keyboard: in Steps, in Food and everywhere else. The tab bar steps aside while you type.</li><li>1.9.8: the app opens with the lamp. Its icon is now marked for Android’s full-size icons and opening screen, so the lamp fills the icon instead of sitting small in a white circle.</li><li>1.9.7: the Sunday look-back now lists each day of the week: calories and protein, and steps. Under each list, the week’s average over the days that were logged, with your target beside it and the difference in plain numbers. Days with nothing logged say so.</li><li>1.9.6: four new Stops about time: Now, Only now, Hands and Listen. They turn up through the day like the others, a small reminder that past and future are thoughts happening now.</li><li>1.9.5: entering steps is quicker. Type the number as your phone shows it (8,000, 8 000 or 8k all work; before, “8,000” was saved as 8). The keyboard’s Done saves, the old number is selected so you can type over it, yesterday can be filled in too, and tapping the Move ring itself opens it.</li><li>1.9.4: after a sitting, the closing-song offer stays for 30 minutes even if you close and reopen the app. It shows in Sit and on Today, and goes quietly after. Not now still clears it at once.</li><li>1.9.4: every sitting is named: Gauri Shankar, Kundalini, or Just sitting, in Recent and in the messages after you stop or remove one.</li><li>1.9.3: the workout screen fits on the phone before and after the warm-up. The three warm-up moves come one at a time, and the safety line and Previous / Next sit straight under the sets, above the tab bar.</li><li>1.9.3: Backup AIs for photos now says plainly that a Groq key is free to create but Groq prices its inference, so photos read by Groq may be charged. Groq can also fall back to Qwen 3.6.</li><li>1.9.2: Sit now has Osho Kundalini beside Gauri Shankar: one hour, four stages, with its music in Spotify and the instructions from oshoworld.com.</li><li>1.9.2: a closing song after a sitting, Lokah Samasta by Deva Premal. It’s offered when you stop the timer and can be played from the meditation screen. All three links can be changed in You › Settings › Meditation music.</li><li>1.9.1: the photo AIs use the models Gemini, Groq and OpenRouter serve now. Gemini, like the other two, finds a new model by itself if one is retired.</li><li>1.9.1: with no AI keys set, the photo screen simply offers to paste the prompt into Claude. It no longer reads as if an estimate was tried.</li><li>1.9.1: journal entries brought over from the old Witness Journal are marked “from Witness Journal” in Entries.</li><li>1.9.0: entries written in the old Witness Journal app now appear in Practice › Write › Entries. This happens once; the old journal is left as it was.</li><li>1.9.0: tapping a tab at the bottom always opens that tab’s home. Back buttons inside pages still go one step up.</li><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
-  <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search and barcodes use <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> and need the internet.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Finding a food: type two letters and suggestions appear under the box, from your dishes, what you’ve had, and the staples on this phone. A tap puts it in the draft to check first. Search online is optional, with your own free USDA key in Settings › Food lookup, where the staples table can also be seen and changed.</li><li>1.9.12: Energy in and out never guesses your weight. Until your weight, height and date of birth are in, it shows only the movement you logged and says what’s missing; the total and the difference appear, marked as an estimate, once they are.</li><li>1.9.12: in a workout, each set shows what you did last time, small and beside it (“last: 40 × 8”), and each exercise shows how it felt the last three times. Today’s boxes start empty; nothing is filled in for you.</li><li>1.9.12: Say it has its own button at the top of Food: speak or type what you had, then check it before anything is added.</li><li>1.9.12: Ask the mirror, in You: one question about your own logs, answered with facts and numbers only. Nothing is kept.</li><li>1.9.12: every talk has two plain lines: what it is, and which discourse and how long.</li><li>1.9.12: small fixes in the Sunday look-back: “1 day” instead of “1 days”, no more “0 of 0”, the heading stays on one line, and the day lists no longer repeat the averages shown above them.</li><li>1.9.11: the energy a workout uses now follows how long it took and how hard it felt. Your “Felt” answer for each exercise (Easy, About right or Hard) sets the effort; exercises not rated count as About right, and the kettlebell day counts a little higher.</li><li>1.9.10: Energy in and out shows every part of “out” on the card itself: resting, steps, training and meditation. With no steps entered yet, it says so, with an Add steps button.</li><li>1.9.9: a card on Today, Energy in and out: in is what your food diary holds; out is an estimate from your details plus steps or walks, workouts and the moving stages of Kundalini. The food diary still only records what you eat. The Sunday look-back shows the week’s average of both.</li><li>1.9.9: the Sunday look-back opens with the week in one view: food, training and walking, steps, meditation, the talks you heard, sleep and water, side by side, with your targets beside them as plain numbers.</li><li>1.9.9: a section on death, apart from the path: Osho’s The Art of Dying (English) and Main Mrityu Sikhata Hun (Hindi), ten talks each.</li><li>1.9.9: Osho’s talks now play inside Prakash itself: Play, Pause, back 15 s, forward 30 s. They keep going while you use the rest of the app and with the screen off, with controls on the lock screen, and each talk carries on from where you stopped. “Keep listening” folds a talk into a small bar above the tabs.</li><li>1.9.9: Listen is now one path, with Osho and Alan Watts only: 1 Awareness, 2 Witness, 3 Love, 4 Zen. Each step now has full series: Witness has the Ashtavakra Maha Geeta (Hindi) and The Empty Boat (Chuang Tzu); Love has the Sufis and more in Hindi; Zen has The Book of Nothing, Bodhidharma and No Water, No Moon. “Next on the path” shows the first talk you haven’t heard. What you’ve already heard is kept, including talks whose address changed.</li><li>1.9.8: the box you’re typing in stays above the keyboard: in Steps, in Food and everywhere else. The tab bar steps aside while you type.</li><li>1.9.8: the app opens with the lamp. Its icon is now marked for Android’s full-size icons and opening screen, so the lamp fills the icon instead of sitting small in a white circle.</li><li>1.9.7: the Sunday look-back now lists each day of the week: calories and protein, and steps. Under each list, the week’s average over the days that were logged, with your target beside it and the difference in plain numbers. Days with nothing logged say so.</li><li>1.9.6: four new Stops about time: Now, Only now, Hands and Listen. They turn up through the day like the others, a small reminder that past and future are thoughts happening now.</li><li>1.9.5: entering steps is quicker. Type the number as your phone shows it (8,000, 8 000 or 8k all work; before, “8,000” was saved as 8). The keyboard’s Done saves, the old number is selected so you can type over it, yesterday can be filled in too, and tapping the Move ring itself opens it.</li><li>1.9.4: after a sitting, the closing-song offer stays for 30 minutes even if you close and reopen the app. It shows in Sit and on Today, and goes quietly after. Not now still clears it at once.</li><li>1.9.4: every sitting is named: Gauri Shankar, Kundalini, or Just sitting, in Recent and in the messages after you stop or remove one.</li><li>1.9.3: the workout screen fits on the phone before and after the warm-up. The three warm-up moves come one at a time, and the safety line and Previous / Next sit straight under the sets, above the tab bar.</li><li>1.9.3: Backup AIs for photos now says plainly that a Groq key is free to create but Groq prices its inference, so photos read by Groq may be charged. Groq can also fall back to Qwen 3.6.</li><li>1.9.2: Sit now has Osho Kundalini beside Gauri Shankar: one hour, four stages, with its music in Spotify and the instructions from oshoworld.com.</li><li>1.9.2: a closing song after a sitting, Lokah Samasta by Deva Premal. It’s offered when you stop the timer and can be played from the meditation screen. All three links can be changed in You › Settings › Meditation music.</li><li>1.9.1: the photo AIs use the models Gemini, Groq and OpenRouter serve now. Gemini, like the other two, finds a new model by itself if one is retired.</li><li>1.9.1: with no AI keys set, the photo screen simply offers to paste the prompt into Claude. It no longer reads as if an estimate was tried.</li><li>1.9.1: journal entries brought over from the old Witness Journal are marked “from Witness Journal” in Entries.</li><li>1.9.0: entries written in the old Witness Journal app now appear in Practice › Write › Entries. This happens once; the old journal is left as it was.</li><li>1.9.0: tapping a tab at the bottom always opens that tab’s home. Back buttons inside pages still go one step up.</li><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
+  <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search uses your own foods and the staples table on this phone. With a key in Settings, it can also look foods and barcodes up in USDA FoodData Central, only when you tap.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, lookup: lookupHtml, staples: staplesHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
