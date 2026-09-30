@@ -220,9 +220,6 @@ nav.tabs svg{width:24px;height:24px}
 .focus-mode{position:fixed;inset:0;z-index:80;background:#0d100f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:36px;text-align:center}
 .focus-mode .big{font-family:var(--serif);font-size:56px}
 .focus-mode .line{font-family:var(--serif);font-size:20px;color:#b9c2be;max-width:340px;line-height:1.6}
-.opening-prayer{justify-content:flex-start;overflow-y:auto;padding:calc(36px + env(safe-area-inset-top)) 28px calc(36px + env(safe-area-inset-bottom))}
-.opening-prayer .prayer-text{margin:auto 0 0;max-width:340px;font-size:20px;line-height:1.6}
-.opening-prayer .btn{margin-bottom:auto}
 .stop-leave{margin-top:18px;background:none;border:none;color:#8a958f;font-size:16px;min-height:48px;padding:8px 18px;cursor:pointer}
 /* train */
 .player{position:static;background:var(--page)}
@@ -281,6 +278,14 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 :focus-visible{outline:2px solid #9fe6c4;outline-offset:2px}
 [tabindex="-1"]:focus{outline:none}
 @media print{body{background:#fff!important;color:#000!important}.wrap>*,nav.tabs,#setup{display:none!important}.wrap>.bp-report,.bp-report{display:block!important;color:#000}.bp-report *{color:#000!important;background:#fff!important}.bp-report table.t td,.bp-report table.t th{border-color:#999}}
+.step:disabled{opacity:.35}
+.yt{position:relative;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--hair)}
+.yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.yt-note{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;width:100%;aspect-ratio:16/9;border-radius:14px;border:1px solid var(--hair);background:var(--card);padding:16px}
+.yt-note p{margin:0;color:var(--ink2)}
+.bd-row{border-bottom:1px solid var(--hair2);padding:12px 0;display:flex;flex-direction:column;gap:8px}
+.bd-row:last-child{border-bottom:0}
+.bd-nums{display:grid;grid-template-columns:76px minmax(0,1fr) 44px 44px;gap:8px;align-items:end}
 </style>
 </head>
 <body>
@@ -299,7 +304,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.9.15';
+const VERSION = '1.10.0';
 const KEY = 'sadhana-v1';            // kept so existing data carries over
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
@@ -378,7 +383,8 @@ function defaults() {
     talks: { heard: {}, themes: {}, notes: {} },
     remember: { on: true, from: '08:00', to: '22:00', schedule: null, waitNote: '' },
     walkTimer: { startedAt: null }, meditationTimer: { startedAt: null }, sleepTimer: { startedAt: null },
-    todayOnly: null, photoReminder: { on: false }
+    todayOnly: null, photoReminder: { on: false },
+    myDays: [], yoga: []
   };
 }
 function migrate(s) {
@@ -392,6 +398,7 @@ function migrate(s) {
   ['weights', 'waists', 'photos', 'workouts', 'meditations', 'bloodPressures', 'events', 'foodFavourites', 'dishes', 'foundFoods', 'myStaples'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
   // foods found online by the old packet search (and its barcodes) move into your found foods, so they keep working offline
   if (!s.foundMoved) { try { const oc = JSON.parse(localStorage.getItem('prakash-off-cache-en') || '{}') || {}, seen = new Set(s.foundFoods.map(x => (x.name + '|' + (x.brand || '')).toLowerCase())); Object.keys(oc).sort((a, b) => oc[b].at - oc[a].at).forEach(q => ((oc[q] || {}).c || []).forEach(c => { if (!c || !c.name || !(+c.k > 0)) return; const key = (c.name + '|' + (c.brand || '')).toLowerCase(); if (seen.has(key)) return; seen.add(key); const x = Object.assign({}, c, { at: oc[q].at || 0 }); if (q.charAt(0) === '#') x.code = q.slice(1); s.foundFoods.push(x); })); s.foundFoods = s.foundFoods.slice(0, 300); } catch (e) {} s.foundMoved = 1; }
+  ['myDays', 'yoga'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });   // 1.10: your own days, yoga videos
   if (!s.witness) s.witness = { entries: [], readings: [] };
   if (!Array.isArray(s.witness.entries)) s.witness.entries = [];
   if (!Array.isArray(s.witness.readings)) s.witness.readings = [];
@@ -665,6 +672,31 @@ const PLAN_NOTES = [
   'Getting stronger: when every set reaches the top of the rep range for two workouts, add the smallest weight step next time.',
   'Train on non-back-to-back days when you can. Stop if you feel dizzy, tight in the chest or unusually short of breath.',
   'Every 8th week, do about half the sets and keep it easy.'];
+/* The exercise catalogue: every exercise in the plan, once, with what it works. Built from PROGRAM, so the two never differ.
+   Rest follows the plan notes: about 2 minutes, 3 for squats and presses if needed. */
+const MUSCLES = {
+  'Back squat': ['thighs', 'glutes'], 'Barbell bench press': ['chest', 'shoulders', 'triceps'], 'Seated cable row': ['upper back', 'biceps'],
+  'Dumbbell lateral raise': ['shoulders'], 'Leg curl (cable or band)': ['hamstrings'], 'Reverse crunch': ['core'], 'Side plank': ['core'],
+  'Romanian deadlift': ['hamstrings', 'glutes', 'lower back'], 'Dumbbell shoulder press': ['shoulders', 'triceps'], 'Lat pulldown or pull-up': ['upper back', 'biceps'],
+  'Bulgarian split squat': ['thighs', 'glutes'], 'Face pull': ['shoulders', 'upper back'], 'Cable crunch': ['core'], 'Dead bug': ['core'],
+  'Paused back squat': ['thighs', 'glutes'], 'Incline dumbbell press': ['chest', 'shoulders', 'triceps'], 'One-arm dumbbell row': ['upper back', 'biceps'],
+  'Barbell hip thrust': ['glutes', 'hamstrings'], 'Curl and triceps pressdown': ['biceps', 'triceps'], 'Hanging knee raise': ['core'], 'Plank': ['core'],
+  'Kettlebell swing': ['glutes', 'hamstrings', 'lower back'], 'Step-ups': ['thighs', 'glutes'], 'Wall sit': ['thighs'],
+  'Suitcase carry': ['core', 'grip', 'shoulders'], 'Easy brisk walk': ['heart', 'legs'] };
+const CATALOGUE = (() => { const out = [], seen = {}; ['A', 'B', 'C', 'D'].forEach(id => PROGRAM[id].ex.forEach(e => { if (seen[e.name]) { seen[e.name].days.push(PROGRAM[id].title); return; } const c = { name: e.name, sets: e.sets, cue: e.cue, core: !!e.core, unit: e.unit || 'kg', muscles: MUSCLES[e.name] || [], days: [PROGRAM[id].title] }; seen[e.name] = c; out.push(c); })); return out; })();
+function catOf(name) { return CATALOGUE.find(c => c.name === name) || null; }
+function restText(c) { if (c.unit === 'min') return 'None, one steady go'; return /squat|\bpress\b/i.test(c.name) ? 'About 2 minutes, 3 if you need it' : 'About 2 minutes'; }
+const MEASURED = { kg: 'Weight and reps', reps: 'Reps', sec: 'Seconds held', min: 'Minutes', kgm: 'Weight and metres' };
+const REPS_WORD = { kg: 'Reps', reps: 'Reps', sec: 'Seconds', min: 'Minutes', kgm: 'Metres' };
+/* "3 x 8-12" -> 3 sets of "8-12"; anything else is one set */
+function specParts(spec) { const m = /^\s*(\d+)\s*x\s*(.+)$/i.exec(spec || ''); return m ? { sets: +m[1], reps: m[2].trim() } : { sets: 1, reps: String(spec || '').trim() }; }
+/* your own days: { id: 'my-…', name, ex: [{ name, sets, reps }] }. They are extra choices; rotation() never sees them. */
+function myDay(id) { return (S.myDays || []).find(d => d.id === id) || null; }
+function dayDef(id) {
+  if (PROGRAM[id]) return PROGRAM[id];
+  const d = myDay(id); if (!d) return null;
+  return { title: d.name, sub: '', mine: true, ex: d.ex.map(x => { const c = catOf(x.name) || {}; return { name: x.name, sets: (+x.sets || 1) + ' x ' + (x.reps || specParts(c.sets).reps), cue: c.cue || '', core: !!c.core, unit: c.unit || 'kg' }; }) };
+}
 const STRETCHES = ['Doorway chest stretch · 3 slow breaths each side', 'Kneeling hip-flexor stretch · 3 breaths each side', 'Standing hamstring fold · 5 slow breaths', 'Figure-four glute stretch · 3 breaths each side', 'Cat-cow · 6 slow breaths'];
 
 const STOP_FORMS = [
@@ -678,13 +710,6 @@ const STOP_FORMS = [
   { word: 'Listen.', line: 'The nearest sound, the farthest sound. Hearing has no yesterday.' }];
 const ANGER_STEPS = ["Don't express it. Not yet.", 'Sense your body. Where is it: jaw, chest, hands?', 'It is anger. You are the one seeing it.'];
 const WITNESS_TAGS = ['recognition', 'direct knowing', 'seer and ego', 'Shiva and Shakti', 'nobody · nothing · wanting nothing', 'Gauri Shankar', 'Om', 'gratitude'];
-/* MEDITATION_OPENING_PRAYER: the opening prayer shown before every new meditation.
-   This is the one place to edit its wording. Keep the line breaks; they are shown as written. */
-const MEDITATION_OPENING_PRAYER = `I bow to the pure Self - Shiva, the awareness that I am.
-I am nobody, I know nothing, I want nothing.
-Guide this search for truth, which is You alone.
-Let this sitting be Yours.
-ॐ`;
 const GS_DEFAULT = 'https://open.spotify.com/album/6V3RwoUa3HVKssuLQe0zBK';
 const KD_DEFAULT = 'https://open.spotify.com/album/2emgguaNNPIdXcBIuxHu9K';      // Osho Kundalini Meditation, the music (OSHO)
 const CLOSE_DEFAULT = 'https://open.spotify.com/track/5BvKDr3MBJLnqvAlQcOBqa';   // Lokah Samasta, Deva Premal (live, about 10 minutes)
@@ -711,16 +736,15 @@ function threeRings(k) {
     { key: 'eat', label: 'Eat', col: 'var(--ring-eat)', trk: 'var(--ring-eat-t)', v: t.kcal, tg: showK() ? p.kcalTarget : null, sub: showK() ? 'of ' + big(p.kcalTarget) + ' cal' : 'calories', empty: 'nothing yet' },
     useSteps ? { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: +d.steps || 0, tg: showS() ? p.stepsTarget : null, sub: showS() ? 'of ' + big(p.stepsTarget) + ' steps' : 'steps', empty: 'tap to enter', tap: 'steps' }
       : { key: 'move', label: 'Move', col: 'var(--ring-move)', trk: 'var(--ring-move-t)', v: walk, tg: showM() ? tgt('moveTarget') : null, sub: showM() ? 'of ' + tgt('moveTarget') + ' min moving' : 'minutes moving', empty: 'not started', tap: 'steps' },
-    // Still is lit, or not: sitting is never measured against a number here. Minutes stay in Sit › Recent.
-    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med > 0 ? 1 : 0, tg: 1, text: med > 0 ? 'sat today' : '', sub: '', empty: 'not yet' }
+    { key: 'still', label: 'Still', col: 'var(--ring-still)', trk: 'var(--ring-still-t)', v: med, tg: showSt() ? tgt('stillTarget') : null, sub: showSt() ? 'of ' + tgt('stillTarget') + ' min' : 'minutes', empty: 'not started' }
   ];
 }
 function ringsHtml(k) {
   const rs = threeRings(k), d = day(k), t = totals(d), p = S.profile;
   const R = [88, 68, 48];
   const arcs = rs.map((r, i) => { const C = 2 * Math.PI * R[i], f = r.tg ? Math.max(0, Math.min(1, r.v / r.tg)) : 0, L = f * C; return r.tg ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="16"/>${L > 0.5 ? `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.col}" stroke-width="16" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"/>` : ''}` : `<circle cx="100" cy="100" r="${R[i]}" fill="none" style="stroke:${r.trk}" stroke-width="3"/>`; }).join('');
-  const label = rs.map(r => `${r.label} ${r.text || (r.v ? big(r.v) + ' ' + r.sub : r.empty)}`).join(', ');
-  const val = r => r.text ? `<div class="rv" style="font-size:20px;white-space:nowrap">${r.text}</div>` : r.v ? `<div class="rv">${big(r.v)}</div><span class="rs">${r.sub}</span>` : `<div class="rv rv-soft">${r.empty}</div>${r.tg && r.sub ? `<span class="rs">${r.sub}</span>` : ''}`;
+  const label = rs.map(r => `${r.label} ${r.v ? big(r.v) + ' ' + r.sub : r.empty}`).join(', ');
+  const val = r => r.v ? `<div class="rv">${big(r.v)}</div><span class="rs">${r.sub}</span>` : `<div class="rv rv-soft">${r.empty}</div>${r.tg ? `<span class="rs">${r.sub}</span>` : ''}`;
   return `<section class="rings3" aria-label="Today: ${esc(label)}">
   <div class="rings3-top"><svg class="rings3-svg" viewBox="0 0 200 200" aria-hidden="true">${arcs}<circle class="ring-tap" data-a="steps-enter" cx="100" cy="100" r="68" fill="none" stroke="transparent" stroke-width="24" pointer-events="stroke"/></svg>
   <div class="rings3-keys">${rs.map(r => r.tap ? `<button class="rkey" data-a="steps-enter"><span class="rk" style="color:${r.col}">${r.label}</span>${val(r)}</button>` : `<div><span class="rk" style="color:${r.col}">${r.label}</span>${val(r)}</div>`).join('')}</div></div>
@@ -2099,7 +2123,7 @@ function howHtml() {
   ${cal}${setDiff ? `<p class="small">Your target is set to ${big(p.kcalTarget)}, not the ${big(sg.kcal)} worked out here: it was chosen in setup or in Goals.</p>` : ''}</section>
   <section class="card stack" style="gap:8px"><h2>Protein · ${tgt('proteinTarget') ? p.proteinTarget + ' g a day' : 'not set yet'}</h2>
   ${kg ? `${row('1.8 g × ' + n1(kg) + ' kg', n0(1.8 * kg) + ' g')}${row('Rounded to the nearest 5', (sg ? sg.protein : Math.round(1.8 * kg / 5) * 5) + ' g')}<p class="small muted">1.8 g for each kilo of body weight.</p>${sg && Math.abs(p.proteinTarget - sg.protein) >= 5 ? `<p class="small">Your target is set to ${p.proteinTarget} g: it was chosen in setup or in Goals.</p>` : ''}` : '<p class="small muted">The working needs your weight.</p>'}</section>
-  <section class="card stack" style="gap:8px"><h2>The rest</h2>${row('Water', p.waterTarget + ' glasses')}${row('Steps', tgt('stepsTarget') ? big(p.stepsTarget) : 'not set')}${row('Move', tgt('moveTarget') ? tgt('moveTarget') + ' minutes' : 'not set')}<p class="small muted">These are plain numbers you choose, not calculated. Change them in Goals.</p></section>
+  <section class="card stack" style="gap:8px"><h2>The rest</h2>${row('Water', p.waterTarget + ' glasses')}${row('Steps', tgt('stepsTarget') ? big(p.stepsTarget) : 'not set')}${row('Move', tgt('moveTarget') ? tgt('moveTarget') + ' minutes' : 'not set')}${row('Still', tgt('stillTarget') ? tgt('stillTarget') + ' minutes' : 'not set')}<p class="small muted">These are plain numbers you choose, not calculated. Change them in Goals.</p></section>
   <p class="tiny">All of this is worked out on this phone. You can change any target in You › Goals and your day.</p></div>`;
 }
 let howFrom = null;
@@ -2194,10 +2218,10 @@ function weekMirrorHtml(keys, q) {
   // meditation
   const meds = S.meditations.filter(m => past.includes(m.date)), mm = sum(meds, m => +m.minutes || 0), stT = !q && tgt('stillTarget');
   if (mods().mind) { const by = {}; meds.forEach(m => { const k = typeof sitName === 'function' ? sitName(m) : 'Sitting'; by[k] = (by[k] || 0) + 1; });
-    rows.push(row('Meditation', meds.length ? meds.length + (meds.length === 1 ? ' sitting' : ' sittings') + ' · ' + mm + ' min' : 'nothing logged', Object.entries(by).map(([k, v]) => k + ' ' + v).join(', '))); }
+    rows.push(row('Meditation', meds.length ? meds.length + (meds.length === 1 ? ' sitting' : ' sittings') + ' · ' + mm + ' min' : 'nothing logged', [Object.entries(by).map(([k, v]) => k + ' ' + v).join(', '), stT ? 'target ' + stT + ' min a day = ' + stT * n + ' (' + pct(mm, stT * n) + ')' : ''].filter(Boolean).join('<br>'))); }
   // talks
   const heard = Object.entries(S.talks.heard || {}).filter(([u, d]) => past.includes(d)).map(([u]) => u);
-  if (mods().spiritual || mods().mind) rows.push(row('Talks', heard.length ? 'heard this week' : 'none heard', heard.slice(0, 4).map(u => esc(talkTitle(u) || '')).filter(Boolean).join('<br>') + (heard.length > 4 ? '<br>and others' : '')));
+  if (mods().spiritual || mods().mind) rows.push(row('Talks', heard.length ? heard.length + (heard.length === 1 ? ' talk heard' : ' talks heard') : 'none heard', heard.slice(0, 4).map(u => esc(talkTitle(u) || '')).filter(Boolean).join('<br>') + (heard.length > 4 ? '<br>and ' + (heard.length - 4) + ' more' : '')));
   // sleep
   const sl = days.filter(d => +d.sleep > 0).map(d => +d.sleep);
   rows.push(row('Sleep', sl.length ? 'avg ' + n1(sum(sl, x => x) / sl.length) + ' h' : 'nothing logged', sl.length ? 'over ' + sl.length + ' night' + (sl.length === 1 ? '' : 's') + (sl.length > 1 ? ' · shortest ' + n1(Math.min(...sl)) + ' h, longest ' + n1(Math.max(...sl)) + ' h' : '') : ''));
@@ -2320,9 +2344,9 @@ function lastFelts(name) { const out = []; for (let i = S.workouts.length - 1; i
 function lastLine(name) { const l = lastExercise(name); if (!l) return ''; return fmtSets(l.sets, unitOf(name)) + ' · ' + fmtDate(l.date); }
 const WARMUP = ['Two minutes of easy movement: brisk march, bike or skipping on the spot.', '10 bodyweight squats and 10 hip hinges, slow and easy.', 'One light set of the first exercise at about half the weight.'];
 function startWorkout(id) {
-  const pd = PROGRAM[id];
-  draft = { dayId: id, title: pd.title + ' · ' + pd.sub, startedAt: new Date().toISOString(), i: 0, warm: false, ex: pd.ex.map(e => { const ns = nextSets(e); return { name: e.name, spec: e.sets, cue: e.cue, core: !!e.core, unit: unitOf(e), feel: '', up: ns.up, sets: ns.sets }; }) };
-  restEnd = 0; saveDraft(); go('train');
+  const pd = dayDef(id); if (!pd) { toast('That day isn’t here any more.'); return; }
+  draft = { dayId: id, title: pd.sub ? pd.title + ' · ' + pd.sub : pd.title, dayTitle: pd.title, startedAt: new Date().toISOString(), i: 0, warm: false, ex: pd.ex.map((e, k) => { const ns = nextSets(e); return { name: e.name, spec: e.sets, cue: e.cue, core: !!e.core, unit: unitOf(e), feel: '', up: ns.up, sets: ns.sets, src: k }; }) };
+  restEnd = 0; view.train = 'home'; build = null; saveDraft(); go('train');
 }
 // starting another workout while one is open asks first, if anything in it is ticked
 function startOrAsk(id) { if (draft && draft.ex.some(e => e.sets.some(s => s.done))) confirmSheet('Start a new workout?', 'The one in progress (' + woWhere() + ') won’t be saved.', 'Start new', () => { woAway = false; startWorkout(id); }, true); else { woAway = false; startWorkout(id); } }
@@ -2390,13 +2414,14 @@ on('stretch', b => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pr
 let woAway = false;
 on('wo-away', () => { woAway = true; render(); window.scrollTo(0, 0); });
 on('wo-resume', () => { if (!draft) return; woAway = false; if (tab !== 'train') go('train'); else { render(); window.scrollTo(0, 0); } });
-function woWhere() { return draft ? PROGRAM[draft.dayId].title + ' · exercise ' + (draft.i + 1) + ' of ' + draft.ex.length : ''; }
+function draftDayTitle() { return draft ? draft.dayTitle || (PROGRAM[draft.dayId] || {}).title || draft.title || '' : ''; }
+function woWhere() { return draft ? draftDayTitle() + ' · exercise ' + (draft.i + 1) + ' of ' + draft.ex.length : ''; }
 function playerHtml() {
   const ex = draft.ex[draft.i], n = draft.ex.length, last = lastExercise(ex.name), felts = lastFelts(ex.name), uu = unitOf(ex);
   const resting = restEnd > Date.now(), U = UNITS[unitOf(ex)];
   return `<div class="player" role="region" aria-label="Workout"><div class="player-in">
   <div class="between"><span><button class="link" data-a="wo-away">‹ Train home</button><button class="link" data-a="wo-close" style="margin-left:14px">Close</button></span><span class="tiny" id="wo-clock"></span></div>
-  <div><span class="tiny">${esc(PROGRAM[draft.dayId].title)} · exercise ${draft.i + 1} of ${n}${ex.core ? ' · core' : ''}</span><h1 style="font-size:28px">${esc(ex.name)}</h1><p class="muted">${esc(ex.spec)} · ${esc(ex.cue)}</p></div>
+  <div><span class="tiny">${esc(draftDayTitle())} · exercise ${draft.i + 1} of ${n}${ex.core ? ' · core' : ''}</span><h1 style="font-size:28px">${esc(ex.name)}</h1><p class="muted">${esc(ex.spec)}${ex.cue ? ' · ' + esc(ex.cue) : ''}</p>${ex.swappedFrom ? `<p class="tiny" style="margin:0">In place of ${esc(ex.swappedFrom)}</p>` : ''}</div>
   <div class="progress"><i style="width:${(draft.i + 1) / n * 100}%"></i></div>
   ${draft.i === 0 && !draft.warm ? warmHtml(ex) : ''}
   ${felts.length ? `<p class="small muted" style="margin:0">Felt the last ${felts.length === 1 ? 'time' : felts.length + ' times'}: ${felts.map(esc).join(', ')}</p>` : ''}
@@ -2409,7 +2434,7 @@ function playerHtml() {
   <p class="tiny" style="margin:0">${U.b === 'sec' ? 'Stop a few seconds before your form goes. Never hold your breath.' : U.b === 'min' ? 'An easy pace: you can still talk.' : 'Stop each set with 2 good reps left. Never hold your breath.'}</p>
   <div class="grid2"><button class="btn" data-a="wo-prev" ${draft.i === 0 ? 'disabled' : ''}>Previous</button>${draft.i < n - 1 ? '<button class="btn primary" data-a="wo-next">Next exercise</button>' : '<button class="btn primary" data-a="wo-finish">Finish workout</button>'}</div>
   </div>
-  <button class="link" data-a="wo-addset" style="align-self:flex-start;min-height:44px">+ Add a set</button>
+  <div class="between"><button class="link" data-a="wo-addset" style="min-height:44px">+ Add a set</button><button class="link" data-a="wo-swap" style="min-height:44px">Swap this exercise</button></div>
   <div class="feelrow" role="group" aria-label="How did that exercise feel?"><span class="small">Felt</span>${['Easy', 'About right', 'Hard'].map(f => `<button class="chip" data-a="wo-feel" data-f="${f}" aria-pressed="${ex.feel === f}">${f}</button>`).join('')}</div>
   ${draft.i < n - 1 ? '<button class="btn ghost" data-a="wo-finish">Finish workout</button>' : ''}
   <details class="fold"><summary>All exercises</summary><ul class="list">${draft.ex.map((e, i) => `<li class="li"><button class="t" data-a="wo-go" data-i="${i}"><strong>${esc(e.name)}</strong><span>${e.sets.filter(s => s.done).length} of ${e.sets.length} sets done${lastLine(e.name) ? ' · last: ' + esc(lastLine(e.name)) : ''}</span></button></li>`).join('')}</ul></details>
@@ -2417,6 +2442,7 @@ function playerHtml() {
 }
 R.trainAfter = function (main) {
   if (!draft || woAway) {
+    trainSubAfter(main);
     const w = $('#walk-time', main);
     if (w && S.walkTimer.startedAt) ticker(() => { const s = Math.max(0, Math.floor((Date.now() - new Date(S.walkTimer.startedAt)) / 1000)); w.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); });
     const wm = $('#walk-min', main); if (wm) wm.onchange = e => { day(todayKey()).walkMin = parseInt(e.target.value, 10) || 0; save(); toast('Walking minutes saved.'); };
@@ -2436,21 +2462,157 @@ on('walk-stop', () => { const m = Math.max(1, Math.round((Date.now() - new Date(
 on('wo-del', b => { const ix = S.workouts.findIndex(w => w.id === b.dataset.id); if (ix < 0) return; confirmSheet('Remove this workout?', S.workouts[ix].title + ', ' + fmtDay(S.workouts[ix].date), 'Remove', () => { const gone = S.workouts.splice(ix, 1)[0]; save(); render(); undoBar('Workout removed.', () => { S.workouts.splice(ix, 0, gone); save(); render(); }); }, true); });
 R.train = function () {
   if (draft && !woAway) return playerHtml();
+  if (view.train === 'ex') return catalogueHtml();
+  if (view.train === 'mydays') return myDaysHtml();
+  if (view.train === 'build' && build) return buildHtml();
   const next = nextDayId(), rot = rotation(), d = day(todayKey()), today = S.workouts.filter(w => w.date === todayKey());
   const recent = [...S.workouts].slice(-6).reverse();
   return `<div class="stack"><h1>Train</h1>
   ${draft ? `<div class="wo-bar" role="status"><span><strong>Workout in progress</strong><span class="tiny" style="display:block">${esc(woWhere())}</span></span><button class="btn primary" data-a="wo-resume">Resume</button></div>` : ''}
   ${today.length ? `<div class="okbox"><strong>Trained today</strong><p class="tiny">${esc(today.map(w => w.title).join(', '))}</p></div>` : ''}
   <section class="card now stack" style="gap:8px"><span class="eyebrow">Next</span><h2>${esc(PROGRAM[next].title)} · ${esc(PROGRAM[next].sub)}</h2><ul class="list" style="margin:0">${PROGRAM[next].ex.map(e => { const l = lastLine(e.name); return `<li class="li" style="min-height:0;padding:8px 0"><div class="t"><strong style="font-weight:500">${esc(e.name)}${e.core ? ' <span class="tiny" style="font-weight:400">· core</span>' : ''}</strong><span>${l ? 'Last: ' + esc(l) : esc(e.sets) + ' · first time'}</span></div></li>`; }).join('')}</ul><button class="btn primary big" data-a="wo-start" data-id="${next}">Warm up and start</button></section>
-  <details class="fold"><summary>Start a different day</summary><div class="stack">${rot.filter(id => id !== next).map(id => `<button class="navrow" data-a="wo-start" data-id="${id}"><span>${esc(PROGRAM[id].title)} · ${esc(PROGRAM[id].sub)}<small>${PROGRAM[id].ex.length} exercises</small></span></button>`).join('')}</div></details>
+  <details class="fold"><summary>Start a different day</summary><div class="stack">${rot.filter(id => id !== next).map(id => `<button class="navrow" data-a="wo-start" data-id="${id}"><span>${esc(PROGRAM[id].title)} · ${esc(PROGRAM[id].sub)}<small>${PROGRAM[id].ex.length} exercises</small></span></button>`).join('')}${S.myDays.length ? `<span class="eyebrow" style="margin-top:8px">Your days</span>${S.myDays.map(d => `<button class="navrow" data-a="wo-start" data-id="${esc(d.id)}"><span>${esc(d.name)}<small>${d.ex.length} ${d.ex.length === 1 ? 'exercise' : 'exercises'}</small></span></button>`).join('')}` : ''}</div></details>
+  <div><button class="navrow" data-a="tr-view" data-v="mydays"><span>Your own days<small>${S.myDays.length ? S.myDays.length + (S.myDays.length === 1 ? ' day' : ' days') + ' you built' : 'Build a day from the exercises'}</small></span></button><button class="navrow" data-a="tr-view" data-v="ex"><span>Exercises<small>${CATALOGUE.length} in the plan, and what each one works</small></span></button></div>
   <details class="fold"><summary>How the plan works</summary><ul style="padding-left:20px;margin:0" class="small">${PLAN_NOTES.map(x => `<li style="margin-bottom:8px">${esc(x)}</li>`).join('')}${S.profile.bpSafe ? '<li>With blood pressure: steady breathing, no straining, no maximum lifts.</li>' : ''}</ul></details>
   <h2>Walk</h2>
   <section class="card stack" style="align-items:stretch">${S.walkTimer.startedAt ? '<div class="timer" id="walk-time">00:00</div>' : ''}${S.walkTimer.startedAt ? '<button class="btn primary big" data-a="walk-stop">Stop and add the minutes</button>' : '<button class="btn primary big" data-a="walk-start">Start a walk</button>'}
   <div><label class="lab" for="walk-min">Walking minutes today</label><input class="input" id="walk-min" inputmode="numeric" value="${d.walkMin || ''}" placeholder="0"></div></section>
+  <h2>Yoga</h2>
+  ${yogaHtml()}
   <h2>Recent workouts</h2>
   ${recent.length ? `<ul class="list">${recent.map(w => `<li class="li"><div class="t"><strong>${esc(w.title)}</strong><span>${fmtDay(w.date)}${w.durationMin ? ' · ' + w.durationMin + ' min' : ''} · ${w.exercises.reduce((a, e) => a + e.sets.length, 0)} sets</span></div><button class="link" data-a="wo-del" data-id="${w.id}" aria-label="Remove this workout">Remove</button></li>`).join('')}</ul>` : '<p class="tiny">Your workouts appear here, and each one shows beside the next as “last”.</p>'}
   </div>`;
 };
+
+/* ---------- Train: exercises, your own days, swap, yoga ---------- */
+let build = null;   // the day being built or changed: { id|null, name, ex: [{ name, sets, reps }], dirty }
+on('tr-view', b => { view.train = b.dataset.v; render(); window.scrollTo(0, 0); });
+on('tr-home', () => { view.train = 'home'; render(); window.scrollTo(0, 0); });
+function exRow(c, act) { return `<li class="li" data-exq="${esc((c.name + ' ' + c.muscles.join(' ')).toLowerCase())}"><button class="t" data-a="${act}" data-n="${esc(c.name)}"><strong>${esc(c.name)}</strong><span>${esc(c.muscles.join(', '))}</span></button></li>`; }
+function exSearch(box, q) { q = String(q || '').trim().toLowerCase(); let shown = 0; $$('[data-exq]', box).forEach(li => { const hit = !q || li.dataset.exq.includes(q); li.hidden = !hit; li.style.display = hit ? '' : 'none'; if (hit) shown++; }); const none = $('.ex-none', box); if (none) none.hidden = shown > 0; }
+function catalogueHtml() {
+  return `<div class="stack">${backBar('Train', 'tr-home')}<h1>Exercises</h1>
+  <div><label class="lab" for="ex-q">Find an exercise</label><input class="input" id="ex-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="e.g. squat"></div>
+  <ul class="list" id="ex-list">${CATALOGUE.map(c => exRow(c, 'ex-info')).join('')}</ul><p class="tiny ex-none" hidden>No exercise by that name.</p></div>`;
+}
+on('ex-info', b => {
+  const c = catOf(b.dataset.n); if (!c) return;
+  const f = (k, v) => `<div class="fact"><span>${k}</span><strong>${esc(v)}</strong></div>`;
+  openSheet(`<div class="facts">${f('Works', c.muscles.join(', '))}${f('Usual sets', c.sets)}${f('Rest', restText(c))}${f('Measured in', MEASURED[c.unit] || MEASURED.kg)}${f('In the plan', c.days.join(', '))}</div>${c.cue ? `<p class="small muted" style="margin-top:12px">${esc(c.cue)}</p>` : ''}`, { title: c.name });
+});
+function trainSubAfter(main) {
+  const q = $('#ex-q', main); if (q) q.oninput = () => exSearch(main, q.value);
+  if (view.train === 'build' && build) main.oninput = e => {
+    const t = e.target; if (!build) return;
+    if (t.id === 'bd-name') { build.name = t.value; build.dirty = true; return; }
+    const k = t.dataset && t.dataset.bd; if (!k) return; const [i, f] = k.split(':'); if (build.ex[+i]) { build.ex[+i][f] = t.value; build.dirty = true; }
+  };
+}
+function myDaysHtml() {
+  const L = S.myDays;
+  return `<div class="stack">${backBar('Train', 'tr-home')}<h1>Your own days</h1>
+  <p class="muted small">Days you build from the exercises. They sit beside Day A to D under “Start a different day”. The plan itself stays as it is.</p>
+  ${L.length ? `<ul class="list">${L.map(d => `<li class="li"><div class="t"><strong>${esc(d.name)}</strong><span>${d.ex.length} ${d.ex.length === 1 ? 'exercise' : 'exercises'}</span></div><button class="link" data-a="bd-edit" data-id="${esc(d.id)}" aria-label="Change ${esc(d.name)}">Change</button><button class="btn" data-a="wo-start" data-id="${esc(d.id)}">Start</button></li>`).join('')}</ul>` : ''}
+  <button class="btn${L.length ? '' : ' primary big'}" data-a="bd-new">Build your own day</button></div>`;
+}
+on('bd-new', () => { build = { id: null, name: '', ex: [], dirty: false }; view.train = 'build'; render(); window.scrollTo(0, 0); });
+on('bd-edit', b => { const d = myDay(b.dataset.id); if (!d) return; build = { id: d.id, name: d.name, ex: d.ex.map(x => ({ name: x.name, sets: String(x.sets), reps: x.reps })), dirty: false }; view.train = 'build'; render(); window.scrollTo(0, 0); });
+on('bd-back', () => { const leave = () => { build = null; view.train = 'mydays'; render(); window.scrollTo(0, 0); }; if (build && build.dirty) confirmSheet('Leave without saving?', 'The changes to this day won’t be kept.', 'Leave', leave, true); else leave(); });
+function buildHtml() {
+  const B = build, n = B.ex.length;
+  return `<div class="stack"><div class="backbar"><button class="link" data-a="bd-back">‹ Your own days</button></div><h1>${B.id ? 'Change this day' : 'Build your own day'}</h1>
+  <div><label class="lab" for="bd-name">Name</label><input class="input" id="bd-name" maxlength="40" autocomplete="off" value="${esc(B.name)}" placeholder="e.g. Upper body"></div>
+  ${n ? `<ul class="list">${B.ex.map((x, i) => { const c = catOf(x.name) || { unit: 'kg' }; return `<li class="bd-row"><div class="between"><strong style="font-weight:500">${i + 1}. ${esc(x.name)}</strong><button class="link" data-a="bd-del" data-i="${i}" aria-label="Remove ${esc(x.name)}">Remove</button></div>
+  <div class="bd-nums"><div><label class="lab" for="bd-s${i}">Sets</label><input class="input" id="bd-s${i}" inputmode="numeric" maxlength="2" data-bd="${i}:sets" value="${esc(x.sets)}"></div><div><label class="lab" for="bd-r${i}">${REPS_WORD[c.unit] || 'Reps'}</label><input class="input" id="bd-r${i}" autocomplete="off" data-bd="${i}:reps" value="${esc(x.reps)}"></div><button class="step" data-a="bd-move" data-i="${i}" data-d="-1" aria-label="Move ${esc(x.name)} up" ${i === 0 ? 'disabled' : ''}>↑</button><button class="step" data-a="bd-move" data-i="${i}" data-d="1" aria-label="Move ${esc(x.name)} down" ${i === n - 1 ? 'disabled' : ''}>↓</button></div></li>`; }).join('')}</ul>` : '<p class="tiny">No exercises yet.</p>'}
+  <button class="btn" data-a="bd-add">Add an exercise</button>
+  <p class="small" id="bd-msg" role="status" hidden></p>
+  <button class="btn primary big" data-a="bd-save">Save this day</button>
+  ${B.id ? '<button class="btn danger" data-a="bd-delete">Delete this day</button>' : ''}</div>`;
+}
+on('bd-add', () => openSheet(`<div class="stack" style="gap:8px"><div><label class="lab" for="bd-q">Find an exercise</label><input class="input" id="bd-q" type="search" autocomplete="off" placeholder="e.g. row"></div><ul class="list">${CATALOGUE.map(c => exRow(c, 'bd-pick')).join('')}</ul><p class="tiny ex-none" hidden>No exercise by that name.</p></div>`, { title: 'Add an exercise', bind: sh => { const q = $('#bd-q', sh); q.oninput = () => exSearch(sh, q.value); } }));
+on('bd-pick', b => { const c = catOf(b.dataset.n); if (!c || !build) return; const p = specParts(c.sets); build.ex.push({ name: c.name, sets: String(p.sets), reps: p.reps }); build.dirty = true; closeSheet(true); render(); toast(c.name + ' added.'); });
+on('bd-del', b => { if (!build) return; build.ex.splice(+b.dataset.i, 1); build.dirty = true; render(); });
+on('bd-move', b => { if (!build) return; const i = +b.dataset.i, j = i + (+b.dataset.d); if (j < 0 || j >= build.ex.length) return; const t = build.ex[i]; build.ex[i] = build.ex[j]; build.ex[j] = t; build.dirty = true; render(); const el = $('[data-a="bd-move"][data-i="' + j + '"][data-d="' + b.dataset.d + '"]') || $('[data-a="bd-move"][data-i="' + j + '"]'); if (el && !el.disabled) el.focus(); });
+on('bd-save', () => {
+  if (!build) return; const msg = t => { const m = $('#bd-msg'); if (m) { m.textContent = t; m.hidden = false; } };
+  const name = String(build.name || '').trim().replace(/\s+/g, ' ');
+  if (!name) { msg('Give the day a name.'); const i = $('#bd-name'); if (i) i.focus(); return; }
+  if (!build.ex.length) { msg('Add at least one exercise.'); return; }
+  const ex = build.ex.map(x => { const c = catOf(x.name) || {}; const s = Math.min(10, Math.max(1, parseInt(x.sets, 10) || specParts(c.sets).sets)); return { name: x.name, sets: s, reps: String(x.reps || '').trim() || specParts(c.sets).reps }; });
+  if (build.id && myDay(build.id)) { const d = myDay(build.id); d.name = name; d.ex = ex; }
+  else S.myDays.push({ id: 'my-' + uid(), name, ex, created: new Date().toISOString() });
+  saveNow(); build = null; view.train = 'mydays'; render(); window.scrollTo(0, 0); toast(name + ' saved.');
+});
+on('bd-delete', () => {
+  if (!build || !build.id) return; const id = build.id, d = myDay(id); if (!d) return;
+  confirmSheet('Delete ' + d.name + '?', 'Workouts you did with it stay in your history.', 'Delete', () => {
+    const ix = S.myDays.findIndex(x => x.id === id); if (ix < 0) return; const gone = S.myDays.splice(ix, 1)[0];
+    saveNow(); build = null; view.train = 'mydays'; render(); window.scrollTo(0, 0);
+    undoBar(gone.name + ' deleted.', () => { S.myDays.splice(ix, 0, gone); saveNow(); render(); });
+  }, true);
+});
+/* swap, mid-workout: the sets not yet done move to the chosen exercise; sets already done keep their own name.
+   For this session only; on your own days, "Keep for next time" also changes the day. The standard plan never changes. */
+let swapKeep = false;
+function swapHtml() {
+  const cur = draft.ex[draft.i], cm = (catOf(cur.name) || {}).muscles || [], mine = myDay(draft.dayId);
+  const score = c => c.muscles.filter(m => cm.includes(m)).length, others = CATALOGUE.filter(c => c.name !== cur.name);
+  const same = others.filter(c => score(c) > 0).sort((a, b) => score(b) - score(a)), rest = others.filter(c => !score(c));
+  return `<p class="muted small" style="margin:0 0 8px">In place of ${esc(cur.name)}. The sets not yet done move to the one you choose; sets already done stay as they are.</p>
+  ${mine && cur.src != null ? `<div class="between" style="margin:4px 0 8px"><span class="small">Keep it in ${esc(mine.name)} for next time</span><button class="chip" data-a="wo-swap-keep" aria-pressed="${swapKeep}">${swapKeep ? 'Yes' : 'No'}</button></div>` : ''}
+  ${same.length ? `<span class="eyebrow">Works the same muscles</span><ul class="list" style="margin-bottom:12px">${same.map(c => exRow(c, 'wo-swap-to')).join('')}</ul>` : ''}
+  <span class="eyebrow">Everything else</span><ul class="list">${rest.map(c => exRow(c, 'wo-swap-to')).join('')}</ul>`;
+}
+on('wo-swap', () => { if (!draft) return; swapKeep = false; openSheet(swapHtml(), { title: 'Swap this exercise' }); });
+on('wo-swap-keep', () => { swapKeep = !swapKeep; sheetBody(swapHtml()); });
+on('wo-swap-to', b => {
+  const c = catOf(b.dataset.n); if (!c || !draft) return;
+  const i = draft.i, cur = draft.ex[i], done = cur.sets.filter(s => s.done), left = cur.sets.length - done.length, noKg = !UNITS[c.unit].a;
+  const n = left > 0 ? left : setCount(c.sets);
+  const neu = { name: c.name, spec: c.sets, cue: c.cue, core: c.core, unit: c.unit, feel: '', up: false, sets: Array.from({ length: n }, () => ({ kg: noKg ? '0' : '', reps: '', done: false })), swappedFrom: !done.length && cur.swappedFrom ? cur.swappedFrom : cur.name, src: cur.src };
+  if (done.length) { cur.sets = done; draft.ex.splice(i + 1, 0, neu); draft.i = i + 1; } else draft.ex[i] = neu;
+  const mine = myDay(draft.dayId);
+  if (swapKeep && mine && cur.src != null && mine.ex[cur.src]) { const p = specParts(c.sets); mine.ex[cur.src] = { name: c.name, sets: p.sets, reps: p.reps }; saveNow(); }
+  restEnd = 0; setHint = null; holdStart = 0; saveDraft(); closeSheet(true); render(); window.scrollTo(0, 0);
+  toast(c.name + ' in place of ' + cur.name + (swapKeep && mine ? ', kept in ' + mine.name + '.' : '.'));
+});
+/* yoga videos: YouTube links kept on this phone; the video plays in a youtube-nocookie embed, only when online.
+   The service worker never touches YouTube (it only handles this site's own files). */
+function ytId(s) { s = String(s || '').trim(); const m = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(s); if (m) return m[1]; return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : null; }
+function yogaHtml() {
+  const L = S.yoga;
+  return `${L.length ? `<ul class="list">${L.map(v => `<li class="li"><button class="t" data-a="yoga-play" data-id="${esc(v.id)}"><strong>${esc(v.name)}</strong><span>YouTube</span></button><button class="link" data-a="yoga-edit" data-id="${esc(v.id)}" aria-label="Change ${esc(v.name)}">Change</button></li>`).join('')}</ul>` : '<p class="tiny">Keep your yoga videos here: paste a YouTube link and give it a name.</p>'}
+  <button class="btn" data-a="yoga-add">Add a video</button>`;
+}
+on('yoga-add', () => openSheet(`<div class="stack"><div><label class="lab" for="yg-url">YouTube link</label><input class="input" id="yg-url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the link here"></div><div><label class="lab" for="yg-name">Name</label><input class="input" id="yg-name" maxlength="60" autocomplete="off" placeholder="e.g. Morning stretch"></div><p class="small" id="yg-msg" role="status" hidden></p><button class="btn primary big" data-a="yoga-save">Save</button></div>`, { title: 'Add a video' }));
+on('yoga-save', () => {
+  const say = t => { const m = $('#yg-msg'); if (m) { m.textContent = t; m.hidden = false; } };
+  const vid = ytId(($('#yg-url') || {}).value), name = String(($('#yg-name') || {}).value || '').trim();
+  if (!vid) { say('That doesn’t look like a YouTube link. It usually starts with youtube.com or youtu.be.'); return; }
+  if (!name) { say('Give it a name.'); const i = $('#yg-name'); if (i) i.focus(); return; }
+  S.yoga.push({ id: uid(), name, vid, added: new Date().toISOString() }); saveNow(); closeSheet(true); render(); toast(name + ' saved.');
+});
+on('yoga-edit', b => { const v = S.yoga.find(x => x.id === b.dataset.id); if (!v) return; openSheet(`<div class="stack"><div><label class="lab" for="yg-rn">Name</label><input class="input" id="yg-rn" maxlength="60" autocomplete="off" value="${esc(v.name)}"></div><button class="btn primary big" data-a="yoga-rename" data-id="${esc(v.id)}">Save the name</button><button class="btn danger" data-a="yoga-remove" data-id="${esc(v.id)}">Remove this video</button></div>`, { title: 'Change' }); });
+on('yoga-rename', b => { const v = S.yoga.find(x => x.id === b.dataset.id), n = String(($('#yg-rn') || {}).value || '').trim(); if (!v) return; if (!n) { toast('Give it a name.'); return; } v.name = n; saveNow(); closeSheet(true); render(); toast('Saved.'); });
+on('yoga-remove', b => { const ix = S.yoga.findIndex(x => x.id === b.dataset.id); if (ix < 0) return; const gone = S.yoga.splice(ix, 1)[0]; saveNow(); closeSheet(true); render(); undoBar(gone.name + ' removed.', () => { S.yoga.splice(ix, 0, gone); saveNow(); render(); }); });
+/* the player: offline, or if it doesn't load, one calm line in its place */
+let ytTimer = null, ytCur = null, ytOk = false;
+const YT_NOTE = retry => `<div class="yt-note" role="status"><p>Videos need the internet.</p>${retry ? '<button class="btn" data-a="yoga-retry">Try again</button>' : ''}</div>`;
+function ytMount() {
+  clearTimeout(ytTimer); ytOk = false; const box = $('#yt-box'); if (!box || !ytCur) return;
+  if (navigator.onLine === false) { box.innerHTML = YT_NOTE(false); return; }
+  box.innerHTML = `<div class="yt"><iframe id="yt-frame" src="https://www.youtube-nocookie.com/embed/${ytCur.vid}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}" title="${esc(ytCur.name)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+  const f = $('#yt-frame');
+  // ask the player to say it's ready; a page that never answers (no connection, a blocked network) gets the calm line
+  f.addEventListener('load', () => { try { f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube-nocookie.com'); } catch (e) {} });
+  ytTimer = setTimeout(() => { if (!ytOk && $('#yt-frame') === f) { const b = $('#yt-box'); if (b) b.innerHTML = YT_NOTE(true); } }, 20000);
+}
+window.addEventListener('message', e => { if (/^https:\/\/www\.youtube(-nocookie)?\.com$/.test(e.origin) && $('#yt-frame') && e.source === $('#yt-frame').contentWindow) { ytOk = true; clearTimeout(ytTimer); } });
+window.addEventListener('blur', () => { setTimeout(() => { if (document.activeElement && document.activeElement.id === 'yt-frame') { ytOk = true; clearTimeout(ytTimer); } }, 0); });   // tapped into the player: it's there
+window.addEventListener('online', () => { if ($('#yt-box') && !$('#yt-frame')) ytMount(); });
+window.addEventListener('offline', () => { if ($('#yt-box') && $('#yt-frame') && !ytOk) { clearTimeout(ytTimer); $('#yt-box').innerHTML = YT_NOTE(false); } });
+on('yoga-play', b => { const v = S.yoga.find(x => x.id === b.dataset.id); if (!v) return; ytCur = v; openSheet(`<div class="stack"><div id="yt-box"></div></div>`, { title: v.name, onClose: () => { clearTimeout(ytTimer); ytCur = null; } }); ytMount(); });
+on('yoga-retry', () => ytMount());
 /* ================= PRACTICE ================= */
 function practiceViews() { const m = mods(), v = []; if (m.mind) v.push(['sit', 'Sit']); if (m.spiritual) v.push(['pray', 'Pray'], ['listen', 'Listen']); if (m.mind) v.push(['write', 'Write']); return v; }
 on('pv', b => { view.practice = b.dataset.v; listenCh = null; journalMode = 'home'; render(); window.scrollTo(0, 0); });
@@ -2484,49 +2646,61 @@ function openSpotify(link) {
   const w = window.open(web, '_blank', 'noopener');
   if (!w) { const a = document.createElement('a'); a.href = web; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
 }
-/* The existing start action, unchanged. It runs only from Begin on the opening prayer. */
-function medStartNow(b) { S.meditationTimer.startedAt = new Date().toISOString(); S.meditationTimer.kind = b.dataset.k; focusHidden = false; closeOfferClear(); save(); render(); if (b.dataset.k === 'gs') openSpotify(gsLink()); if (b.dataset.k === 'kd') openSpotify(kdLink()); }
-/* Opening prayer before every new sitting. Nothing starts until Begin: no timer, music or record.
-   Begin runs the start action once, inside its own tap, so Spotify still opens. */
-function openingPrayer(b) {
-  if ($('.opening-prayer') || S.meditationTimer.startedAt) return;
-  const o = document.createElement('div'); o.className = 'focus-mode opening-prayer';
-  o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); o.setAttribute('aria-describedby', 'op-text');
-  o.innerHTML = `<p class="prayer-text" id="op-text">${esc(MEDITATION_OPENING_PRAYER)}</p><button class="btn primary" id="op-begin" style="min-width:220px">Begin</button>`;
-  document.body.appendChild(o);
-  const shownAt = Date.now(); let begun = false;
-  const btn = $('#op-begin', o); btn.focus({ preventScroll: true });
-  btn.onclick = e => {
-    e.stopPropagation();
-    if (begun || Date.now() - shownAt < 400) return;   // a second tap on the start button does not skip the prayer
-    begun = true;
-    const start = { dataset: { k: b.dataset.k } };
-    if (!S.meditationTimer.startedAt) medStartNow(start);
-    // keep an empty layer for a moment so a double tap does not land on the meditation screen's buttons
-    o.innerHTML = ''; o.style.background = 'transparent'; o.removeAttribute('role'); o.setAttribute('aria-hidden', 'true');
-    setTimeout(() => o.remove(), 700);
-  };
-}
-document.addEventListener('keydown', e => { const o = $('.opening-prayer'); if (e.key === 'Escape' && o && $('#op-begin', o)) o.remove(); });
-on('med-start', b => openingPrayer(b));
+on('med-start', b => { S.meditationTimer.startedAt = new Date().toISOString(); S.meditationTimer.kind = b.dataset.k; delete S.meditationTimer.targetMin; focusHidden = false; closeOfferClear(); save(); render(); if (b.dataset.k === 'gs') openSpotify(gsLink()); if (b.dataset.k === 'kd') openSpotify(kdLink()); });
 on('med-music', () => openSpotify(S.meditationTimer.kind === 'kd' ? kdLink() : gsLink()));
 on('med-close-song', () => openSpotify(closeLink()));
 on('med-close-later', () => { closeOfferClear(); render(); });
 on('med-hide', () => { focusHidden = true; render(); });
 on('med-show', () => { focusHidden = false; render(); });
-on('med-stop', () => { const m = Math.max(1, Math.round((Date.now() - new Date(S.meditationTimer.startedAt)) / 60000)); const rec = { id: uid(), date: todayKey(), minutes: m, kind: S.meditationTimer.kind || 'gs' }; S.meditations.push(rec); S.meditationTimer.startedAt = null; S.closeOffer = Date.now(); saveNow(); bell(528, 3); render(); });
+on('med-stop', () => { const m = Math.max(1, Math.round((Date.now() - new Date(S.meditationTimer.startedAt)) / 60000)); const rec = { id: uid(), date: todayKey(), minutes: m, kind: S.meditationTimer.kind || 'gs' }; S.meditations.push(rec); S.meditationTimer.startedAt = null; delete S.meditationTimer.targetMin; S.closeOffer = Date.now(); saveNow(); bell(528, 3); render(); toast(m >= 60 ? 'The hour is complete.' : m + (m === 1 ? ' minute' : ' minutes') + ' of ' + sitName(rec) + '.'); });
 on('med-del', b => { const ix = S.meditations.findIndex(x => x.id === b.dataset.id); if (ix < 0) return; const gone = S.meditations.splice(ix, 1)[0]; save(); render(); undoBar(sitName(gone) + ' removed.', () => { S.meditations.splice(ix, 0, gone); save(); render(); }); });
+
+/* just sit: open-ended as before, or a length that ends by itself with the same soft bell as Stop.
+   The sitting goes into the meditation log exactly like any other ("Just sitting"). */
+const SIT_MINS = [10, 20, 30, 45, 60];
+function sitPick() { const p = String(S.profile.sitPick || 'open'); return p === 'own' || SIT_MINS.includes(+p) ? p : 'open'; }
+function justSitHtml() {
+  const p = sitPick(), own = +S.profile.sitOwn || '';
+  return `<section class="stack" style="gap:10px" aria-label="Just sit"><span class="lab" style="margin:0">Or just sit</span>
+  <div class="chips" role="group" aria-label="How long">${[['open', 'No end'], ...SIT_MINS.map(n => [String(n), n + ' min']), ['own', 'Your own']].map(([v, l]) => `<button class="chip" data-a="sit-pick" data-v="${v}" aria-pressed="${p === v}">${l}</button>`).join('')}</div>
+  ${p === 'own' ? `<div><label class="lab" for="sit-own">Minutes</label><input class="input" id="sit-own" inputmode="numeric" maxlength="3" enterkeyhint="go" autocomplete="off" value="${own}" placeholder="e.g. 25" style="max-width:160px"></div>` : ''}
+  <button class="btn" data-a="sit-go">${p === 'open' ? 'Sit, with a timer' : p === 'own' ? 'Begin sitting' : 'Sit for ' + p + ' minutes'}</button></section>`;
+}
+on('sit-pick', b => { S.profile.sitPick = b.dataset.v; save(); render(); if (b.dataset.v === 'own') { const i = $('#sit-own'); if (i) i.focus(); } });
+on('sit-go', () => {
+  const p = sitPick(); let m = 0;
+  if (p === 'own') { m = parseInt(($('#sit-own') || {}).value, 10); if (!(m >= 1 && m <= 600)) { toast('Type the minutes first, 1 to 600.'); const i = $('#sit-own'); if (i) i.focus(); return; } S.profile.sitOwn = m; }
+  else if (p !== 'open') m = +p;
+  S.meditationTimer.startedAt = new Date().toISOString(); S.meditationTimer.kind = 'plain';
+  if (m) S.meditationTimer.targetMin = m; else delete S.meditationTimer.targetMin;
+  focusHidden = false; closeOfferClear(); save(); render();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'sit-own') { e.preventDefault(); A['sit-go'](); } });
+function sitDue() { const t = S && S.meditationTimer; return !!(t && t.startedAt && +t.targetMin > 0 && Date.now() - new Date(t.startedAt).getTime() >= t.targetMin * 60000); }
+/* the end of a timed sit: logged at its length, dated the day it ended. If the phone was away when it ended,
+   it's logged quietly on return (no late bell). */
+function sitEnd() {
+  if (!sitDue()) return false;
+  const t = S.meditationTimer, m = +t.targetMin, end = new Date(t.startedAt).getTime() + m * 60000, fresh = Date.now() - end < 90000;
+  const rec = { id: uid(), date: keyOf(new Date(end)), minutes: m, kind: 'plain' };
+  S.meditations.push(rec); t.startedAt = null; delete t.targetMin; S.closeOffer = end; saveNow();
+  if (fresh) bell(528, 3);
+  if (S.profile.setupDone) render();
+  toast(m + (m === 1 ? ' minute' : ' minutes') + ' of ' + sitName(rec) + '.');
+  return true;
+}
+setInterval(() => { if (sitDue()) sitEnd(); }, 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && sitDue()) sitEnd(); });
 function sitHtml() {
   const running = !!S.meditationTimer.startedAt;
   const recent = S.meditations.filter(m => m.id).slice(-5).reverse();
-  if (running && !focusHidden) return `<div class="focus-mode" role="dialog" aria-label="Meditation"><div class="big" id="med-time">00:00</div><p class="line">The hour needs nothing from you. Sit, breathe, and let what is be seen.</p><button class="btn primary" data-a="med-stop" style="min-width:220px">Stop and keep the time</button>${S.meditationTimer.kind === 'gs' || S.meditationTimer.kind === 'kd' ? '<button class="btn" data-a="med-music" style="min-width:220px">Open the music again</button>' : ''}<button class="btn" data-a="med-close-song" style="min-width:220px">Play the closing song</button><button class="stop-leave" data-a="med-hide">Leave this screen · the timer keeps going</button></div>`;
+  if (running && !focusHidden) return `<div class="focus-mode" role="dialog" aria-label="Meditation"><div class="big" id="med-time">00:00</div>${+S.meditationTimer.targetMin > 0 ? `<p class="line">These minutes need nothing from you. Sit, breathe, and let what is be seen.</p><p class="tiny" style="margin:0">Ends by itself after ${+S.meditationTimer.targetMin} ${+S.meditationTimer.targetMin === 1 ? 'minute' : 'minutes'}, with one soft bell.</p>` : '<p class="line">The hour needs nothing from you. Sit, breathe, and let what is be seen.</p>'}<button class="btn primary" data-a="med-stop" style="min-width:220px">Stop and keep the time</button>${S.meditationTimer.kind === 'gs' || S.meditationTimer.kind === 'kd' ? '<button class="btn" data-a="med-music" style="min-width:220px">Open the music again</button>' : ''}<button class="btn" data-a="med-close-song" style="min-width:220px">Play the closing song</button><button class="stop-leave" data-a="med-hide">Leave this screen · the timer keeps going</button></div>`;
   return `${running ? `<button class="card now" data-a="med-show" style="text-align:left;cursor:pointer"><span class="eyebrow">Meditating</span><div class="timer" id="med-time" style="font-size:40px;text-align:left">00:00</div><span class="tiny">Tap to return</span></button>` : `
   ${closeOfferHtml()}
   <section class="card stack"><h2>Gauri Shankar</h2><p class="muted small">One hour, four stages. Opens the music in Spotify and starts the timer.</p><button class="btn primary big" data-a="med-start" data-k="gs">Begin Gauri Shankar</button></section>
   <section class="card stack"><h2>Kundalini</h2><p class="muted small">One hour, four stages: shaking, dancing, stillness, lying down. Opens the music in Spotify and starts the timer.</p><button class="btn primary big" data-a="med-start" data-k="kd">Begin Kundalini</button></section>
-  <button class="link" data-a="med-start" data-k="plain" style="align-self:center">Or just sit, with a timer</button>`}
+  ${justSitHtml()}`}
   <section class="card stack" style="gap:8px" aria-label="Between two breaths"><span class="eyebrow">Between two breaths</span><p class="prayer-text" style="font-size:19px">The breath goes out, the breath comes in. Between the two there is a turn, a pause. Let the attention rest there.</p><p class="tiny">After the first contemplation of the Vijñāna Bhairava.</p></section>
-  <details class="fold"><summary>Five of the Shiva Sutras</summary>${sutrasHtml()}</details>
   <details class="fold"><summary>Gauri Shankar: the four stages</summary><div class="stack">${GS_STAGES.map(s => `<div><strong>${esc(s[0])}</strong><p class="small muted" style="margin-top:4px">${esc(s[1])}</p></div>`).join('')}${S.profile.bpSafe ? '<div class="warnbox"><p class="tiny">With blood pressure, keep the breath-holds in the first stage short and easy. Stillness, not strain.</p></div>' : ''}<p class="tiny">Instructions from <a href="https://oshoworld.com/poona-gourishankar-meditation" target="_blank" rel="noopener">Osho World</a>.</p></div></details>
   <details class="fold"><summary>Kundalini: the four stages</summary><div class="stack">${KD_STAGES.map(s => `<div><strong>${esc(s[0])}</strong><p class="small muted" style="margin-top:4px">${esc(s[1])}</p></div>`).join('')}${S.profile.bpSafe ? '<div class="warnbox"><p class="tiny">With blood pressure, keep the shaking and dancing gentle, and slow down if you feel light-headed. Stillness, not strain.</p></div>' : ''}<p class="tiny">Instructions from <a href="https://www.oshoworld.com/poona-kundalini-meditation" target="_blank" rel="noopener">oshoworld.com</a>. Music: Osho Kundalini Meditation, on Spotify.</p></div></details>
   ${recent.length ? `<h3>Recent</h3><ul class="list">${recent.map(m => `<li class="li"><div class="t"><strong>${m.minutes} min</strong><span>${fmtDay(m.date)} · ${sitName(m)}</span></div><button class="link" data-a="med-del" data-id="${m.id}" aria-label="Remove this meditation">Remove</button></li>`).join('')}</ul>` : ''}
@@ -2722,9 +2896,9 @@ function onThisDay() {
 function readingCard() { const rd = S.witness.readings[0]; return `<div class="card between"><span><span class="tiny" style="display:block">Reading</span><strong>${rd ? esc(rd.title) + ' · page ' + rd.page : 'No book yet'}</strong></span><button class="link" data-a="read-edit">${rd ? 'Update' : 'Add'}</button></div>`; }
 /* five of the Shiva Sutras, in the Sanskrit (c. 9th century) with plain English of our own */
 const SUTRAS = [['1.1', 'caitanyam ātmā', 'Awareness is the self.'], ['1.12', 'vismayo yoga-bhūmikāḥ', 'Wonder marks each stage of yoga.'], ['3.9', 'nartaka ātmā', 'The self is a dancer.'], ['3.10', 'raṅgo ’ntarātmā', 'The inner self is the stage.'], ['3.11', 'prekṣakāṇīndriyāṇi', 'The senses are the audience.']];
-function sutrasHtml() { return `<section class="stack" style="gap:12px">${SUTRAS.map(x => `<div><p class="prayer-text" style="font-size:19px">${esc(x[2])}</p><p class="tiny"><i>${esc(x[1])}</i> · ${x[0]}</p></div>`).join('')}<p class="tiny">From Vasugupta’s Shiva Sutras, the root text of Kashmir Shaivism. The English here is plain wording, not a scholar’s translation.</p></section>`; }
+function sutrasHtml() { return `<section class="card stack" style="gap:12px"><h3>Five of the Shiva Sutras</h3>${SUTRAS.map(x => `<div><p class="prayer-text" style="font-size:19px">${esc(x[2])}</p><p class="tiny"><i>${esc(x[1])}</i> · ${x[0]}</p></div>`).join('')}<p class="tiny">From Vasugupta’s Shiva Sutras, the root text of Kashmir Shaivism. The English here is plain wording, not a scholar’s translation.</p></section>`; }
 function chTitle(t) { return t.charAt(0) + t.slice(1).toLowerCase(); }
-function chRow(ch, ci, pre) { const all = ch[2].reduce((a, g) => a + g[1].length, 0), heard = ch[2].reduce((a, g) => a + seriesState(g).heard, 0); return `<button class="navrow" data-a="ch-open" data-c="${ci}"><span>${pre}${esc(chTitle(ch[0]))}<small>${esc(ch[1])}</small></span></button>`; }
+function chRow(ch, ci, pre) { const all = ch[2].reduce((a, g) => a + g[1].length, 0), heard = ch[2].reduce((a, g) => a + seriesState(g).heard, 0); return `<button class="navrow" data-a="ch-open" data-c="${ci}"><span>${pre}${esc(chTitle(ch[0]))}<small>${esc(ch[1])} · ${heard} of ${all} heard</small></span></button>`; }
 function listenHtml() {
   if (listenCh != null) {
     const ch = TALKS[listenCh]; let i = 0;
@@ -2876,7 +3050,7 @@ R.practice = function () {
 };
 R.practiceAfter = function (main) {
   refreshReader();
-  const mt = $('#med-time'); if (mt && S.meditationTimer.startedAt) ticker(() => { const s = Math.max(0, Math.floor((Date.now() - new Date(S.meditationTimer.startedAt)) / 1000)); mt.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); });
+  const mt = $('#med-time'); if (mt && S.meditationTimer.startedAt) ticker(() => { if (!S.meditationTimer.startedAt || sitEnd()) return; const tm = +S.meditationTimer.targetMin || 0, el = Math.max(0, Math.floor((Date.now() - new Date(S.meditationTimer.startedAt)) / 1000)), s = tm ? Math.max(0, tm * 60 - el) : el; mt.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); });
   $$('[data-talk]', main).forEach(el => swipe(el, () => { if (!S.talks.heard[el.dataset.talk]) markHeard(el.dataset.talk, true); }, () => { if (S.talks.heard[el.dataset.talk]) markHeard(el.dataset.talk, false); }));
   main.oninput = e => {
     const g = e.target.closest('[data-grat]'); if (g) { day(todayKey()).gratitude[+g.dataset.grat] = g.value; save(); return; }
@@ -3169,7 +3343,7 @@ function field(id, label, key, val, kind, extra) { return `<div><label class="la
 function targetsHtml() {
   const p = S.profile, sug = suggestTargets();
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Targets and goal</h1>
-  <section class="card stack"><h2>Each day</h2><div class="grid2">${field('t-k', 'Calories', 'kcalTarget', p.kcalTarget, 'num', 'data-int="1"')}${field('t-p', 'Protein (g)', 'proteinTarget', p.proteinTarget, 'num', 'data-int="1"')}${field('t-w', 'Water (glasses)', 'waterTarget', p.waterTarget, 'num', 'data-int="1"')}${field('t-s', 'Steps', 'stepsTarget', p.stepsTarget, 'num', 'data-int="1"')}${field('t-m', 'Move (minutes)', 'moveTarget', p.moveTarget, 'num', 'data-int="1" placeholder="e.g. 30"')}</div><p class="tiny">Leave any box empty and its ring shows just the number. Move counts walking and workouts when there are no steps. Still has no number: it lights when you have sat.</p>
+  <section class="card stack"><h2>Each day</h2><div class="grid2">${field('t-k', 'Calories', 'kcalTarget', p.kcalTarget, 'num', 'data-int="1"')}${field('t-p', 'Protein (g)', 'proteinTarget', p.proteinTarget, 'num', 'data-int="1"')}${field('t-w', 'Water (glasses)', 'waterTarget', p.waterTarget, 'num', 'data-int="1"')}${field('t-s', 'Steps', 'stepsTarget', p.stepsTarget, 'num', 'data-int="1"')}${field('t-m', 'Move (minutes)', 'moveTarget', p.moveTarget, 'num', 'data-int="1" placeholder="e.g. 30"')}${field('t-st', 'Still (minutes)', 'stillTarget', p.stillTarget, 'num', 'data-int="1" placeholder="e.g. 60"')}</div><p class="tiny">Leave any box empty and its ring shows just the number. Move counts walking and workouts when there are no steps; Still counts sitting.</p>
   ${sug ? `<p class="tiny">From your details, a gentle loss is about ${big(sug.kcal)} calories and ${sug.protein} g protein a day.</p>` : ''}<button class="navrow" data-a="how"><span>How these were worked out<small>The calculation, in words and numbers</small></span></button></section>
   <section class="card stack"><h2>Goal</h2><div class="grid2"><div><label class="lab" for="t-wg">Waist goal (${p.waistUnit === 'cm' ? 'cm' : 'inches'})</label><input class="input" id="t-wg" data-set="waistGoalCm" data-kind="waist" inputmode="decimal" value="${p.waistGoalCm ? n1(p.waistUnit === 'cm' ? p.waistGoalCm : p.waistGoalCm / CM_IN) : ''}"></div></div>${weightFields('t-gw', p.goalWeight, 'Weight goal', 'data-wgoal="1"')}
   ${p.heightCm ? `<p class="tiny">Half your height is a healthy waist: ${waistShow(p.heightCm / 2)}.</p>` : ''}
@@ -3378,7 +3552,7 @@ async function freshStart() {
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
-  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>1.9.15: Still lights when you have sat today; it no longer counts minutes against a target. The minutes are still in Sit › Recent.</li><li>1.9.15: the path in Listen no longer counts talks heard, and the Sunday look-back no longer measures meditation against a target or counts talks. Each heard talk keeps its lamp.</li><li>1.9.15: after a sitting, only the bell.</li><li>1.9.15: five of the Shiva Sutras, folded on Sit under Between two breaths.</li><li>1.9.14: before every meditation, a short opening prayer. The sitting and its timer begin when you tap Begin.</li></ul></section>
+  <section class="card stack"><h2>What’s new</h2><ul class="small" style="padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px"><li>Train: Exercises lists every exercise in the plan and what it works. Your own days are built from them and sit beside Day A to D under “Start a different day”; the plan itself is unchanged.</li><li>Train: in a workout, “Swap this exercise” moves the sets not yet done to another exercise. Sets already done keep their own name.</li><li>Train: Yoga keeps your YouTube yoga videos and plays them inside Prakash. Videos need the internet; the list is always there.</li><li>Sit: just sitting can now end by itself after 10, 20, 30, 45 or 60 minutes, or minutes you choose, with one soft bell. It’s logged like any sitting.</li><li>Finding a food: type two letters and suggestions appear under the box, from your dishes, what you’ve had, and the staples on this phone. A tap puts it in the draft to check first. Search online is optional, with your own free USDA key in Settings › Food lookup, where the staples table can also be seen and changed.</li><li>1.9.12: Energy in and out never guesses your weight. Until your weight, height and date of birth are in, it shows only the movement you logged and says what’s missing; the total and the difference appear, marked as an estimate, once they are.</li><li>1.9.12: in a workout, each set shows what you did last time, small and beside it (“last: 40 × 8”), and each exercise shows how it felt the last three times. Today’s boxes start empty; nothing is filled in for you.</li><li>1.9.12: Say it has its own button at the top of Food: speak or type what you had, then check it before anything is added.</li><li>1.9.12: Ask the mirror, in You: one question about your own logs, answered with facts and numbers only. Nothing is kept.</li><li>1.9.12: every talk has two plain lines: what it is, and which discourse and how long.</li><li>1.9.12: small fixes in the Sunday look-back: “1 day” instead of “1 days”, no more “0 of 0”, the heading stays on one line, and the day lists no longer repeat the averages shown above them.</li><li>1.9.11: the energy a workout uses now follows how long it took and how hard it felt. Your “Felt” answer for each exercise (Easy, About right or Hard) sets the effort; exercises not rated count as About right, and the kettlebell day counts a little higher.</li><li>1.9.10: Energy in and out shows every part of “out” on the card itself: resting, steps, training and meditation. With no steps entered yet, it says so, with an Add steps button.</li><li>1.9.9: a card on Today, Energy in and out: in is what your food diary holds; out is an estimate from your details plus steps or walks, workouts and the moving stages of Kundalini. The food diary still only records what you eat. The Sunday look-back shows the week’s average of both.</li><li>1.9.9: the Sunday look-back opens with the week in one view: food, training and walking, steps, meditation, the talks you heard, sleep and water, side by side, with your targets beside them as plain numbers.</li><li>1.9.9: a section on death, apart from the path: Osho’s The Art of Dying (English) and Main Mrityu Sikhata Hun (Hindi), ten talks each.</li><li>1.9.9: Osho’s talks now play inside Prakash itself: Play, Pause, back 15 s, forward 30 s. They keep going while you use the rest of the app and with the screen off, with controls on the lock screen, and each talk carries on from where you stopped. “Keep listening” folds a talk into a small bar above the tabs.</li><li>1.9.9: Listen is now one path, with Osho and Alan Watts only: 1 Awareness, 2 Witness, 3 Love, 4 Zen. Each step now has full series: Witness has the Ashtavakra Maha Geeta (Hindi) and The Empty Boat (Chuang Tzu); Love has the Sufis and more in Hindi; Zen has The Book of Nothing, Bodhidharma and No Water, No Moon. “Next on the path” shows the first talk you haven’t heard. What you’ve already heard is kept, including talks whose address changed.</li><li>1.9.8: the box you’re typing in stays above the keyboard: in Steps, in Food and everywhere else. The tab bar steps aside while you type.</li><li>1.9.8: the app opens with the lamp. Its icon is now marked for Android’s full-size icons and opening screen, so the lamp fills the icon instead of sitting small in a white circle.</li><li>1.9.7: the Sunday look-back now lists each day of the week: calories and protein, and steps. Under each list, the week’s average over the days that were logged, with your target beside it and the difference in plain numbers. Days with nothing logged say so.</li><li>1.9.6: four new Stops about time: Now, Only now, Hands and Listen. They turn up through the day like the others, a small reminder that past and future are thoughts happening now.</li><li>1.9.5: entering steps is quicker. Type the number as your phone shows it (8,000, 8 000 or 8k all work; before, “8,000” was saved as 8). The keyboard’s Done saves, the old number is selected so you can type over it, yesterday can be filled in too, and tapping the Move ring itself opens it.</li><li>1.9.4: after a sitting, the closing-song offer stays for 30 minutes even if you close and reopen the app. It shows in Sit and on Today, and goes quietly after. Not now still clears it at once.</li><li>1.9.4: every sitting is named: Gauri Shankar, Kundalini, or Just sitting, in Recent and in the messages after you stop or remove one.</li><li>1.9.3: the workout screen fits on the phone before and after the warm-up. The three warm-up moves come one at a time, and the safety line and Previous / Next sit straight under the sets, above the tab bar.</li><li>1.9.3: Backup AIs for photos now says plainly that a Groq key is free to create but Groq prices its inference, so photos read by Groq may be charged. Groq can also fall back to Qwen 3.6.</li><li>1.9.2: Sit now has Osho Kundalini beside Gauri Shankar: one hour, four stages, with its music in Spotify and the instructions from oshoworld.com.</li><li>1.9.2: a closing song after a sitting, Lokah Samasta by Deva Premal. It’s offered when you stop the timer and can be played from the meditation screen. All three links can be changed in You › Settings › Meditation music.</li><li>1.9.1: the photo AIs use the models Gemini, Groq and OpenRouter serve now. Gemini, like the other two, finds a new model by itself if one is retired.</li><li>1.9.1: with no AI keys set, the photo screen simply offers to paste the prompt into Claude. It no longer reads as if an estimate was tried.</li><li>1.9.1: journal entries brought over from the old Witness Journal are marked “from Witness Journal” in Entries.</li><li>1.9.0: entries written in the old Witness Journal app now appear in Practice › Write › Entries. This happens once; the old journal is left as it was.</li><li>1.9.0: tapping a tab at the bottom always opens that tab’s home. Back buttons inside pages still go one step up.</li><li>Groq now uses its Qwen vision model; the Llama 4 models were retired by Groq. If a model is retired again, Prakash looks up what Groq and OpenRouter offer and tries those.</li><li>Train: each exercise is logged in its own unit. Planks and the wall sit in seconds, with a Time a hold button; crunches, dead bugs and knee raises as reps only; the suitcase carry in kg and metres; the walk in minutes.</li><li>Rings without a target show just the thin track and the number, never a filled arc. Move and Still minutes are targets you set in Goals and your day, empty until you do.</li><li>Train: ticking a set copies its kg and reps into the empty sets after it. You can still change them.</li><li>A workout in progress shows on Today as Continue, and on Train as a small Resume bar. The tabs keep working mid-workout and nothing is lost.</li><li>First open shows only the setup screen until it’s done.</li><li>Photo estimates ask Gemini, then Groq, then OpenRouter, 8 seconds each, and say which one answered. Tick the items that are right. Add optional Groq and OpenRouter keys in You › Settings › Backup AIs for photos.</li><li>If no AI answers, one tap copies the prompt and opens Claude; paste the answer when you’re back.</li><li>Morning chai has its own card near the top of Today, from before you wake until late morning. The Stop no longer hides it.</li><li>Speak into Write: tap the microphone beside a journal question and your words appear in its box.</li><li>The Stop now waits as a card on Today. It never takes over the screen by itself; tap the card to open it full screen.</li><li>Train: a set is ticked only once kg and reps are both in. Moving to another exercise clears the rest timer. The day’s list shows every exercise, core moves included.</li><li>Food: Enter only shows matches; nothing is added without a tap. A general word like “dal” matched to a named dish is shown as “Did you mean…?”.</li><li>One word for hiding targets: Quiet mode, Quiet for today, Quiet until 6 pm. A day with nothing to log is now called just that.</li><li>The evening line can fill in the day: write “had dal and two rotis, walked 20 minutes, sat for the hour” and tick what to add.</li><li>Numbers as a mirror, not a judge. The rings and numbers stay; the words around them are plainer.</li><li>First open is one screen: your weight and when you wake, then Light the lamp. Targets stay empty until you set them.</li><li>Each morning Today opens with the lamp and the waking prayer. Empty rings say “not started” instead of dashes.</li><li>Food: matches appear as you type. Tap a food to add your usual portion; hold it to change the amount. Several foods separated by commas show together, with Add all.</li><li>Why your protein target is what it is, next to it on the Food page.</li><li>Train: next session filled in from last time, with weight added when every set reached the top of the range. A three-move warm-up, and last session’s numbers beside each exercise.</li><li>Steps: tap Move to type today’s number. With no steps, Move shows walking and workout minutes.</li><li>Quiet until 6 pm: targets hidden until the evening. In the evening, one optional line for the journal.</li><li>In You, settings come first; the extras sit below them.</li></ul></section>
   <ul class="small muted" style="padding-left:20px;margin:0"><li>Food search uses your own foods and the staples table on this phone. With a key in Settings, it can also look foods and barcodes up in USDA FoodData Central, only when you tap.</li><li>Not medical advice. If you train with a health condition, follow your clinician's guidance.</li></ul><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
 R.you = function () { const v = view.you; return ({ mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, lookup: lookupHtml, staples: staplesHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, about: aboutHtml }[v] || youHome)(); };
@@ -3549,7 +3723,7 @@ applyTextSize();
 /* after an update: one quiet line, once */
 if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) setTimeout(() => toast('Prakash has been updated. What’s new is in You › About Prakash.', 6000), 1500);
 if (S.seenVersion !== VERSION) { S.seenVersion = VERSION; save(); }
-window.__pkHoldReload = () => !!draft || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open') || !!$('#talk-layer');
+window.__pkHoldReload = () => !!draft || !!build || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open') || !!$('#talk-layer');
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
 render();
 if (!S.profile.setupDone || S.needsWelcome || !S.profile.onboardedV) showSetup(0);
