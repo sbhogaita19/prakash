@@ -350,7 +350,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.17.0';
+const VERSION = '1.18.0';
 const KEY = 'sadhana-v1';            // kept so existing data carries over (the guest workspace)
 /* 1.17.0: a signed-in account has its own workspace on this phone, beside the guest one. Guest data is never overwritten by it. */
 const WS_KEY = 'prakash-ws-active', ACCT_PREFIX = 'prakash-acct-';
@@ -2062,7 +2062,7 @@ function momSheetBody() {
 }
 function momSwap() { const w = $('#mom-wrap'); if (w) { momRead(); w.outerHTML = momSheetBody(); fillMealPhotos($('.sheet') || document); } }
 function momRead() { if (!momDraft) return; const t = $('#mom-text'), d = $('#mom-date'); if (t) momDraft.text = t.value; if (d && d.value) momDraft.date = d.value; }
-function momOpen(m) { momDraft = m ? { id: m.id, date: m.date, text: m.text || '', who: (m.who || []).slice(), where: (m.where || []).slice(), felt: (m.felt || []).slice(), photoId: m.photoId || null, photo: null } : { id: null, date: todayKey(), text: '', who: [], where: [], felt: [], photoId: null, photo: null }; openSheet(momSheetBody(), { title: 'What just happened?' }); fillMealPhotos($('.sheet') || document); }
+function momOpen(m) { momDraft = m ? { id: m.id, date: m.date, text: m.text || '', who: (m.who || []).slice(), where: (m.where || []).slice(), felt: (m.felt || []).slice(), photoId: m.photoId || null, photo: null } : { id: null, date: todayKey(), text: '', who: [], where: [], felt: [], photoId: null, photo: null }; openSheet(momSheetBody(), { title: 'Keep a moment' }); fillMealPhotos($('.sheet') || document); }
 on('mom-new', () => { if (journalLocked()) { toast('Your journal is locked. Open You, Account and sync.'); return; } momOpen(null); });
 on('mom-edit', b => { const m = momById(b.dataset.id); if (m) momOpen(m); });
 on('mom-chip', b => { momRead(); const l = momDraft[b.dataset.g], c = b.dataset.c, i = l.indexOf(c); if (i < 0) l.push(c); else l.splice(i, 1); momSwap(); });
@@ -2077,17 +2077,28 @@ on('mom-save', async () => {
   const old = m.id ? momById(m.id) : null, id = m.id || uid(), t = todayKey(), date = m.date || t;
   let photoId = m.photoId || null;
   if (m.photo) { try { const nid = 'mom-' + uid(); await pput(nid, { blob: b64blob(m.photo.split(',')[1], 'image/jpeg'), mime: 'image/jpeg' }); if (photoId) pdel(photoId).catch(() => {}); photoId = nid; } catch (x) { toast('The photo couldn’t be kept. The line was.'); } }
-  const ts = old && old.date === date ? old.ts : (date === t ? new Date().toISOString() : new Date(date + 'T12:00:00').toISOString());
+  const keep = old && old.date === date, ts = keep ? old.ts : (date === t ? new Date().toISOString() : new Date(date + 'T12:00:00').toISOString());
   const rec = { id, ts, date, text: (m.text || '').trim(), who: m.who, where: m.where, felt: m.felt }; if (photoId) rec.photoId = photoId;
+  if (keep) { if (old.real != null) rec.real = old.real; if (old.tz != null) rec.tz = old.tz; if (old.loc) rec.loc = old.loc; } else if (date === t) { rec.real = true; rec.tz = new Date().getTimezoneOffset(); } else rec.real = false;
+  const fresh = !old && date === t;
   S.moments = S.moments.filter(x => x.id !== id); S.moments.push(rec); S.moments.sort((a, b) => a.ts < b.ts ? 1 : -1);
-  momDraft = null; save(); closeSheet(); render(); toast('Kept.');
+  momDraft = null; save(); closeSheet(); render(); toast('Kept.'); if (fresh) locAttach(() => momById(id));
 });
 on('mom-del', () => {
   const m = momDraft && momById(momDraft.id); if (!m) return; closeSheet(true);
   confirmSheet('Delete this moment?', 'It will be gone from this phone.', 'Delete', () => { const ix = S.moments.findIndex(x => x.id === m.id), gone = S.moments.splice(ix, 1)[0]; save(); render(); undoBar('Moment deleted.', () => { S.moments.splice(ix, 0, gone); save(); render(); }); setTimeout(() => { if (gone.photoId && !S.moments.some(x => x.id === gone.id)) pdel(gone.photoId).catch(() => {}); }, 15000); }, true);
 });
+/* when a moment was kept: the real time whenever it was made in the moment (with the timezone, if that differs from here); a backdated one shows only its day */
+function momReal(m) { if (m.real != null) return !!m.real; if (!validDate(m.ts) || m.date !== keyOf(new Date(m.ts))) return false; const d = new Date(m.ts); return !(d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0); }
+function tzLabel(off) { const m = -off, a = Math.abs(m), h = Math.floor(a / 60), mm = a % 60; return 'UTC' + (m < 0 ? '−' : '+') + h + (mm ? ':' + String(mm).padStart(2, '0') : ''); }
+function stampText(iso, tz) {
+  if (!validDate(iso)) return ''; const t = new Date(iso);
+  if (tz == null || tz === t.getTimezoneOffset()) return fmtD(t) + ', ' + fmtTime(t);
+  const w = new Date(t.getTime() - tz * 60000);
+  return fmtD(new Date(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate())) + ', ' + String(w.getUTCHours()).padStart(2, '0') + ':' + String(w.getUTCMinutes()).padStart(2, '0') + ' (' + tzLabel(tz) + ')';
+}
 function momCardHtml(m, small) {
-  const tags = momTags(m), when = fmtD(m.date) + (m.ts && m.date === keyOf(new Date(m.ts)) ? ', ' + fmtTime(m.ts) : '');
+  const tags = momTags(m).concat(m.loc ? [locText(m.loc)] : []), when = momReal(m) ? stampText(m.ts, m.tz) : fmtD(m.date);
   return `<div class="li" style="align-items:flex-start;gap:10px;min-height:0;padding:10px 0">${m.photoId ? `<img alt="" data-mealphoto="${esc(m.photoId)}" style="width:${small ? 52 : 72}px;height:${small ? 52 : 72}px;border-radius:10px;object-fit:cover;flex:none">` : ''}<div class="t" style="flex:1"><span class="tiny">${esc(when)}</span>${m.text ? `<span style="white-space:pre-wrap">${esc(m.text)}</span>` : ''}${tags.length ? `<span class="tiny">${esc(tags.join(' · '))}</span>` : ''}</div>${small ? '' : `<button class="link" data-a="mom-edit" data-id="${m.id}">Edit</button>`}</div>`;
 }
 /* moments, shown small and quiet beside the facts */
@@ -2097,8 +2108,60 @@ function momentsPlaybackHtml(keys, limit) {
 }
 function momentsPageHtml() {
   const l = S.moments || [];
-  return `${backBar('Journal', 'j-home')}<h2>Moments</h2><p class="muted small">What just happened, kept in a line, a photo or a few tags.</p><button class="btn primary big" data-a="mom-new">What just happened?</button>${l.length ? `<section class="card stack" style="gap:0">${l.map(m => momCardHtml(m, false)).join('')}</section>` : '<p class="tiny">Nothing yet.</p>'}`;
+  return `${backBar('Journal', 'j-home')}<h2>Moments</h2><p class="muted small">What just happened, kept in a line, a photo or a few tags.</p><button class="btn primary big" data-a="mom-new">Keep a moment</button>${l.length ? `<section class="card stack" style="gap:0">${l.map(m => momCardHtml(m, false)).join('')}</section>` : '<p class="tiny">Nothing yet.</p>'}`;
 }
+
+/* ---------- 1.18.0: where a moment or entry was kept (optional, off until you turn it on) ----------
+   Roughly where you were (rounded to about 100 m), noted once when you keep something new, never when you edit or backdate.
+   It is stored inside that moment or entry, so it is sealed with the journal when you sync. The places you name ("Home",
+   "Work") live only on this phone, outside the backup and outside sync. Nothing is looked up online. It is never in My record,
+   the doctor summary or anything sent to an AI. */
+const PLACES_KEY = 'prakash-places-v1';
+function placesGet() { const o = lsGet(PLACES_KEY); return { on: !!(o && o.on), list: (o && Array.isArray(o.list) ? o.list : []).filter(x => x && x.name && isFinite(x.lat) && isFinite(x.lng)) }; }
+function placesSet(o) { try { localStorage.setItem(PLACES_KEY, JSON.stringify(o)); } catch (e) {} }
+let locErr = '';
+function locFix() {
+  return new Promise(res => {
+    locErr = ''; if (!navigator.geolocation) { locErr = 'unsupported'; res(null); return; }
+    let done = false; const fin = v => { if (!done) { done = true; res(v); } }; setTimeout(() => { if (!locErr) locErr = 'timeout'; fin(null); }, 9000);
+    try { navigator.geolocation.getCurrentPosition(p => fin({ lat: p.coords.latitude, lng: p.coords.longitude }), e => { locErr = e && e.code === 1 ? 'denied' : 'unavailable'; fin(null); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 }); } catch (e) { locErr = 'unavailable'; fin(null); }
+  });
+}
+function distM(a, b) { const R = 6371000, r = Math.PI / 180, dl = (b.lat - a.lat) * r, dg = (b.lng - a.lng) * r, h = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dg / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
+function placeNear(pt, list) { let best = null, bd = 150; (list || placesGet().list).forEach(x => { const d = distM(pt, x); if (d <= bd) { bd = d; best = x; } }); return best; }
+const r3 = n => Math.round(n * 1000) / 1000;
+function locText(l) { return l && l.place ? l.place : 'Elsewhere'; }
+/* after a new moment or entry is already saved: note where, in the background. A slow or refused fix just leaves it without a place. */
+async function locAttach(getRec) {
+  if (!placesGet().on) return;
+  const f = await locFix(); if (!f) return; const rec = getRec(); if (!rec || rec.loc) return;
+  const pl = placeNear(f); rec.loc = { lat: r3(f.lat), lng: r3(f.lng) }; if (pl) rec.loc.place = pl.name;
+  save(); const a = document.activeElement; if (!document.querySelector('.sheet') && !(a && /TEXTAREA|INPUT|SELECT/.test(a.tagName))) render();
+}
+function placesHtml() {
+  const P = placesGet(), why = { denied: 'The phone says Prakash may not use location. You can allow it in the phone’s settings for Prakash.', unsupported: 'This browser can’t give a location.', timeout: 'No location came back in time. Try again outdoors or with location switched on.', unavailable: 'No location was available just now.' };
+  return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Where you are</h1>
+  <p class="muted small">Optional. When this is on, a moment or journal entry you keep gets a rough note of where you were, to about 100 metres. It is asked once, when you keep it, and never when you edit or backdate. It is kept with that moment or entry, so it is sealed with your journal if you sync. Nothing is looked up online, and it is never in My record or sent to an AI.</p>
+  <section class="card stack"><div class="chips" role="group" aria-label="Location">${wChip('loc-toggle', '', P.on ? 'On' : 'Off', P.on)}</div>${locErr && why[locErr] ? `<p class="small" role="status">${why[locErr]}</p>` : ''}</section>
+  <section class="card stack"><h2>Places you name</h2><p class="muted small">Name a place and any moment kept within about 150 metres of it shows that name. Names stay on this phone only (not in a backup, not synced). Anywhere else shows as “Elsewhere”.</p>
+  ${P.list.length ? `<ul class="list" style="margin:0">${P.list.map(x => `<li class="li" style="min-height:0;padding:8px 0"><div class="t"><strong style="font-weight:500">${esc(x.name)}</strong></div><button class="link" data-a="place-del" data-id="${esc(x.id)}" aria-label="Remove ${esc(x.name)}">Remove</button></li>`).join('')}</ul>` : '<p class="tiny">None yet.</p>'}
+  <div><label class="lab" for="place-name">Name where you are now</label><input class="input" id="place-name" maxlength="40" placeholder="Home, Work, Mum’s…" autocomplete="off"></div>
+  <button class="btn" data-a="place-add">Name this place</button><span class="small muted" id="place-st" role="status"></span></section></div>`;
+}
+on('loc-toggle', async () => {
+  const P = placesGet(); if (P.on) { P.on = false; placesSet(P); render(); return; }
+  const f = await locFix(); if (!f) { render(); return; }
+  P.on = true; placesSet(P); render(); toast('On. New moments and entries will note where.');
+});
+on('place-add', async b => {
+  const nm = (($('#place-name') || {}).value || '').trim().slice(0, 40), st = $('#place-st'); if (!nm) { toast('Give the place a name first.'); return; }
+  if (st) st.textContent = 'Finding where you are…'; const f = await locFix();
+  if (!f) { locErr = locErr || 'unavailable'; render(); return; }
+  const P = placesGet(); P.list.push({ id: uid(), name: nm, lat: Math.round(f.lat * 1e4) / 1e4, lng: Math.round(f.lng * 1e4) / 1e4 }); placesSet(P);
+  let n = 0; [].concat(S.moments || [], S.witness.entries || []).forEach(r => { if (r && r.loc && !r.loc.place && distM(r.loc, f) <= 150) { r.loc.place = nm; n++; } });
+  if (n) save(); render(); toast(n ? nm + ' saved, and added to ' + wPlural(n, 'earlier record') + '.' : nm + ' saved.');
+});
+on('place-del', b => { const P = placesGet(); P.list = P.list.filter(x => x.id !== b.dataset.id); placesSet(P); render(); toast('Removed. Names already on moments and entries stay.'); });
 
 /* ---------- the record, made whole: lines for the day-by-day record ---------- */
 function recordDayLines(k) {
@@ -5093,8 +5156,8 @@ function wclear() { return wdb().then(db => new Promise(res => { const tx = db.t
 /* the journal in layers. Both sets save into the same four fields (direct, story, nextStep, wonder), so older entries and every
    other part of the app read them as before. An entry remembers which set it was written with (layer); older entries count as deep. */
 const JQ_SETS = {
-  everyday: [['direct', 'What\'s going on in you right now? Name it - anger, worry, wanting - and let it pass.'], ['story', 'And who\'s the one noticing all that?'], ['nextStep', 'Rest there a moment. That\'s the real you.'], ['wonder', 'Anything surprise you today?']],
-  deep: [['direct', 'Wherever you are - what\'s moving through you right now? A thought, a feeling, a tension. Watch it drift past like weather. Nothing to fix, nothing to chase away.'], ['story', 'And notice: whatever you can watch, you are watching. So who is the watcher?'], ['nextStep', 'Don\'t answer in words. Rest there, as the watching itself. A few easy breaths. Nothing to achieve.'], ['wonder', 'Now come back smiling. What made you wonder, laugh, or quietly glow today?']]
+  everyday: [['direct', 'What\'s going on in you right now? Name it, whether it\'s worry, anger, wanting or something lighter.'], ['story', 'Who is noticing this?'], ['nextStep', 'Rest there for a moment, with a few easy breaths. Nothing to write.', 'pause'], ['wonder', 'What surprised you today?']],
+  deep: [['direct', 'Wherever you are, what\'s moving through you right now? A thought, a feeling, a tension. Watch it drift past like weather. Nothing to fix, nothing to chase away.'], ['story', 'Whatever you can watch, you are watching. So who is the watcher?'], ['nextStep', 'Don\'t answer in words. Rest there, as the watching itself, for a few easy breaths. Nothing to achieve.', 'pause'], ['wonder', 'What made you wonder, laugh, or quietly glow today?']]
 };
 const JQ_LABELS = { everyday: ['What was going on', 'Who was noticing', 'Resting there', 'What surprised you'], deep: ['What was moving', 'The watcher', 'Resting there', 'What made you wonder'] };
 let journalLayer = 'everyday';
@@ -5109,16 +5172,17 @@ on('j-rec', async b => {
   if (voiceRec && voiceRec.state === 'recording') { voiceRec.stop(); b.textContent = 'Record a voice note'; return; }
   try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); voiceChunks = []; voiceRec = new MediaRecorder(st); voiceRec.ondataavailable = e => voiceChunks.push(e.data); voiceRec.onstop = () => { voiceDraft = new Blob(voiceChunks, { type: voiceRec.mimeType }); st.getTracks().forEach(t => t.stop()); const s = $('#j-vs'); if (s) s.textContent = 'Voice note ready.'; }; voiceRec.start(); b.textContent = 'Stop recording'; } catch (e) { const s = $('#j-vs'); if (s) s.textContent = 'The microphone isn’t available.'; }
 });
-function journalCollect() { const o = { kind: ($('#j-kind') || {}).value || 'Free writing', tags: $$('[data-jtag]:checked').map(x => x.dataset.jtag) }; jqs().forEach(q => { const el = $('#j-' + q[0]); o[q[0]] = el ? el.value : ''; }); o.layer = journalLayer; return o; }
+function journalCollect() { const o = { kind: ($('#j-kind') || {}).value || 'Free writing', tags: $$('[data-jtag]:checked').map(x => x.dataset.jtag) }; jqs().forEach(q => { const el = $('#j-' + q[0]); o[q[0]] = el ? el.value : (journalEdit && journalEdit[q[0]]) || ''; }); o.layer = journalLayer; return o; }
 on('j-save', async () => {
   jSpeakStop();
   const o = journalCollect(); if (!jqs().some(q => (o[q[0]] || '').trim()) && !voiceDraft) { toast('Nothing written yet.'); return; }
   const old = journalEdit && journalEdit.id ? journalEdit : {}, id = old.id || uid(), now = new Date().toISOString();
-  const entry = { ...old, id, created: old.created || now, updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags, layer: journalLayer };
+  const entry = { ...old, id, created: old.created || now, tz: old.created ? old.tz : new Date().getTimezoneOffset(), updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags, layer: journalLayer };
   S.witness.entries = S.witness.entries.filter(x => x.id !== id); S.witness.entries.unshift(entry);
   if (voiceDraft) { await wput(id, { blob: voiceDraft, mime: voiceDraft.type }).catch(() => {}); entry.hasVoice = true; voiceDraft = null; }
   jdraftDel();
-  save(); journalMode = 'entries'; journalEdit = null; render(); toast('Saved.');
+  if (entry.tz == null) delete entry.tz;
+  save(); journalMode = 'entries'; journalEdit = null; render(); toast('Saved.'); if (!old.id) locAttach(() => S.witness.entries.find(x => x.id === id));
 });
 /* speak into Write: the phone's own speech-to-text, into the box beside the microphone */
 const MIC_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
@@ -5142,15 +5206,15 @@ function writeHtml() {
     let e = journalEdit || {}; if (!journalEdit) { try { const d = jdraftGet(); if (d) { e = d; if (JQ_SETS[d.layer]) journalLayer = d.layer; } } catch (x) {} }
     return `${backBar('Journal', 'j-home')}<p class="journal-q">Not homework. Just watching, the way you'd watch the river.</p>
     ${journalEdit && journalEdit.id ? '' : `<nav class="seg" aria-label="Which questions">${[['everyday', 'Everyday'], ['deep', 'Deeper']].map(x => `<button data-a="j-layer" data-l="${x[0]}" aria-current="${journalLayer === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>`}
-    <div><label class="lab" for="j-kind">When</label><select class="input" id="j-kind">${['Free writing', 'Before meditation', 'After meditation', 'Gratitude'].map(k => `<option${e.kind === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
+    <div><label class="lab" for="j-kind">Kind of entry</label><select class="input" id="j-kind">${['Free writing', 'Before meditation', 'After meditation', 'Gratitude'].map(k => `<option${e.kind === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
     ${micSupported() ? '<p class="small muted">Tap the microphone beside a question to speak your answer. Your phone’s browser turns speech into words, which may use Google or Apple.</p>' : ''}
-    ${jqs().map(q => `<div><div class="between" style="gap:10px;align-items:flex-end"><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px;flex:1">${esc(q[1])}</label>${micSupported() ? `<button class="iconbtn" data-a="j-speak" data-f="${q[0]}" aria-pressed="false" aria-label="Speak your answer to: ${esc(q[1])}" style="width:48px;min-height:48px;margin-bottom:6px">${MIC_SVG}</button>` : ''}</div><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea><span class="small muted" id="js-${q[0]}" role="status"></span></div>`).join('')}
+    ${jqs().map(q => q[2] === 'pause' && !e[q[0]] ? `<p class="journal-q" style="font-size:18px;color:var(--ink2)">${esc(q[1])}</p>` : `<div><div class="between" style="gap:10px;align-items:flex-end"><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px;flex:1">${esc(q[1])}</label>${micSupported() ? `<button class="iconbtn" data-a="j-speak" data-f="${q[0]}" aria-pressed="false" aria-label="Speak your answer to: ${esc(q[1])}" style="width:48px;min-height:48px;margin-bottom:6px">${MIC_SVG}</button>` : ''}</div><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea><span class="small muted" id="js-${q[0]}" role="status"></span></div>`).join('')}
     <p class="journal-q" style="font-size:18px;color:var(--ink2)">Now put it all down. Nothing to carry, nowhere to reach.</p>
-    <div><span class="lab">Threads</span><div class="chips">${WITNESS_TAGS.map(t => `<label class="chip" style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" data-jtag="${esc(t)}" ${(e.tags || []).includes(t) ? 'checked' : ''} style="accent-color:var(--green)"> ${esc(t)}</label>`).join('')}</div></div>
+    <div><span class="lab">Threads</span><span class="tiny" style="display:block;margin-bottom:6px">Optional. Tick any that fit, so you can find entries on a theme later.</span><div class="chips">${WITNESS_TAGS.map(t => `<label class="chip" style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" data-jtag="${esc(t)}" ${(e.tags || []).includes(t) ? 'checked' : ''} style="accent-color:var(--green)"> ${esc(t)}</label>`).join('')}</div></div>
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 1)} · </span>${esc(e.story)}</p>` : ''}${e.nextStep ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 2)} · </span>${esc(e.nextStep)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 3)} · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${esc(stampText(e.created, e.tz))}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.loc ? ' · ' + esc(locText(e.loc)) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 1)} · </span>${esc(e.story)}</p>` : ''}${e.nextStep ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 2)} · </span>${esc(e.nextStep)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 3)} · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'moments') return momentsPageHtml();
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What just happened?</h2><p class="muted small">A photo, a line, or a few tags. One tap, in the moment.</p><button class="btn primary big" data-a="mom-new">Add a moment</button></section>
@@ -5377,6 +5441,7 @@ function settingsHtml() {
   const p = S.profile;
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Settings</h1><div>
   <button class="navrow" data-a="you" data-v="sections"><span>What to show<small>Hide what you don’t use. Nothing is deleted.</small></span></button>
+  <button class="navrow" data-a="you" data-v="places"><span>Where you are<small>${placesGet().on ? 'On · moments and entries note roughly where' : 'Off · an optional note of where you kept a moment'}</small></span></button>
   <button class="navrow" data-a="you" data-v="units"><span>Units<small>${p.weightUnit === 'st' ? 'Stones and pounds' : 'Kilograms'} · waist in ${p.waistUnit === 'cm' ? 'centimetres' : 'inches'}</small></span></button>
   <button class="navrow" data-a="you" data-v="gemini"><span>Connect Gemini<small>${p.geminiKey ? 'Connected' : 'Free. Fills in dishes from a photo'}</small></span></button>
   <button class="navrow" data-a="you" data-v="moreai"><span>Backup AIs for photos<small>${[p.groqKey && 'Groq', p.openrouterKey && 'OpenRouter'].filter(Boolean).join(' and ') || 'Optional. Groq and OpenRouter, if Gemini is busy'}</small></span></button>
@@ -5388,7 +5453,7 @@ function settingsHtml() {
 function unitsHtml() { return `<div class="stack">${backBar('Settings', 'you-up')}<h1>Units</h1><p class="muted small">Used everywhere: Body, goals, charts and setup. What you've already saved is kept and shown in the new units.</p><section class="card stack">${unitChips('unit-set')}</section></div>`; }
 on('unit-set', b => { S.profile[b.dataset.k] = b.dataset.u; save(); render(); });
 function goalsHtml() { return targetsHtml().replace(/^<div class="stack">[\s\S]*?<\/h1>/, `<div class="stack">${backBar('You', 'you-home')}<h1>Goals and your day</h1>`).replace(/<\/div>$/, '') + rhythmHtml().replace(/^<div class="stack">[\s\S]*?<\/p>/, '<h2 style="margin-top:8px">Your day</h2><p class="muted small">These times decide what Today shows, and when.</p>'); }
-const YOU_PARENT = { mirror: 'home', how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', gemini: 'settings', moreai: 'settings', lookup: 'settings', staples: 'lookup', music: 'settings', targets: 'home', rhythm: 'home' };
+const YOU_PARENT = { mirror: 'home', how: 'goals', units: 'settings', body: 'home', goals: 'home', backup: 'home', settings: 'home', about: 'home', bp: 'body', sections: 'settings', places: 'settings', gemini: 'settings', moreai: 'settings', lookup: 'settings', staples: 'lookup', music: 'settings', targets: 'home', rhythm: 'home' };
 on('you-up', () => go('you', YOU_PARENT[view.you] || 'home'));
 /* ---------- body ---------- */
 function lineChart(pts, unit, goal) {
@@ -5758,6 +5823,7 @@ function aboutHtml() {
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
   <section class="card stack" style="gap:8px"><p class="small">Eat, move, sit, pray, listen, write. Six ways of looking at the same day. None of it is a course and none of it needs finishing.</p></section>
   <details class="fold card" style="padding:0 16px"><summary>What’s new</summary><ul class="small" style="padding-left:20px;margin:0 0 14px;display:flex;flex-direction:column;gap:6px">
+  <li>1.18.0, journal and moments: the journal’s questions are tighter (the “rest there” step is now a pause, not a box to fill; “Who is noticing this?” stands alone), an entry’s kind is labelled “Kind of entry”, moments always show the time they were kept (with the timezone if you were elsewhere), and an optional, off-by-default note of roughly where you were, with places you can name (You, Settings, Where you are).</li>
   <li>1.17.0, account and sync: you can sign in with Google to keep the same records on more than one device. It is optional and off until set up. The journal, moments, gratitude, weekly, reading and talk notes and your Stop note are encrypted on your phone with a key that only your 12 recovery words can restore. Food, movement and other logs sync as ordinary records. Photos and voice notes stay on the phone where they were made.</li>
   <li>1.17.0, the whole mirror: the whole picture now includes food and its numbers, weight, waist, blood pressure, prayers and talks; Ask the mirror sees your stress, sleep, meal and symptom records; My record carries everything it says it does. New: Moments (a photo, a line or a few tags, in the moment) and a journal in two layers, everyday and deeper.</li>
   <li>1.17.0, fixes: The week, looked back on opens again (two pages shared one name); the stretch timer’s Cancel works; a journal entry that has only the third answer shows it.</li>
@@ -5770,7 +5836,7 @@ function aboutHtml() {
   <li>1.12.0: training became your own plan. You answer a few questions, one AI request drafts a plan, you review it, and nothing changes until you choose Use this plan. Every saved workout stayed exactly as it was.</li></ul></details>
   <p class="small muted" style="margin:0">Not medical advice. If you train with a health condition, follow your clinician's guidance.</p><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ acct: acctHtml, fort: fortHtml, rules: rulesHtml, mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, lookup: lookupHtml, staples: staplesHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, whole: wholePageHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ acct: acctHtml, fort: fortHtml, rules: rulesHtml, mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, lookup: lookupHtml, staples: staplesHtml, sections: sectionsHtml, places: placesHtml, music: musicHtml, backup: backupHtml, whole: wholePageHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
