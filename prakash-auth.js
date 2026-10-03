@@ -22,9 +22,19 @@ export function warm() {
 export const ready = () => !!fb;
 export function onUser(cb) { return fb.auth.onAuthStateChanged(fb.au, u => cb(u ? { uid: u.uid, email: u.email || '', name: u.displayName || '' } : null)); }
 export function currentUser() { const u = fb && fb.au.currentUser; return u ? { uid: u.uid, email: u.email || '' } : null; }
-/* must be called straight from a tap, with nothing awaited before it, so the browser allows the popup */
-export function signIn() { const p = new fb.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); return fb.auth.signInWithPopup(fb.au, p); }
-export const signOutUser = () => fb.auth.signOut(fb.au);
+const isNative = () => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch (e) { return false; } };
+/* On the web this must be called straight from a tap, with nothing awaited before it, so the browser allows the popup.
+   In the Android app there is no popup: the phone's own Google sign-in sheet gives back a Google ID token, which signs in to Firebase. */
+export function signIn() {
+  if (isNative()) return (async () => {
+    const P = window.Capacitor.Plugins && window.Capacitor.Plugins.FirebaseAuthentication; if (!P) throw Object.assign(Error('no-plugin'), { code: 'native/no-plugin' });
+    const r = await P.signInWithGoogle({ skipNativeAuth: true }), idToken = r && r.credential && r.credential.idToken;
+    if (!idToken) throw Object.assign(Error('no-token'), { code: 'native/no-token' });
+    return fb.auth.signInWithCredential(fb.au, fb.auth.GoogleAuthProvider.credential(idToken));
+  })();
+  const p = new fb.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); return fb.auth.signInWithPopup(fb.au, p);
+}
+export async function signOutUser() { if (isNative()) { try { await window.Capacitor.Plugins.FirebaseAuthentication.signOut(); } catch (e) {} } return fb.auth.signOut(fb.au); }
 export const persistenceOk = () => !!(fb && fb.persist);
 
 /* ---- Firestore: only ever below users/{uid}/ ---- */
@@ -36,7 +46,9 @@ export function makeIo(uid) {
       const ref = fs.doc(fb.db, 'users', uid, store, id);
       return fs.runTransaction(fb.db, async tx => {
         const cur = await tx.get(ref);
-        if (cur.exists()) { const r = cur.data().rev; if (r && ((r.w - doc.rev.w) || (r.c - doc.rev.c) || String(r.d).localeCompare(String(doc.rev.d))) > 0) return 'stale'; }
+        if (cur.exists()) { const r = cur.data().rev, c = r ? (r.w - doc.rev.w) || (r.c - doc.rev.c) || String(r.d).localeCompare(String(doc.rev.d)) : -1;
+          if (doc.rev.w === 0 || c > 0) return 'stale';   // a first-sync placeholder (w = 0) never replaces a record that already exists
+          if (c === 0) return 'same'; }
         tx.set(ref, { ...doc, srv: fs.serverTimestamp() }); return 'written';
       });
     },
@@ -53,7 +65,9 @@ export function makeIo(uid) {
 }
 export function plainError(e) {
   const c = String((e && (e.code || e.message)) || '');
-  if (/popup-closed|cancelled-popup|user-cancelled/.test(c)) return { quiet: true };
+  if (/popup-closed|cancelled-popup|user-cancelled|cancel/i.test(c)) return { quiet: true };
+  if (/native\/no-plugin/.test(c)) return { text: 'Google sign-in is not part of this build of the app.' };
+  if (/no credential|NoCredential|12500|10:|developer.?error|DEVELOPER_ERROR/i.test(c)) return { text: 'Google did not accept this app yet. The app’s fingerprint may not be registered in Firebase.' };
   if (/popup-blocked/.test(c)) return { text: 'The browser blocked the sign-in window. Allow pop-ups for this page, or open Prakash in your normal browser.' };
   if (/unauthorized-domain/.test(c)) return { text: 'This web address is not on the allowed list in Firebase yet. Add it under Authentication, Settings, Authorized domains.' };
   if (/operation-not-allowed/.test(c)) return { text: 'Google sign-in is not switched on in Firebase yet.' };

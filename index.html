@@ -2240,7 +2240,7 @@ function releaseLeader() { clearInterval(acquireLeader.t); try { if (!ACCT) retu
 window.addEventListener('pagehide', releaseLeader);
 function stopEngine() { try { if (ENG) ENG.stop(); } catch (e) {} ENG = null; clearInterval(acquireLeader.t); SYNCSTAT = { state: 'off', pending: 0 }; }
 async function startEngine() {
-  if (!ACCT || !ACCT.adopted || ACCT.syncOn === false || ENG || isNativeApp2()) return;
+  if (!ACCT || !ACCT.adopted || ACCT.syncOn === false || ENG) return;
   if (!acquireLeader()) { SYNCSTAT = { state: 'othertab', pending: 0 }; acctRefresh(); setTimeout(() => { if (!ENG) startEngine(); }, 12000); return; }
   try {
     const [A, SY, C] = await Promise.all([sMod('auth'), sMod('sync'), sMod('crypto')]); AUTHM = A; await A.warm();
@@ -2277,7 +2277,7 @@ async function acctBoot() {
 
 /* ---------- Account and sync screen ---------- */
 async function acctWarm() {
-  if (isNativeApp2() || FBLOAD) return FBLOAD; CFG = CFG || 'checking';
+  if (FBLOAD) return FBLOAD; CFG = CFG || 'checking';
   FBLOAD = (async () => {
     try { const A = await sMod('auth'); const c = await A.configState(); if (!c.ok) { CFG = 'none'; acctRefresh(); return; } AUTHM = A; await A.warm(); CFG = 'ok';
       A.onUser(u => { FBU = u; if (u && ACCT && u.uid === ACCT.uid && !ENG) startEngine(); if (u && !ACCT) { const m = acctMeta(u.uid); if (m && m.adopted) { switchToAccount(u.uid); return; } } acctRefresh(); });
@@ -2287,7 +2287,6 @@ async function acctWarm() {
 }
 function acctRefresh() { if (tab === 'you' && view.you === 'acct' && !document.querySelector('.sheet')) { const a = document.activeElement; if (a && /TEXTAREA|INPUT/.test(a.tagName)) return; render(); } else if (tab === 'you' && view.you === 'home') render(); }
 function acctRowSummary() {
-  if (isNativeApp2()) return 'Not in the Android app yet';
   if (!ACCT || !ACCT.adopted) return 'Optional. Your records stay on this phone';
   const s = SYNCSTAT.state; return ACCT.email + ' · ' + (journalLocked() ? 'journal locked' : s === 'idle' ? 'in sync' : s === 'syncing' ? 'syncing' : s === 'offline' ? 'offline, saved here' : s === 'error' ? 'needs attention' : s === 'othertab' ? 'syncing in another tab' : s === 'signin' ? 'sign in again' : 'sync off');
 }
@@ -2296,13 +2295,12 @@ const ERR_TEXT = { rules: 'Sync was refused. Check that the Firestore rules in f
 function acctHtml() {
   acctWarm();
   const back = backBar('You', 'you-home'), head = '<h1>Account and sync</h1>';
-  if (isNativeApp2()) return `<div class="stack">${back}${head}<section class="card stack"><p>Sync is part of the web version of Prakash. It is not in the Android app yet.</p><p class="small muted">Everything you record in this app is saved on this phone, and your backup works as before.</p></section></div>`;
   const cover = `<section class="card stack" style="gap:8px"><h2>What sync does</h2><p class="small">${esc(SYNC_COVERS.enc)}</p><p class="small">${esc(SYNC_COVERS.plain)}</p><p class="small">${esc(SYNC_COVERS.local)}</p><p class="tiny">Google handles the sign-in and stores the synced records. Sync is not a backup: a delete on one device is a delete on all of them. Keep downloading backups.</p></section>`;
   if (CFG === 'none') return `<div class="stack">${back}${head}<section class="card stack"><p>Sync is not set up in this copy of Prakash. Everything works on this phone.</p><p class="small muted">Setting it up needs a Firebase project and its web configuration. The steps are in SYNC-README.md.</p></section>${cover}</div>`;
   if (CFG === 'offline') return `<div class="stack">${back}${head}<section class="card stack"><p>Sync could not start because there is no connection, or the sign-in service could not be reached. Everything works on this phone.</p></section>${cover}</div>`;
   if (CFG !== 'ok') return `<div class="stack">${back}${head}<p class="muted">Getting ready…</p></div>`;
   if (!ACCT || !ACCT.adopted) {
-    if (!FBU) return `<div class="stack">${back}${head}<section class="card stack"><p>Optional. Sign in with Google to keep the same records on more than one device. Prakash works fully without it.</p><button class="btn primary big" data-a="acct-signin">Sign in with Google</button>${acctUi.err ? `<p class="small">${esc(acctUi.err)}</p>` : ''}<p class="tiny">If a sign-in window does not open, open Prakash in your normal browser (Chrome or Safari) and try there.</p></section>${cover}</div>`;
+    if (!FBU) return `<div class="stack">${back}${head}<section class="card stack"><p>Optional. Sign in with Google to keep the same records on more than one device. Prakash works fully without it.</p><button class="btn primary big" data-a="acct-signin">Sign in with Google</button>${acctUi.err ? `<p class="small">${esc(acctUi.err)}</p>` : ''}<p class="tiny">${isNativeApp2() ? 'Google’s sign-in sheet opens on your phone.' : 'If a sign-in window does not open, open Prakash in your normal browser (Chrome or Safari) and try there.'}</p></section>${cover}</div>`;
     const n = recordDayCount();
     return `<div class="stack">${back}${head}<section class="card stack"><p>Signed in as <strong>${esc(FBU.email)}</strong>.</p><p class="small">Use this account and sync these records? What is on this phone now (${wPlural(n, 'day')} with a record${S.witness.entries.length + (S.moments || []).length ? ', ' + wPlural(S.witness.entries.length, 'journal entry').replace('entrys', 'entries') + ' and ' + wPlural((S.moments || []).length, 'moment') : ''}) moves into this account’s own workspace on this phone. If the account already holds records from another device, they are merged; where the same record differs, the cloud version is used and this phone’s version is kept aside for you to see.</p><button class="btn primary big" data-a="acct-adopt">Use this account and sync these records</button><button class="btn" data-a="acct-local">Keep this phone local only</button></section>${cover}</div>`;
   }

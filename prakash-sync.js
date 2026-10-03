@@ -84,7 +84,7 @@ export function createEngine(cfg) {
           : { type: op.type, rev: op.rev, w: op.rev.w, deleted: false, iv: op.box.iv, ct: op.box.ct, keyId: op.keyId, schema: 1 };
         const r = await io.write(op.store, op.id, doc);
         ops = ops.filter(o => o !== op);
-        if (r === 'written' && st.rec[key] && cmpRev(st.rec[key].rev, op.rev) === 0) st.rec[key].st = 'synced';   // 'stale' means the cloud holds a newer one; it arrives by the listener
+        if ((r === 'written' || r === 'same') && st.rec[key] && cmpRev(st.rec[key].rev, op.rev) === 0) st.rec[key].st = 'synced';   // 'stale' means the cloud holds a newer one; it arrives by the listener
         lastSync = now(); attempts = 0; err = null; persist(); emit();
       }
     } catch (e) {
@@ -102,7 +102,7 @@ export function createEngine(cfg) {
       if (d.srv && d.srv > maxSrv) maxSrv = d.srv;
       const key = store + ':' + d.id, m = st.rec[key], rev = d.rev; if (!rev) continue;
       st.hlc = hlcSee(st.hlc, rev, now());
-      if (m && cmpRev(m.rev, rev) >= 0) continue;                 // we already hold this or something newer
+      if (m && cmpRev(m.rev, rev) >= 0 && !(m.rev.w === 0 && m.st === 'pending')) continue;   // we already hold this or something newer (a first-sync placeholder always gives way to what the cloud already holds)
       if (store === 'journal' && !d.deleted && !enc.ready()) { held = true; maxSrv = Math.min(maxSrv, st.since[store] || 0); continue; }   // locked: leave it for after unlock
       let obj = null, type = d.type;
       if (!d.deleted) {
