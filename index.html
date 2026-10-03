@@ -350,8 +350,16 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.15.0';
-const KEY = 'sadhana-v1';            // kept so existing data carries over
+const VERSION = '1.17.0';
+const KEY = 'sadhana-v1';            // kept so existing data carries over (the guest workspace)
+/* 1.17.0: a signed-in account has its own workspace on this phone, beside the guest one. Guest data is never overwritten by it. */
+const WS_KEY = 'prakash-ws-active', ACCT_PREFIX = 'prakash-acct-';
+let WSID = 'guest'; try { WSID = localStorage.getItem(WS_KEY) || 'guest'; } catch (e) {}
+const wsKey = id => id === 'guest' ? KEY : KEY + '-u-' + id;
+const acctMeta = id => { try { return JSON.parse(localStorage.getItem(ACCT_PREFIX + id) || 'null'); } catch (e) { return null; } };
+let ACCT = WSID === 'guest' ? null : acctMeta(WSID); if (WSID !== 'guest' && !ACCT) WSID = 'guest';
+const journalOn = () => !!(ACCT && ACCT.journalOn);
+let acctHook = null;
 const DRAFT_KEY = 'prakash-workout-draft-v1';
 const JOURNAL_DRAFT_KEY = 'prakash-journal-draft-v1';
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3-flash-preview']; // tried in order; first that answers wins
@@ -428,7 +436,7 @@ function defaults() {
       goals: [], areas: { stress: false, gut: false, meno: false }, menoTrack: null   // 1.14: what to look at, and the optional areas (all off until chosen)
     },
     days: {}, weights: [], waists: [], photos: [], workouts: [], meditations: [],
-    bloodPressures: [], events: [], foodFavourites: [], dishes: [], foundFoods: [], myStaples: [],
+    bloodPressures: [], moments: [], events: [], foodFavourites: [], dishes: [], foundFoods: [], myStaples: [],
     witness: { entries: [], readings: [] },
     talks: { heard: {}, themes: {}, notes: {} },
     remember: { on: true, from: '08:00', to: '22:00', schedule: null, waitNote: '' },
@@ -448,7 +456,7 @@ function migrate(s) {
   s.profile.modules = Object.assign({}, d.profile.modules, s.profile.modules || {});
   s.profile.areas = Object.assign({}, d.profile.areas, s.profile.areas || {}); if (!Array.isArray(s.profile.goals)) s.profile.goals = [];
   for (const k of Object.keys(d)) if (s[k] === undefined) s[k] = d[k];
-  ['weights', 'waists', 'photos', 'workouts', 'meditations', 'bloodPressures', 'events', 'foodFavourites', 'dishes', 'foundFoods', 'myStaples'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+  ['weights', 'waists', 'photos', 'workouts', 'meditations', 'bloodPressures', 'events', 'foodFavourites', 'dishes', 'foundFoods', 'myStaples', 'moments'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
   // foods found online by the old packet search (and its barcodes) move into your found foods, so they keep working offline
   if (!s.foundMoved) { try { const oc = JSON.parse(localStorage.getItem('prakash-off-cache-en') || '{}') || {}, seen = new Set(s.foundFoods.map(x => (x.name + '|' + (x.brand || '')).toLowerCase())); Object.keys(oc).sort((a, b) => oc[b].at - oc[a].at).forEach(q => ((oc[q] || {}).c || []).forEach(c => { if (!c || !c.name || !(+c.k > 0)) return; const key = (c.name + '|' + (c.brand || '')).toLowerCase(); if (seen.has(key)) return; seen.add(key); const x = Object.assign({}, c, { at: oc[q].at || 0 }); if (q.charAt(0) === '#') x.code = q.slice(1); s.foundFoods.push(x); })); s.foundFoods = s.foundFoods.slice(0, 300); } catch (e) {} s.foundMoved = 1; }
   ['myDays', 'yoga'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });   // 1.10: your own days, yoga videos
@@ -482,10 +490,14 @@ function migrate(s) {
   }
   return s;
 }
-function load() { try { const raw = localStorage.getItem(KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {} return defaults(); }
+function load() { try { const raw = localStorage.getItem(wsKey(WSID)); if (raw) return migrate(JSON.parse(raw)); } catch (e) {} return defaults(); }
 let S;
 let saveT = null;
-function saveNow() { clearTimeout(saveT); saveT = null; staplesMemo = null; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('The phone is out of space for Prakash. Download a backup, then delete old photos.'); } }
+function saveNow() {
+  clearTimeout(saveT); saveT = null; staplesMemo = null;
+  try { if (!wsGuardOk()) { location.reload(); return; } localStorage.setItem(wsKey(WSID), JSON.stringify(persistView(S))); } catch (e) { toast('The phone is out of space for Prakash. Download a backup, then delete old photos.'); }
+  if (acctHook) acctHook.afterSave();
+}
 function save() { clearTimeout(saveT); saveT = setTimeout(saveNow, 250); }
 window.addEventListener('pagehide', saveNow);
 document.addEventListener('visibilitychange', () => { if (document.hidden && saveT) saveNow(); });
@@ -609,11 +621,12 @@ function navTarget(n) {
   if (n === 'heart') { view.practice = m.spiritual ? 'pray' : 'sit'; return 'practice'; }
   return n;
 }
+const BODY_RECORDS = `<p class="tiny" style="margin:2px 2px 6px">Records: <button class="link" data-a="you" data-v="body" style="padding:0 4px;min-height:32px">Weight, waist, sleep</button> · <button class="link" data-a="you" data-v="bp" style="padding:0 4px;min-height:32px">Blood pressure</button></p>`;
 function bodySwitchIn(html) {
-  const m = mods(); if (!(m.food && m.train)) return html;
+  const m = mods(), both = m.food && m.train;
   const on = (tab === 'food' && view.food === 'day') ? 'food' : (tab === 'train' && view.train === 'home' && !(draft && !woAway)) ? 'train' : null; if (!on) return html;
-  const sw = `<h1>Body</h1><nav class="seg" aria-label="Body">${[['food', 'Eat'], ['train', 'Move']].map(x => `<button data-a="body-sw" data-v="${x[0]}" aria-current="${on === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>`;
-  return html.replace(on === 'food' ? '<h1>Food</h1>' : '<h1>Train</h1>', sw);
+  const sw = `<h1>Body</h1>${both ? `<nav class="seg" aria-label="Body">${[['food', 'Eat'], ['train', 'Move']].map(x => `<button data-a="body-sw" data-v="${x[0]}" aria-current="${on === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>` : ''}`;
+  return html.replace(on === 'food' ? '<h1>Food</h1>' : '<h1>Train</h1>', sw + BODY_RECORDS);
 }
 on('body-sw', b => { tabHome(b.dataset.v); go(b.dataset.v); });
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (!b) return; const t = b.dataset.tab, tg = navTarget(t); const keep = view.practice; tabHome(tg); if (tg === 'practice') view.practice = keep; go(tg); });
@@ -1677,6 +1690,19 @@ function wholeFacts(days, D) {
   row('Mindfulness', (sits.length || moments || journal) ? (mins ? mins + ' min sitting' : 'no sits') : 'not yet', [sits.length ? wPlural(sits.length, 'sit') : '', moments ? wPlural(moments, 'pause or bell ring') : '', journal ? wPlural(journal, 'journal entry').replace('entrys', 'entries') : ''].filter(Boolean).join(' · '));
   if (areaOn('gut')) { const g = ks.map(k => gutRec(k)).filter(x => x && (x.chips.length || x.stool || x.text)), cnt = {}; g.forEach(x => x.chips.forEach(c => { cnt[c] = (cnt[c] || 0) + 1; })); row('Gut', g.length ? GUT_CHIPS.filter(c => cnt[c[0]]).map(c => c[1].toLowerCase() + ' ' + wPlural(cnt[c[0]], 'day')).join(' · ') || 'noted' : 'not yet', g.length ? wPlural(g.length, 'day') + ' noted' : ''); }
   if (areaOn('meno')) { const cnt = {}; let any = 0; ks.forEach(k => { const r = menoRec(k); const has = Object.keys(r).length; if (has) any++; Object.keys(r).forEach(s => { if (r[s] > 0) cnt[s] = (cnt[s] || 0) + 1; }); }); const bits = MENO_SYMPTOMS.filter(s => cnt[s[0]]).map(s => s[1].toLowerCase() + ' ' + wPlural(cnt[s[0]], 'day')); row('Symptoms', any ? (bits.join(' · ') || 'none noted') : 'not yet', any ? wPlural(any, 'day') + ' checked' : ''); }
+  { // 1.16.0: the rest of what is recorded
+    const fd = ks.map(k => { const d = peekDay(k); return d && realFoods(d).length ? Object.assign({ k }, totals(d)) : null; }).filter(x => x && x.kcal > 0);
+    if (fd.length) row('Food', 'calories average ' + big(wAvg(fd.map(x => x.kcal))), [wPlural(fd.length, 'day') + ' of ' + ks.length + ' with food', 'protein ' + n0(wAvg(fd.map(x => x.protein))) + ' g', 'carbs ' + n0(wAvg(fd.map(x => x.carbs))) + ' g', 'fat ' + n0(wAvg(fd.map(x => x.fat))) + ' g', 'fibre ' + n0(wAvg(fd.map(x => x.fibre))) + ' g'].join(' · '));
+    const wt = S.weights.filter(x => ks.includes(x.date) && +x.kg > 0).sort((a, b) => a.date < b.date ? -1 : 1);
+    if (wt.length) row('Weight', wShow(wt[wt.length - 1].kg), wPlural(wt.length, 'weigh-in') + (wt.length > 1 ? ' · first in this period ' + wShow(wt[0].kg) : ''));
+    const wa = S.waists.filter(x => ks.includes(x.date) && +x.cm > 0).sort((a, b) => a.date < b.date ? -1 : 1);
+    if (wa.length) row('Waist', waistShow(wa[wa.length - 1].cm), wPlural(wa.length, 'measurement') + (wa.length > 1 ? ' · first in this period ' + waistShow(wa[0].cm) : ''));
+    const bp = S.bloodPressures.filter(x => { try { return ks.includes(keyOf(new Date(x.at))); } catch (e) { return false; } });
+    if (bp.length) { const m = bpMean(bp); row('Blood pressure', 'average ' + m.sys + '/' + m.dia, wPlural(bp.length, 'reading') + ' · pulse average ' + m.pulse); }
+    const pr = ks.reduce((a, k) => a + (+((peekDay(k) || {}).prayers) || 0), 0), prDays = ks.filter(k => +((peekDay(k) || {}).prayers) > 0).length, tk = Object.values(S.talks.heard || {}).filter(dd => ks.includes(dd)).length;
+    if (pr || tk) row('Prayers and talks', [pr ? wPlural(pr, 'prayer') + ' on ' + wPlural(prDays, 'day') : '', tk ? wPlural(tk, 'talk') + ' heard' : ''].filter(Boolean).join(' · '), 'of ' + ks.length + ' days');
+    const mo = (S.moments || []).filter(m => ks.includes(m.date)); if (mo.length) row('Moments', wPlural(mo.length, 'moment'), 'on ' + wPlural(new Set(mo.map(m => m.date)).size, 'day'));
+  }
   return rows;
 }
 function wWordCount(n, w) { return wPlural(n, w); }
@@ -1921,6 +1947,7 @@ function fortHtml() {
   <p style="margin:2px 2px 0">${hits.length ? wPlural(hits.length, 'thing') + ' in these two weeks sit beside each other below.' : 'Nothing stands out beside anything else in these two weeks.'} Days with nothing recorded are simply left out.</p>
   <details class="card fold"><summary><h2 style="margin:0">The picture</h2></summary><div class="stack" style="padding-top:6px"><div class="facts">${rows.map(factRow).join('')}</div>${little.length ? `<p class="tiny" style="margin:4px 0 0">${esc(little.join(' '))}</p>` : ''}</div></details>
   <section class="card stack"><h2>What the record shows together</h2>${together}<p class="tiny" style="margin:0">Side by side only. Prakash cannot say whether one thing affects another.</p></section>
+  ${momentsPlaybackHtml(D.ks, 8)}
   <section class="card stack"><h2>Options some people try</h2>${optionsBlock}</section>
   <section class="card stack"><h2>Worth discussing with a professional</h2>${talkAreas || '<p class="small muted">Nothing from these two weeks.</p>'}<p class="tiny" style="margin:0">${SAFETY_LINE}</p></section>
   ${fortActionsHtml()}
@@ -1973,16 +2000,16 @@ function reportSections(kind) {
   const rows = wholeFacts(14, D), pick = names => rows.filter(r => names.includes(r[0])).map(r => line(r[0], r[1] + (r[2] ? ' (' + r[2] + ')' : '')));
   const dayLines = (list, f) => list.map(f).filter(Boolean);
   if (kind === 'doctor') {
-    secs.push(['Stress', pick(['Stress']).concat(dayLines(D.stress, x => fmtDay(x.k) + ': ' + stressEntries(x.k).map(e => e.n).join(', ') + ' (average ' + x.a + ')'))]);
-    secs.push(['Sleep', pick(['Sleep']).concat(dayLines(D.sleepN, x => fmtDay(x.k) + ': ' + [x.h != null ? x.h + ' h' : '', x.r != null ? 'rested ' + x.r + ' of 5' : '', x.chips.map(c => wLabel(REST_CHIPS, c).toLowerCase()).join(', ')].filter(Boolean).join(', '))), ]);
+    secs.push(['Stress', pick(['Stress']).concat(dayLines(D.stress, x => fmtDay(x.k) + ': ' + stressEntries(x.k).map(e => e.n + (e.note ? ' (' + e.note + ')' : '')).join(', ') + ' (average ' + x.a + ')'))]);
+    secs.push(['Sleep', pick(['Sleep']).concat(dayLines(D.sleepN, x => fmtDay(x.k) + ': ' + [x.h != null ? x.h + ' h' : '', x.r != null ? 'rested ' + x.r + ' of 5' : '', x.chips.map(c => wLabel(REST_CHIPS, c).toLowerCase()).join(', '), (((peekDay(x.k) || {}).sleepNote || {}).text) || ''].filter(Boolean).join(', '))), ]);
     if (areaOn('meno')) secs.push(['Symptoms', pick(['Symptoms']).concat(dayLines(D.meno, x => fmtDay(x.k) + ': ' + (Object.keys(x.r).filter(s => x.r[s] > 0).map(s => wLabel(MENO_SYMPTOMS, s).toLowerCase() + ' ' + MENO_LEVELS[x.r[s]].toLowerCase()).join(', ') || 'checked, none')))]);
-    if (areaOn('gut')) secs.push(['Gut', pick(['Gut']).concat(dayLines(D.gut, x => fmtDay(x.k) + ': ' + [x.chips.map(c => wLabel(GUT_CHIPS, c).toLowerCase()).join(', '), x.stool ? 'stool ' + wLabel(STOOL_CHIPS, x.stool).toLowerCase() : ''].filter(Boolean).join(', '))), ]);
+    if (areaOn('gut')) secs.push(['Gut', pick(['Gut']).concat(dayLines(D.gut, x => fmtDay(x.k) + ': ' + [x.chips.map(c => wLabel(GUT_CHIPS, c).toLowerCase()).join(', '), x.stool ? 'stool ' + wLabel(STOOL_CHIPS, x.stool).toLowerCase() : '', ((gutRec(x.k) || {}).text) || ''].filter(Boolean).join(', '))), ]);
     if (D.bp.length) secs.push(['Blood pressure', D.bp.slice().sort((a, b) => new Date(a.at) - new Date(b.at)).map(x => fmtDay(keyOf(new Date(x.at))) + ': ' + x.sys + '/' + x.dia + ', pulse ' + x.pulse)]);
     if (S.profile.medicines) secs.push(['Medicines (typed by me)', [S.profile.medicines]]);
     const talk = hits.filter(h => h.talk).map(h => AREA_NAMES[h.rule.area] + ': ' + h.talk); secs.push(['Topics the record raises', talk.length ? talk : ['Nothing stood out in these two weeks.']]);
   } else {
     secs.push(['The picture, last 14 days', rows.map(r => line(r[0], r[1] + (r[2] ? ' (' + r[2] + ')' : '')))]);
-    secs.push(['Day by day', D.ks.map(k => { const d = peekDay(k), parts = []; if (d) { const t = totals(d); if (realFoods(d).length) parts.push(wPlural(realFoods(d).length, 'food') + ', ' + big(t.kcal) + ' calories, ' + n0(t.protein) + ' g protein'); if (stepsOn(k) > 0) parts.push(big(stepsOn(k)) + ' steps'); if (+d.sleep > 0) parts.push('sleep ' + d.sleep + ' h'); if (d.rested >= 1) parts.push('rested ' + d.rested + ' of 5'); if (stressEntries(k).length) parts.push('stress ' + stressEntries(k).map(x => x.n).join(', ')); if (+d.walkMin > 0) parts.push('walking ' + d.walkMin + ' min'); } const g = gutRec(k); if (areaOn('gut') && g && (g.chips.length || g.stool)) parts.push('gut: ' + g.chips.map(c => wLabel(GUT_CHIPS, c).toLowerCase()).join(', ')); const mr = menoRec(k); if (areaOn('meno') && Object.keys(mr).length) parts.push('symptoms noted'); const sit = S.meditations.filter(m => m.date === k); if (sit.length) parts.push(sit.map(m => sitName(m) + ' ' + m.minutes + ' min').join(', ')); const wo = S.workouts.filter(w => w.date === k); if (wo.length) parts.push(wPlural(wo.length, 'workout')); return fmtDay(k) + ': ' + (parts.join(' · ') || 'nothing recorded'); })]);
+    secs.push(['Day by day', D.ks.reduce((acc, k) => { const d = peekDay(k), parts = []; if (d) { const t = totals(d); if (realFoods(d).length) parts.push(wPlural(realFoods(d).length, 'food') + ', ' + big(t.kcal) + ' calories, ' + n0(t.protein) + ' g protein, ' + n0(t.carbs) + ' g carbs, ' + n0(t.fat) + ' g fat, ' + n0(t.fibre) + ' g fibre'); if (stepsOn(k) > 0) parts.push(big(stepsOn(k)) + ' steps'); if (+d.sleep > 0) parts.push('sleep ' + d.sleep + ' h'); if (d.rested >= 1) parts.push('rested ' + d.rested + ' of 5'); if (stressEntries(k).length) parts.push('stress ' + stressEntries(k).map(x => x.n).join(', ')); if (+d.walkMin > 0) parts.push('walking ' + d.walkMin + ' min'); } const sit = S.meditations.filter(m => m.date === k); if (sit.length) parts.push(sit.map(m => sitName(m) + ' ' + m.minutes + ' min').join(', ')); const wo = S.workouts.filter(w => w.date === k); if (wo.length) parts.push(wPlural(wo.length, 'workout')); acc.push(fmtDay(k) + ': ' + (parts.join(' · ') || 'nothing recorded')); return acc.concat(recordDayLines(k)); }, [])]);
     secs.push(['What the record shows together', hits.length ? hits.map(h => h.fact) : ['Nothing stood out beside anything else.']]);
   }
   return secs;
@@ -1991,16 +2018,16 @@ function reportText(kind) {
   const D = fortData(), title = kind === 'doctor' ? 'Summary for a doctor or pharmacist' : 'My record, last two weeks';
   const out = ['PRAKASH · ' + title, fmtDay(D.ks[0]) + ' to ' + fmtDay(D.ks[D.ks.length - 1]), 'Written on this phone from my own record. Not a diagnosis.', ''];
   reportSections(kind).forEach(s => { out.push(s[0].toUpperCase()); s[1].forEach(l => out.push('  ' + l)); out.push(''); });
-  out.push(SAFETY_LINE); return out.join('\n');
+  out.push(RECORD_LEFT_OUT, '', SAFETY_LINE); return out.join('\n');
 }
 function reportHtml(kind) {
   const D = fortData(), title = kind === 'doctor' ? 'Summary for a doctor or pharmacist' : 'My record, last two weeks';
-  return `<h1 style="font-size:24px">${title}</h1><p>${fmtDay(D.ks[0])} to ${fmtDay(D.ks[D.ks.length - 1])}. Written on this phone from my own record. Not a diagnosis.</p>${reportSections(kind).map(s => `<h2 style="font-size:17px;margin:14px 0 4px">${esc(s[0])}</h2>${s[1].map(l => `<div>${esc(l)}</div>`).join('')}`).join('')}<p style="margin-top:14px">${SAFETY_LINE}</p>`;
+  return `<h1 style="font-size:24px">${title}</h1><p>${fmtDay(D.ks[0])} to ${fmtDay(D.ks[D.ks.length - 1])}. Written on this phone from my own record. Not a diagnosis.</p>${reportSections(kind).map(s => `<h2 style="font-size:17px;margin:14px 0 4px">${esc(s[0])}</h2>${s[1].map(l => `<div>${esc(l)}</div>`).join('')}`).join('')}<p style="margin-top:14px">${RECORD_LEFT_OUT}</p><p>${SAFETY_LINE}</p>`;
 }
 const isNativeApp = () => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch (e) { return false; } };
 function fortActionsHtml() {
   const meds = esc(S.profile.medicines || '');
-  return `<section class="card stack"><h2>To take with you</h2><p class="muted small">Made on this phone when you tap. Nothing is uploaded.</p>
+  return `<section class="card stack"><h2>To take with you</h2><p class="muted small">Made on this phone when you tap. Nothing is uploaded. ${RECORD_LEFT_OUT}</p>
   <div><label class="lab" for="fort-meds">Medicines I take (optional, for the doctor summary)</label><input class="input" id="fort-meds" maxlength="300" value="${meds}" placeholder="Typed by you. Names only."></div>
   <button class="btn primary" data-a="take-open">Take this with you</button></section>`;
 }
@@ -2013,6 +2040,395 @@ on('rep-print', b => { closeSheet(); $('#bp-report').innerHTML = reportHtml(b.da
 on('rep-text', b => { closeSheet(); download('prakash-' + (b.dataset.kind === 'doctor' ? 'doctor-summary-' : 'record-') + todayKey() + '.txt', new Blob([reportText(b.dataset.kind)], { type: 'text/plain' })); });
 function fortRowSummary() { const n = recordDayCount(); return n >= FORT_MIN ? 'Facts side by side, options, and a summary to take with you' : 'Appears after ' + FORT_MIN + ' days with a record (' + n + ' so far)'; }
 
+/* ================= 1.16.0: moments, and a record that is whole =================
+   Moments: one tap in the moment (a photo, a line, a few warm tags). Photos stay on this phone, in the same place as meal
+   photos, and travel in the backup. No streaks, no counts shown as a score. */
+const MOM_WHO = [['alone', 'On my own'], ['family', 'Family'], ['partner', 'My partner'], ['children', 'Children'], ['friends', 'Friends'], ['colleagues', 'Colleagues']];
+const MOM_WHERE = [['home', 'Home'], ['outside', 'Outside'], ['work', 'Work'], ['travelling', 'Travelling'], ['new', 'Somewhere new'], ['quiet', 'A quiet place']];
+const MOM_FELT = [['warm', 'Warm'], ['joyful', 'Joyful'], ['calm', 'Calm'], ['grateful', 'Grateful'], ['moved', 'Moved'], ['playful', 'Playful']];
+let momDraft = null;   // the moment being added or changed: { id|null, date, text, who, where, felt, photo (data URL) | photoId }
+const momById = id => (S.moments || []).find(m => m.id === id) || null;
+function momTags(m) { return [].concat((m.who || []).map(c => wLabel(MOM_WHO, c)), (m.where || []).map(c => wLabel(MOM_WHERE, c)), (m.felt || []).map(c => wLabel(MOM_FELT, c))); }
+function momSheetBody() {
+  const m = momDraft, t = todayKey();
+  const group = (title, list, key) => `<div class="stack" style="gap:6px"><span class="tiny">${title}</span><div class="chips" role="group" aria-label="${title}">${list.map(c => wChip('mom-chip', `data-g="${key}" data-c="${c[0]}"`, c[1], (m[key] || []).includes(c[0]))).join('')}</div></div>`;
+  const img = m.photo ? `<img alt="Your photo" src="${m.photo}" style="width:100%;border-radius:14px;max-height:260px;object-fit:cover">` : m.photoId ? `<img alt="Your photo" data-mealphoto="${esc(m.photoId)}" style="width:100%;border-radius:14px;max-height:260px;object-fit:cover">` : '';
+  return `<div class="stack" id="mom-wrap">${img}
+  <div class="btns"><label class="btn filebtn">${m.photo || m.photoId ? 'Retake photo' : 'Take photo'}<input type="file" accept="image/*" capture="environment" id="mom-cam"></label><label class="btn filebtn">Choose photo<input type="file" accept="image/*" id="mom-pick"></label></div>
+  <div><label class="lab" for="mom-text">A line, if you like</label><input class="input" id="mom-text" maxlength="280" value="${esc(m.text || '')}"></div>
+  ${group('Who you were with', MOM_WHO, 'who')}${group('Where', MOM_WHERE, 'where')}${group('How it felt', MOM_FELT, 'felt')}
+  <div><label class="lab" for="mom-date">Day</label>${dateField('mom-date', m.date || t, 'max="' + t + '"')}</div>
+  <div class="btns"><button class="btn primary" data-a="mom-save">Keep it</button>${m.id ? '<button class="btn danger" data-a="mom-del">Delete</button>' : '<button class="btn" data-a="sheet-close">Not now</button>'}</div></div>`;
+}
+function momSwap() { const w = $('#mom-wrap'); if (w) { momRead(); w.outerHTML = momSheetBody(); fillMealPhotos($('.sheet') || document); } }
+function momRead() { if (!momDraft) return; const t = $('#mom-text'), d = $('#mom-date'); if (t) momDraft.text = t.value; if (d && d.value) momDraft.date = d.value; }
+function momOpen(m) { momDraft = m ? { id: m.id, date: m.date, text: m.text || '', who: (m.who || []).slice(), where: (m.where || []).slice(), felt: (m.felt || []).slice(), photoId: m.photoId || null, photo: null } : { id: null, date: todayKey(), text: '', who: [], where: [], felt: [], photoId: null, photo: null }; openSheet(momSheetBody(), { title: 'What just happened?' }); fillMealPhotos($('.sheet') || document); }
+on('mom-new', () => { if (journalLocked()) { toast('Your journal is locked. Open You, Account and sync.'); return; } momOpen(null); });
+on('mom-edit', b => { const m = momById(b.dataset.id); if (m) momOpen(m); });
+on('mom-chip', b => { momRead(); const l = momDraft[b.dataset.g], c = b.dataset.c, i = l.indexOf(c); if (i < 0) l.push(c); else l.splice(i, 1); momSwap(); });
+document.addEventListener('change', async e => {
+  const t = e.target; if (!t || (t.id !== 'mom-cam' && t.id !== 'mom-pick') || !t.files || !t.files[0] || !momDraft) return;
+  try { momRead(); momDraft.photo = await downscale(t.files[0], 1400, 0.82); momSwap(); } catch (x) { toast('That photo couldn’t be read.'); }
+});
+on('mom-save', async () => {
+  momRead(); const m = momDraft; if (!m) return;
+  if (!(m.text || '').trim() && !m.photo && !m.photoId && !m.who.length && !m.where.length && !m.felt.length) { toast('A photo, a line or a tag, then keep it.'); return; }
+  if (!Array.isArray(S.moments)) S.moments = [];
+  const old = m.id ? momById(m.id) : null, id = m.id || uid(), t = todayKey(), date = m.date || t;
+  let photoId = m.photoId || null;
+  if (m.photo) { try { const nid = 'mom-' + uid(); await pput(nid, { blob: b64blob(m.photo.split(',')[1], 'image/jpeg'), mime: 'image/jpeg' }); if (photoId) pdel(photoId).catch(() => {}); photoId = nid; } catch (x) { toast('The photo couldn’t be kept. The line was.'); } }
+  const ts = old && old.date === date ? old.ts : (date === t ? new Date().toISOString() : new Date(date + 'T12:00:00').toISOString());
+  const rec = { id, ts, date, text: (m.text || '').trim(), who: m.who, where: m.where, felt: m.felt }; if (photoId) rec.photoId = photoId;
+  S.moments = S.moments.filter(x => x.id !== id); S.moments.push(rec); S.moments.sort((a, b) => a.ts < b.ts ? 1 : -1);
+  momDraft = null; save(); closeSheet(); render(); toast('Kept.');
+});
+on('mom-del', () => {
+  const m = momDraft && momById(momDraft.id); if (!m) return; closeSheet(true);
+  confirmSheet('Delete this moment?', 'It will be gone from this phone.', 'Delete', () => { const ix = S.moments.findIndex(x => x.id === m.id), gone = S.moments.splice(ix, 1)[0]; save(); render(); undoBar('Moment deleted.', () => { S.moments.splice(ix, 0, gone); save(); render(); }); setTimeout(() => { if (gone.photoId && !S.moments.some(x => x.id === gone.id)) pdel(gone.photoId).catch(() => {}); }, 15000); }, true);
+});
+function momCardHtml(m, small) {
+  const tags = momTags(m), when = fmtD(m.date) + (m.ts && m.date === keyOf(new Date(m.ts)) ? ', ' + fmtTime(m.ts) : '');
+  return `<div class="li" style="align-items:flex-start;gap:10px;min-height:0;padding:10px 0">${m.photoId ? `<img alt="" data-mealphoto="${esc(m.photoId)}" style="width:${small ? 52 : 72}px;height:${small ? 52 : 72}px;border-radius:10px;object-fit:cover;flex:none">` : ''}<div class="t" style="flex:1"><span class="tiny">${esc(when)}</span>${m.text ? `<span style="white-space:pre-wrap">${esc(m.text)}</span>` : ''}${tags.length ? `<span class="tiny">${esc(tags.join(' · '))}</span>` : ''}</div>${small ? '' : `<button class="link" data-a="mom-edit" data-id="${m.id}">Edit</button>`}</div>`;
+}
+/* moments, shown small and quiet beside the facts */
+function momentsPlaybackHtml(keys, limit) {
+  const l = (S.moments || []).filter(m => keys.includes(m.date)).slice(0, limit || 6); if (!l.length) return '';
+  return `<section class="card stack" style="gap:2px"><h2>Moments</h2>${l.map(m => momCardHtml(m, true)).join('')}</section>`;
+}
+function momentsPageHtml() {
+  const l = S.moments || [];
+  return `${backBar('Journal', 'j-home')}<h2>Moments</h2><p class="muted small">What just happened, kept in a line, a photo or a few tags.</p><button class="btn primary big" data-a="mom-new">What just happened?</button>${l.length ? `<section class="card stack" style="gap:0">${l.map(m => momCardHtml(m, false)).join('')}</section>` : '<p class="tiny">Nothing yet.</p>'}`;
+}
+
+/* ---------- the record, made whole: lines for the day-by-day record ---------- */
+function recordDayLines(k) {
+  const d = peekDay(k), out = [], sub = s => out.push('   - ' + s);
+  if (d) {
+    realFoods(d).forEach(f => sub((f.slot ? f.slot + ': ' : '') + f.name + ' · ' + big(+f.kcal || 0) + ' cal' + (entryMacros(f) && entryMacros(f) !== 'no macro numbers' ? ' · ' + entryMacros(f) : '') + (f.feel && (f.feel.chips.length || f.feel.text) ? ' · felt: ' + [feelLabels(f.feel.chips), f.feel.text].filter(Boolean).join(', ') : '')));
+    stressEntries(k).filter(x => x.note).forEach(x => sub('stress ' + x.n + ' note: ' + x.note));
+    if (d.sleepNote && (d.sleepNote.chips.length || d.sleepNote.text)) sub('night: ' + [d.sleepNote.chips.map(c => wLabel(REST_CHIPS, c).toLowerCase()).join(', '), d.sleepNote.text].filter(Boolean).join(' · '));
+    if (+d.prayers > 0) sub('prayers: ' + d.prayers);
+  }
+  const g = gutRec(k); if (areaOn('gut') && g && (g.chips.length || g.stool || g.text)) sub('gut: ' + [g.chips.map(c => wLabel(GUT_CHIPS, c).toLowerCase()).join(', '), g.stool ? 'stool ' + wLabel(STOOL_CHIPS, g.stool).toLowerCase() : '', g.text].filter(Boolean).join(' · '));
+  const mr = menoRec(k); if (areaOn('meno') && Object.keys(mr).length) sub('symptoms: ' + (Object.keys(mr).filter(s => mr[s] > 0).map(s => wLabel(MENO_SYMPTOMS, s).toLowerCase() + ' ' + MENO_LEVELS[mr[s]].toLowerCase()).join(', ') || 'checked, none'));
+  S.weights.filter(w => w.date === k).forEach(w => sub('weight ' + wShow(w.kg))); S.waists.filter(w => w.date === k).forEach(w => sub('waist ' + waistShow(w.cm)));
+  S.bloodPressures.filter(x => { try { return keyOf(new Date(x.at)) === k; } catch (e) { return false; } }).forEach(x => sub('blood pressure ' + x.sys + '/' + x.dia + ', pulse ' + x.pulse + (x.note ? ' · ' + x.note : '')));
+  Object.entries(S.talks.heard || {}).filter(([u, dd]) => dd === k).forEach(([u]) => sub('talk heard: ' + (talkTitle(u) || u)));
+  (S.moments || []).filter(m => m.date === k).forEach(m => sub('moment: ' + [m.text, momTags(m).join(', ')].filter(Boolean).join(' · ') + (m.photoId ? ' (with a photo)' : '')));
+  return out;
+}
+const RECORD_LEFT_OUT = 'Not in this record: journal entries, photos and voice notes. They stay private, and they are in your backup.';
+
+/* ================= 1.17.0: Account and sync, and the encrypted journal =================
+   Everything here is optional and off until Firebase is configured (firebase-config.js) and the person signs in and agrees.
+   - The app always saves to this phone first. The network never decides whether something is saved or shown.
+   - A signed-in account has its own separate workspace on this phone. Signing out returns to a separate local workspace.
+   - The journal (entries, moments, gratitude, weekly and reading and talk notes, the Stop note) is encrypted on this phone with a
+     random data key before it is saved in the account workspace or sent anywhere. The key is wrapped by a 12-word recovery phrase
+     through Argon2id. Google sign-in is NOT the journal key.
+   - Photos and voice notes never leave the phone. */
+const SYNC_VERSION_NOTE = '1.17.0';
+const SYNC_COVERS = {
+  enc: 'Encrypted on this phone before they sync: your journal entries, moments (their words and tags), gratitude lines, weekly notes, reading notes, notes on talks and your Stop note.',
+  plain: 'Synced as readable records (not end-to-end encrypted): food, steps, water, sleep, stress, gut and symptom logs including notes you typed on them, walks, workouts, sittings, weight, waist, blood pressure, talks you marked heard, and your profile (goals, targets, height, date of birth, sex, units).',
+  local: 'Stays on this phone only: photos, voice notes, your Gemini and other AI keys, the training plan and history, saved dishes and favourites, and timers.'
+};
+const PROFILE_SYNC = ['sex', 'dob', 'heightCm', 'kcalTarget', 'proteinTarget', 'waterTarget', 'stepsTarget', 'moveTarget', 'stillTarget', 'kcalSet', 'goalWeight', 'waistGoalCm', 'waistUnit', 'weightUnit', 'wake', 'foodFrom', 'foodTo', 'bed', 'trainingDays', 'bpSafe', 'vegetarian', 'eggFree', 'breathBeforeMeals', 'silentWeekday', 'restSec', 'modules', 'goals', 'areas', 'menoTrack'];
+const idHash = str => { let h1 = 0xdeadbeef, h2 = 0x41c6ce57; for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); } h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909); return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36); };
+const fpJ = (type, obj) => idHash(type + '|' + JSON.stringify(obj));
+const sMod = n => import('./prakash-' + n + '.js');
+let jReady = false, KEYREF = null, localFp = new Map(), jdMem = null, jdTimer = null, ENG = null, SYNCSTAT = { state: 'off', pending: 0 }, FBU = null, FBLOAD = null, AUTHM = null, CFG = null;
+let acctUi = { step: 'home', phrase: null, pos: [], busy: '', msg: '', err: '' };
+const TABID = Math.random().toString(36).slice(2);
+const journalLocked = () => journalOn() && !jReady;
+const isNativeApp2 = () => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch (e) { return false; } };
+const saveAcct = () => { try { if (ACCT) localStorage.setItem(ACCT_PREFIX + ACCT.uid, JSON.stringify(ACCT)); } catch (e) {} };
+function deviceId() { try { let d = localStorage.getItem('prakash-device-id'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10); localStorage.setItem('prakash-device-id', d); } return d; } catch (e) { return 'd-x'; } }
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
+
+/* ---------- what is saved for this workspace: the journal text is left out once the journal is encrypted ---------- */
+function stripJournal(s) {
+  const o = Object.assign({}, s);
+  o.witness = Object.assign({}, s.witness, { entries: [], readings: [] }); o.moments = []; o.weekNotes = {};
+  o.talks = Object.assign({}, s.talks, { notes: {} }); o.remember = Object.assign({}, s.remember, { waitNote: '' });
+  o.todayOnly = s.todayOnly ? Object.assign({}, s.todayOnly, { line: '' }) : s.todayOnly;
+  o.days = {}; for (const k in s.days) { const d = s.days[k]; o.days[k] = d && Array.isArray(d.gratitude) && d.gratitude.some(x => x) ? Object.assign({}, d, { gratitude: ['', '', ''] }) : d; }
+  return o;
+}
+const persistView = s => journalOn() ? stripJournal(s) : s;
+function wsGuardOk() { try { return (localStorage.getItem(WS_KEY) || 'guest') === WSID; } catch (e) { return true; } }
+
+/* ---------- records the sync engine works with ---------- */
+const dayIsBlank = d => JSON.stringify(Object.assign({}, d, { gratitude: ['', '', ''] })) === JSON.stringify(emptyDay());
+function plainRecords() {
+  const m = new Map(), add = (id, type, obj) => m.set(id, { type, obj });
+  Object.keys(S.days).forEach(k => { const d = S.days[k]; if (!d || dayIsBlank(d)) return; add('day:' + k, 'day', Object.assign({}, d, { gratitude: ['', '', ''] })); });
+  S.weights.forEach(w => w && w.date && add('weight:' + w.date, 'weight', w)); S.waists.forEach(w => w && w.date && add('waist:' + w.date, 'waist', w));
+  S.bloodPressures.forEach(x => x && add('bp:' + (x.id || idHash(JSON.stringify(x))), 'bp', x));
+  S.workouts.forEach(x => x && add('workout:' + (x.id || idHash(JSON.stringify(x))), 'workout', x));
+  S.meditations.forEach(x => x && add('meditation:' + (x.id || idHash(JSON.stringify(x))), 'meditation', x));
+  const pr = {}; PROFILE_SYNC.forEach(k => { if (S.profile[k] !== undefined) pr[k] = S.profile[k]; }); add('profile', 'profile', pr);
+  add('talksheard', 'talksheard', S.talks.heard || {});
+  return m;
+}
+function journalRecords() {
+  const m = new Map(), add = (id, type, obj) => m.set(id, { type, obj });
+  S.witness.entries.forEach(e => e && e.id && add('entry:' + e.id, 'entry', e)); S.witness.readings.forEach(r => r && r.id && add('reading:' + r.id, 'reading', r));
+  (S.moments || []).forEach(x => x && x.id && add('moment:' + x.id, 'moment', x));
+  Object.keys(S.days).forEach(k => { const g = S.days[k] && S.days[k].gratitude; if (Array.isArray(g) && g.some(x => String(x || '').trim())) add('gratitude:' + k, 'gratitude', g); });
+  Object.entries(S.weekNotes || {}).forEach(([wk, v]) => v && add('weeknote:' + wk, 'weeknote', v));
+  Object.entries(S.talks.notes || {}).forEach(([url, v]) => v && add('talknote:' + idHash(url), 'talknote', { url, note: v }));
+  if (S.remember && String(S.remember.waitNote || '').trim()) add('waitnote', 'waitnote', S.remember.waitNote);
+  return m;
+}
+const splitId = id => { const i = id.indexOf(':'); return i < 0 ? [id, ''] : [id.slice(0, i), id.slice(i + 1)]; };
+const upsert = (arr, test, v) => { const ix = arr.findIndex(test); if (!v) { if (ix >= 0) arr.splice(ix, 1); } else if (ix >= 0) arr[ix] = v.obj; else arr.push(v.obj); };
+function applyPlain(id, v) {
+  const [kind, key] = splitId(id);
+  if (kind === 'day') { if (!v) { delete S.days[key]; return; } const old = S.days[key], g = old && Array.isArray(old.gratitude) ? old.gratitude : ['', '', '']; S.days[key] = Object.assign(emptyDay(), v.obj, { gratitude: g }); }
+  else if (kind === 'weight') { upsert(S.weights, x => x.date === key, v); S.weights.sort((a, b) => a.date < b.date ? -1 : 1); }
+  else if (kind === 'waist') { upsert(S.waists, x => x.date === key, v); S.waists.sort((a, b) => a.date < b.date ? -1 : 1); }
+  else if (kind === 'bp') upsert(S.bloodPressures, x => (x.id || idHash(JSON.stringify(x))) === key, v);
+  else if (kind === 'workout') upsert(S.workouts, x => (x.id || idHash(JSON.stringify(x))) === key, v);
+  else if (kind === 'meditation') upsert(S.meditations, x => (x.id || idHash(JSON.stringify(x))) === key, v);
+  else if (kind === 'profile' && v) PROFILE_SYNC.forEach(k => { if (k in v.obj) S.profile[k] = v.obj[k]; });
+  else if (kind === 'talksheard' && v) S.talks.heard = Object.assign({}, v.obj);
+}
+function applyJournal(id, v) {
+  const [kind, key] = splitId(id);
+  if (kind === 'entry') { upsert(S.witness.entries, x => x.id === key, v); S.witness.entries.sort((a, b) => String(a.created) < String(b.created) ? 1 : -1); }
+  else if (kind === 'reading') { upsert(S.witness.readings, x => x.id === key, v); S.witness.readings.sort((a, b) => String(a.created) < String(b.created) ? 1 : -1); }
+  else if (kind === 'moment') { if (!Array.isArray(S.moments)) S.moments = []; upsert(S.moments, x => x.id === key, v); S.moments.sort((a, b) => a.ts < b.ts ? 1 : -1); }
+  else if (kind === 'gratitude') { if (!v) { if (S.days[key]) S.days[key].gratitude = ['', '', '']; } else { day(key).gratitude = v.obj; } }
+  else if (kind === 'weeknote') { if (v) weekNotes()[key] = v.obj; else delete weekNotes()[key]; }
+  else if (kind === 'talknote') { if (v) S.talks.notes[v.obj.url] = v.obj.note; else { const u = Object.keys(S.talks.notes).find(x => idHash(x) === key); if (u) delete S.talks.notes[u]; } }
+  else if (kind === 'waitnote') S.remember.waitNote = v ? v.obj : '';
+}
+
+/* ---------- the journal draft: a half-written entry is sealed too once the journal is encrypted ---------- */
+function jdraftGet() { if (journalOn()) return jdMem; try { return JSON.parse(localStorage.getItem(JOURNAL_DRAFT_KEY) || 'null'); } catch (e) { return null; } }
+function jdraftSet(o) {
+  if (!journalOn()) { try { localStorage.setItem(JOURNAL_DRAFT_KEY, JSON.stringify(o)); } catch (e) {} return; }
+  jdMem = o; clearTimeout(jdTimer); jdTimer = setTimeout(async () => { try { if (!KEYREF) return; const [C, P] = await Promise.all([sMod('crypto'), sMod('account')]); const b = await C.encryptRecord(KEYREF.key, ACCT.uid, 'draft', ACCT.keyId, o); await P.putDraft(ACCT.uid, b); } catch (e) {} }, 700);
+}
+function jdraftDel() { jdMem = null; try { localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {} if (journalOn() && ACCT) sMod('account').then(P => P.delDraft(ACCT.uid)).catch(() => {}); }
+
+/* ---------- local encrypted copy of the journal (account workspace) ---------- */
+async function persistJournalLocal() {
+  if (!journalOn() || !jReady || !KEYREF) return;
+  const [C, P] = await Promise.all([sMod('crypto'), sMod('account')]), cur = journalRecords(), seen = new Set();
+  for (const [id, { type, obj }] of cur) { seen.add(id); const f = fpJ(type, obj); if (localFp.get(id) === f) continue; const box = await C.encryptRecord(KEYREF.key, ACCT.uid, id, ACCT.keyId, { type, obj }); box.keyId = ACCT.keyId; await P.putJournal(ACCT.uid, id, box); localFp.set(id, f); }
+  for (const id of [...localFp.keys()]) if (!seen.has(id)) { await P.delJournal(ACCT.uid, id); localFp.delete(id); }
+}
+async function hydrateJournal() {
+  const [C, P] = await Promise.all([sMod('crypto'), sMod('account')]), rows = await P.allJournal(ACCT.uid); let bad = 0;
+  S.witness.entries = []; S.witness.readings = []; S.moments = []; S.weekNotes = {}; S.talks.notes = {}; S.remember.waitNote = ''; Object.values(S.days).forEach(d => { if (d) d.gratitude = ['', '', '']; });
+  for (const r of rows) { try { const o = await C.decryptRecord(KEYREF.key, ACCT.uid, r.id, r.box.keyId || ACCT.keyId, r.box); applyJournal(r.id, { type: o.type, obj: o.obj }); localFp.set(r.id, fpJ(o.type, o.obj)); } catch (e) { bad++; } }
+  try { const d = await P.getDraft(ACCT.uid); if (d) jdMem = await C.decryptRecord(KEYREF.key, ACCT.uid, 'draft', ACCT.keyId, d); } catch (e) {}
+  const line = S.witness.entries.find(e => e.kind === 'The day’s last line' && validDate(e.created) && keyOf(new Date(e.created)) === todayKey()); if (line) T().line = line.direct;
+  jReady = true; ACCT.badRecords = bad; render();
+}
+
+/* ---------- the sync engine, wired to this app ---------- */
+const syncStateKey = () => 'prakash-sync-state-' + ACCT.uid, syncQueueKey = () => 'prakash-sync-q-' + ACCT.uid;
+function acquireLeader() {
+  const k = 'prakash-sync-lock-' + ACCT.uid, v = lsGet(k); if (v && v.tab !== TABID && Date.now() - v.ts < 20000) return false;
+  lsSet(k, { tab: TABID, ts: Date.now() }); clearInterval(acquireLeader.t); acquireLeader.t = setInterval(() => { const c = lsGet(k); if (c && c.tab !== TABID && Date.now() - c.ts < 20000) { stopEngine(); return; } lsSet(k, { tab: TABID, ts: Date.now() }); }, 5000); return true;
+}
+function releaseLeader() { clearInterval(acquireLeader.t); try { if (!ACCT) return; const k = 'prakash-sync-lock-' + ACCT.uid, v = lsGet(k); if (v && v.tab === TABID) localStorage.removeItem(k); } catch (e) {} }
+window.addEventListener('pagehide', releaseLeader);
+function stopEngine() { try { if (ENG) ENG.stop(); } catch (e) {} ENG = null; clearInterval(acquireLeader.t); SYNCSTAT = { state: 'off', pending: 0 }; }
+async function startEngine() {
+  if (!ACCT || !ACCT.adopted || ACCT.syncOn === false || ENG || isNativeApp2()) return;
+  if (!acquireLeader()) { SYNCSTAT = { state: 'othertab', pending: 0 }; acctRefresh(); setTimeout(() => { if (!ENG) startEngine(); }, 12000); return; }
+  try {
+    const [A, SY, C] = await Promise.all([sMod('auth'), sMod('sync'), sMod('crypto')]); AUTHM = A; await A.warm();
+    const u = await new Promise(res => { const un = A.onUser(x => { try { un(); } catch (e) {} res(x); }); });
+    if (!u || u.uid !== ACCT.uid) { SYNCSTAT = { state: 'signin', pending: 0 }; acctRefresh(); return; }
+    FBU = u;
+    const io = A.makeIo(ACCT.uid);
+    const enc = { ready: () => KEYREF && jReady && journalOn() ? { keyId: ACCT.keyId } : null, seal: (id, o) => C.encryptRecord(KEYREF.key, ACCT.uid, id, ACCT.keyId, o), open: (id, keyId, box) => { if (keyId !== ACCT.keyId) return Promise.reject(Error('key')); return C.decryptRecord(KEYREF.key, ACCT.uid, id, keyId, box); } };
+    ENG = SY.createEngine({ uid: ACCT.uid, deviceId: deviceId(), io, enc,
+      adapter: { plainReady: () => true, journalReady: () => journalOn() && jReady, plain: plainRecords, journal: journalRecords, applyPlain, applyJournal, after: afterRemote },
+      state: { load: () => lsGet(syncStateKey()), save: s => lsSet(syncStateKey(), s) }, queue: { load: () => lsGet(syncQueueKey()), save: q => lsSet(syncQueueKey(), q) },
+      onStatus: s => { SYNCSTAT = s; acctRefresh(); } });
+    const first = !ACCT.firstSyncDone; await ENG.start({ adopt: first }); if (first) { ACCT.firstSyncDone = true; saveAcct(); }
+  } catch (e) { ENG = null; SYNCSTAT = { state: 'offline', pending: 0, error: { kind: 'network' } }; acctRefresh(); }
+}
+function afterRemote() {
+  clearTimeout(afterRemote.t); afterRemote.t = setTimeout(() => { saveNow(); const a = document.activeElement; if (!a || !/INPUT|TEXTAREA|SELECT/.test(a.tagName)) render(); }, 150);
+}
+window.addEventListener('online', () => { if (ENG) ENG.online(); else startEngine(); });
+window.addEventListener('offline', () => { if (ENG) ENG.offline(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && ENG) ENG.scan(); });
+window.addEventListener('storage', e => { if (e.key === WS_KEY && (e.newValue || 'guest') !== WSID) location.reload(); });
+/* called after every save of the workspace */
+const PACCT = { afterSave() { if (journalOn()) persistJournalLocal().catch(() => {}); if (ENG) ENG.scanSoon(); } };
+
+/* ---------- boot: an account workspace opens from this phone, with no network ---------- */
+async function acctBoot() {
+  if (!ACCT || WSID === 'guest') return;
+  if (journalOn()) {
+    try { const P = await sMod('account'), k = await P.getKey(ACCT.uid); if (k && k.key) { KEYREF = { key: k.key }; await hydrateJournal(); } else render(); } catch (e) { render(); }
+  }
+  startEngine();
+}
+
+/* ---------- Account and sync screen ---------- */
+async function acctWarm() {
+  if (isNativeApp2() || FBLOAD) return FBLOAD; CFG = CFG || 'checking';
+  FBLOAD = (async () => {
+    try { const A = await sMod('auth'); const c = await A.configState(); if (!c.ok) { CFG = 'none'; acctRefresh(); return; } AUTHM = A; await A.warm(); CFG = 'ok';
+      A.onUser(u => { FBU = u; if (u && ACCT && u.uid === ACCT.uid && !ENG) startEngine(); if (u && !ACCT) { const m = acctMeta(u.uid); if (m && m.adopted) { switchToAccount(u.uid); return; } } acctRefresh(); });
+    } catch (e) { CFG = 'offline'; FBLOAD = null; }
+    acctRefresh();
+  })(); return FBLOAD;
+}
+function acctRefresh() { if (tab === 'you' && view.you === 'acct' && !document.querySelector('.sheet')) { const a = document.activeElement; if (a && /TEXTAREA|INPUT/.test(a.tagName)) return; render(); } else if (tab === 'you' && view.you === 'home') render(); }
+function acctRowSummary() {
+  if (isNativeApp2()) return 'Not in the Android app yet';
+  if (!ACCT || !ACCT.adopted) return 'Optional. Your records stay on this phone';
+  const s = SYNCSTAT.state; return ACCT.email + ' · ' + (journalLocked() ? 'journal locked' : s === 'idle' ? 'in sync' : s === 'syncing' ? 'syncing' : s === 'offline' ? 'offline, saved here' : s === 'error' ? 'needs attention' : s === 'othertab' ? 'syncing in another tab' : s === 'signin' ? 'sign in again' : 'sync off');
+}
+const agoText = ms => { if (!ms) return 'not yet'; const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : fmtDay(keyOf(new Date(ms))); };
+const ERR_TEXT = { rules: 'Sync was refused. Check that the Firestore rules in firestore.rules are published.', quota: 'The free daily limit was reached. Sync pauses and your records stay safe on this phone. It continues when the limit resets.', auth: 'Sign in again to continue syncing.', network: 'No connection just now. Everything is saved on this phone and will be sent when you are online.', toolarge: 'One record is too large to sync. It stays on this phone.', decrypt: 'Some journal records could not be opened with this key. Nothing was changed in your account.', massdelete: 'Many records are missing on this phone. Nothing has been sent. Check you are on the right account, then choose Send these deletions or Retry.', other: 'Sync hit a problem. Your records are safe on this phone.' };
+function acctHtml() {
+  acctWarm();
+  const back = backBar('You', 'you-home'), head = '<h1>Account and sync</h1>';
+  if (isNativeApp2()) return `<div class="stack">${back}${head}<section class="card stack"><p>Sync is part of the web version of Prakash. It is not in the Android app yet.</p><p class="small muted">Everything you record in this app is saved on this phone, and your backup works as before.</p></section></div>`;
+  const cover = `<section class="card stack" style="gap:8px"><h2>What sync does</h2><p class="small">${esc(SYNC_COVERS.enc)}</p><p class="small">${esc(SYNC_COVERS.plain)}</p><p class="small">${esc(SYNC_COVERS.local)}</p><p class="tiny">Google handles the sign-in and stores the synced records. Sync is not a backup: a delete on one device is a delete on all of them. Keep downloading backups.</p></section>`;
+  if (CFG === 'none') return `<div class="stack">${back}${head}<section class="card stack"><p>Sync is not set up in this copy of Prakash. Everything works on this phone.</p><p class="small muted">Setting it up needs a Firebase project and its web configuration. The steps are in SYNC-README.md.</p></section>${cover}</div>`;
+  if (CFG === 'offline') return `<div class="stack">${back}${head}<section class="card stack"><p>Sync could not start because there is no connection, or the sign-in service could not be reached. Everything works on this phone.</p></section>${cover}</div>`;
+  if (CFG !== 'ok') return `<div class="stack">${back}${head}<p class="muted">Getting ready…</p></div>`;
+  if (!ACCT || !ACCT.adopted) {
+    if (!FBU) return `<div class="stack">${back}${head}<section class="card stack"><p>Optional. Sign in with Google to keep the same records on more than one device. Prakash works fully without it.</p><button class="btn primary big" data-a="acct-signin">Sign in with Google</button>${acctUi.err ? `<p class="small">${esc(acctUi.err)}</p>` : ''}<p class="tiny">If a sign-in window does not open, open Prakash in your normal browser (Chrome or Safari) and try there.</p></section>${cover}</div>`;
+    const n = recordDayCount();
+    return `<div class="stack">${back}${head}<section class="card stack"><p>Signed in as <strong>${esc(FBU.email)}</strong>.</p><p class="small">Use this account and sync these records? What is on this phone now (${wPlural(n, 'day')} with a record${S.witness.entries.length + (S.moments || []).length ? ', ' + wPlural(S.witness.entries.length, 'journal entry').replace('entrys', 'entries') + ' and ' + wPlural((S.moments || []).length, 'moment') : ''}) moves into this account’s own workspace on this phone. If the account already holds records from another device, they are merged; where the same record differs, the cloud version is used and this phone’s version is kept aside for you to see.</p><button class="btn primary big" data-a="acct-adopt">Use this account and sync these records</button><button class="btn" data-a="acct-local">Keep this phone local only</button></section>${cover}</div>`;
+  }
+  const s = SYNCSTAT, e = s.error ? ERR_TEXT[s.error.kind] || ERR_TEXT.other : '', lost = ENG ? ENG.lost().length : 0;
+  const status = `<section class="card stack" style="gap:6px"><div class="between"><strong>${esc(ACCT.email)}</strong><span class="tiny">${acctRowSummary().replace(ACCT.email + ' · ', '')}</span></div>
+    <p class="small" style="margin:0">Last confirmed sync: ${agoText(s.lastSync)} · ${s.pending ? wPlural(s.pending, 'change') + ' waiting' : 'nothing waiting'}</p>${e ? `<p class="small" style="margin:0">${esc(e)}</p>` : ''}
+    <div class="btns"><button class="btn" data-a="acct-retry">Retry now</button>${s.error && s.error.kind === 'massdelete' ? '<button class="btn danger" data-a="acct-mass">Send these deletions</button>' : ''}<button class="btn" data-a="acct-toggle">${ACCT.syncOn === false ? 'Turn sync on' : 'Turn sync off'}</button></div>
+    ${lost ? `<p class="tiny" style="margin:0">${wPlural(lost, 'record')} on this phone differed from the cloud on the first sync. The cloud version was used. This phone’s version is kept aside, not shown in the app.</p>` : ''}${s.state === 'othertab' ? '<p class="tiny" style="margin:0">Syncing is running in another tab of Prakash.</p>' : ''}${s.state === 'signin' ? '<button class="btn primary" data-a="acct-signin">Sign in again to sync</button>' : ''}</section>`;
+  let jr;
+  if (acctUi.busy) jr = `<section class="card stack"><p>${esc(acctUi.busy)}</p><p class="tiny">This takes a few seconds. Keep this page open.</p></section>`;
+  else if (acctUi.step === 'jphrase') jr = jphraseHtml();
+  else if (acctUi.step === 'jconfirm') jr = jconfirmHtml();
+  else if (acctUi.step === 'junlock' || journalLocked()) jr = junlockHtml();
+  else if (journalOn()) jr = `<section class="card stack"><h2>Journal</h2><p class="small">Encrypted on this phone before it syncs. ${ACCT.keyPersist ? 'It opens by itself on this phone, even offline.' : 'This browser cannot keep the key, so you will enter the recovery phrase each time you open Prakash.'}</p><p class="tiny">Earlier plain backups you downloaded may contain readable journal text.</p></section>`;
+  else jr = `<section class="card stack"><h2>Journal</h2><p class="small">Journal sync is off. Your journal stays on this phone, readable here and not sent anywhere. To sync it, Prakash makes a key on this phone and gives you 12 words to keep.</p><button class="btn primary" data-a="acct-jstart">Turn on encrypted journal sync</button></section>`;
+  return `<div class="stack">${back}${head}${status}${jr}${cover}<section class="card stack"><button class="btn" data-a="acct-signout">Sign out</button><p class="tiny">Signing out returns this phone to a separate local workspace. Your account’s records stay on this phone, hidden, until you sign in with the same account again. Signing out does not remove every trace from this browser.</p></section></div>`;
+}
+const notice = () => acctUi.msg ? `<p class="small" role="status">${esc(acctUi.msg)}</p>` : '';
+function jphraseHtml() {
+  const w = (acctUi.phrase || '').split(' ');
+  return `<section class="card stack"><h2>Your 12 recovery words</h2><p class="small">Write them on paper, in this order, and keep them private. They are the only way to open your encrypted journal on a new device. If you lose every device and these words, the journal cannot be recovered, and Google cannot help.</p>
+  <ol class="small" style="columns:2;margin:0;padding-left:26px">${w.map(x => `<li style="padding:2px 0"><strong>${esc(x)}</strong></li>`).join('')}</ol>
+  <p class="tiny">Prakash does not save these words anywhere and does not copy them for you.</p>${notice()}
+  <div class="btns"><button class="btn primary" data-a="acct-jwritten">I have written them down</button><button class="btn" data-a="acct-jcancel">Cancel</button></div></section>`;
+}
+function jconfirmHtml() {
+  return `<section class="card stack"><h2>Check you have them</h2><p class="small">Type these words from your paper.</p>${acctUi.pos.map(p => `<div><label class="lab" for="ac-w${p}">Word ${p + 1}</label><input class="input" id="ac-w${p}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>`).join('')}${notice()}
+  <div class="btns"><button class="btn primary" data-a="acct-jconfirm">Turn on</button><button class="btn" data-a="acct-jback">Show the words again</button></div></section>`;
+}
+function junlockHtml() {
+  return `<section class="card stack"><h2>${journalLocked() ? 'Journal locked' : 'Open your encrypted journal'}</h2><p class="small">Enter your 12 recovery words, in order, separated by spaces.</p><textarea class="input" id="ac-phrase" rows="3" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>${notice()}<div class="btns"><button class="btn primary" data-a="acct-junlock">Open journal</button>${acctUi.step === 'junlock' && !journalLocked() ? '<button class="btn" data-a="acct-jcancel">Cancel</button>' : ''}</div><p class="tiny">Nothing is changed if the words are wrong.</p></section>`;
+}
+const lockedCardHtml = () => `<section class="card stack"><h2>Your journal is locked</h2><p class="small">Open it with your recovery words in You, Account and sync. Everything else works as usual.</p><button class="btn primary" data-a="you" data-v="acct">Open Account and sync</button></section>`;
+
+on('acct-signin', () => {
+  if (!AUTHM || !AUTHM.ready()) { toast('Getting ready. Tap again in a moment.'); acctWarm(); return; }
+  acctUi.err = '';
+  let p; try { p = AUTHM.signIn(); } catch (e) { acctUi.err = 'Sign-in could not start.'; acctRefresh(); return; }
+  p.then(() => { acctRefresh(); }).catch(e => { const m = AUTHM.plainError(e); if (!m.quiet) acctUi.err = m.text; acctRefresh(); });
+});
+on('acct-local', async () => { try { await AUTHM.signOutUser(); } catch (e) {} FBU = null; acctRefresh(); });
+on('acct-adopt', async () => {
+  if (!FBU) return; const uid = FBU.uid, email = FBU.email; acctUi.busy = 'Moving your records into this account…'; acctRefresh();
+  try {
+    saveNow();
+    S.witness.entries.forEach(e => { if (e && !e.id) e.id = uid2(); }); S.witness.readings.forEach(r => { if (r && !r.id) r.id = uid2(); });
+    const full = JSON.stringify(S); localStorage.setItem(wsKey(uid), full); if (localStorage.getItem(wsKey(uid)) !== full) throw Error('verify');
+    const meta = { uid, email, adopted: true, syncOn: true, journalOn: false, createdAt: Date.now() }; lsSet(ACCT_PREFIX + uid, meta);
+    const fresh = defaults(); fresh.profile.setupDone = true; fresh.profile.onboardedV = 1; localStorage.setItem(KEY, JSON.stringify(fresh));   // the old plain copy now lives only in the account workspace
+    localStorage.setItem(WS_KEY, uid); WSID = uid; ACCT = meta;
+  } catch (e) { acctUi.busy = ''; acctUi.err = 'That did not complete, so nothing was moved.'; acctRefresh(); return; }
+  acctUi.busy = ''; render(); toast('This phone now uses your account workspace.'); startEngine();
+});
+const uid2 = () => uid();
+on('acct-retry', () => { if (ENG) ENG.retry(); else startEngine(); });
+on('acct-mass', () => { if (ENG) ENG.confirmMass(); });
+on('acct-toggle', () => { ACCT.syncOn = ACCT.syncOn === false; saveAcct(); if (ACCT.syncOn === false) stopEngine(); else startEngine(); acctRefresh(); });
+on('acct-signout', () => confirmSheet('Sign out?', 'This phone goes back to a separate local workspace. Your account records stay hidden on this phone until you sign in again. Anything not yet synced stays queued here.', 'Sign out', async () => {
+  try { if (ENG) { await Promise.race([ENG.flush(), new Promise(r => setTimeout(r, 3000))]); } } catch (e) {}
+  saveNow(); stopEngine(); try { clearInterval(acquireLeader.t); await AUTHM.signOutUser(); } catch (e) {}
+  KEYREF = null; jReady = false; jdMem = null; localFp = new Map(); FBU = null; ACCT = null; WSID = 'guest'; try { localStorage.setItem(WS_KEY, 'guest'); } catch (e) {}
+  S = load(); view.you = 'home'; acctUi = { step: 'home', phrase: null, pos: [], busy: '', msg: '', err: '' }; render(); toast('Signed out. This is a separate local workspace.');
+}));
+async function switchToAccount(uid) {
+  if (WSID === uid || !acctMeta(uid)) return; saveNow(); WSID = uid; try { localStorage.setItem(WS_KEY, uid); } catch (e) {} ACCT = acctMeta(uid); S = load(); jReady = false; KEYREF = null; localFp = new Map(); render(); await acctBoot();
+}
+
+/* ---------- turning the encrypted journal on ---------- */
+on('acct-jstart', async () => {
+  acctUi.err = ''; acctUi.msg = ''; acctUi.busy = 'Checking your account…'; acctRefresh();
+  try {
+    const A = await sMod('auth'), docs = await A.makeIo(ACCT.uid).keyDocs(); acctUi.busy = '';
+    if (docs.length) { ACCT.keyDoc = { v: docs[0].v, keyId: docs[0].keyId, kdf: docs[0].kdf, iv: docs[0].iv, wrapped: docs[0].wrapped }; saveAcct(); acctUi.step = 'junlock'; acctUi.msg = 'This account already has an encrypted journal. Enter its recovery words to open it here.'; }
+    else { const C = await sMod('crypto'); acctUi.phrase = await C.newPhrase(); acctUi.step = 'jphrase'; acctUi.msg = ''; }
+  } catch (e) { acctUi.busy = ''; acctUi.msg = 'No connection just now. Nothing was changed. Try again when you are online.'; }
+  acctRefresh();
+});
+on('acct-jcancel', () => { acctUi = Object.assign(acctUi, { step: 'home', phrase: null, pos: [], busy: '', msg: '' }); acctRefresh(); });
+on('acct-jback', () => { acctUi.step = 'jphrase'; acctUi.msg = ''; acctRefresh(); });
+on('acct-jwritten', () => { const pick = []; while (pick.length < 3) { const r = crypto.getRandomValues(new Uint8Array(1))[0] % 12; if (!pick.includes(r)) pick.push(r); } acctUi.pos = pick.sort((a, b) => a - b); acctUi.step = 'jconfirm'; acctUi.msg = ''; acctRefresh(); });
+on('acct-jconfirm', async () => {
+  const w = (acctUi.phrase || '').split(' '); const ok = acctUi.pos.every(p => ((($('#ac-w' + p) || {}).value || '').trim().toLowerCase()) === w[p]);
+  if (!ok) { acctUi.msg = 'Those words do not match. Check your paper, or choose Show the words again.'; acctRefresh(); return; }
+  acctUi.busy = 'Making your key…'; acctRefresh();
+  try {
+    const [C, A] = await Promise.all([sMod('crypto'), sMod('auth')]), raw = C.newDataKeyBytes(), doc = await C.wrapDataKey(acctUi.phrase, ACCT.uid, 'k1', raw);
+    const r = await A.makeIo(ACCT.uid).createKeyOnce('k1', doc);
+    if (r === 'exists') { raw.fill(0); acctUi.busy = ''; acctUi.phrase = null; acctUi.step = 'junlock'; acctUi.msg = 'An encrypted journal already exists on this account. Enter its recovery words instead. Nothing was replaced.'; acctRefresh(); return; }
+    const key = await C.importDataKey(raw); raw.fill(0); acctUi.phrase = null;
+    await enableJournal(key, 'k1', { v: doc.v, keyId: doc.keyId, kdf: doc.kdf, iv: doc.iv, wrapped: doc.wrapped });
+  } catch (e) { acctUi.busy = ''; acctUi.step = 'home'; acctUi.phrase = null; acctUi.msg = e && e.message === 'verify' ? 'The check of your encrypted copy failed, so nothing was changed.' : 'That did not finish, and your journal is exactly as it was. You can try again.'; acctRefresh(); }
+});
+on('acct-junlock', async () => {
+  const text = (($('#ac-phrase') || {}).value || ''); acctUi.busy = 'Opening your journal…'; acctUi.msg = ''; acctRefresh();
+  try {
+    const C = await sMod('crypto'), chk = await C.checkPhrase(text);
+    if (!chk.ok) { acctUi.busy = ''; acctUi.msg = chk.reason === 'length' ? 'The recovery phrase has 12 words.' : chk.reason === 'word' ? 'One of the words is not on the list. Check the spelling.' : 'Those 12 words do not add up. Check the order and spelling.'; acctRefresh(); return; }
+    let doc = ACCT.keyDoc; if (!doc) { const A = await sMod('auth'), d = await A.makeIo(ACCT.uid).keyDocs(); if (!d.length) { acctUi.busy = ''; acctUi.msg = 'No encrypted journal was found on this account.'; acctRefresh(); return; } doc = { v: d[0].v, keyId: d[0].keyId, kdf: d[0].kdf, iv: d[0].iv, wrapped: d[0].wrapped }; ACCT.keyDoc = doc; saveAcct(); }
+    let key; try { key = await C.unwrapDataKey(chk.phrase, ACCT.uid, doc); } catch (e) { acctUi.busy = ''; acctUi.msg = e && e.message === 'wrong-phrase' ? 'Those words did not open it. Nothing was changed.' : 'The key could not be read. Nothing was changed.'; acctRefresh(); return; }
+    if (journalOn()) { KEYREF = { key }; try { const P = await sMod('account'); if (await P.keyPersistenceWorks()) await P.putKey(ACCT.uid, key, ACCT.keyId); } catch (e) {} await hydrateJournal(); if (ENG) await ENG.unlocked(); acctUi.step = 'home'; acctUi.busy = ''; toast('Journal open.'); acctRefresh(); }
+    else { await enableJournal(key, doc.keyId, doc); }
+  } catch (e) { acctUi.busy = ''; acctUi.msg = 'That did not finish. Nothing was changed.'; acctRefresh(); }
+});
+/* encrypt a copy, check it opens and matches, and only then stop saving the readable journal text on this phone */
+async function enableJournal(key, keyId, keyDoc) {
+  const [C, P] = await Promise.all([sMod('crypto'), sMod('account')]); acctUi.busy = 'Encrypting your journal on this phone…'; acctRefresh();
+  ACCT.migrating = true; saveAcct();
+  S.witness.entries.forEach(e => { if (e && !e.id) e.id = uid2(); }); S.witness.readings.forEach(r => { if (r && !r.id) r.id = uid2(); });
+  const recs = journalRecords(), staged = [];
+  try {
+    for (const [id, { type, obj }] of recs) { const box = await C.encryptRecord(key, ACCT.uid, id, keyId, { type, obj }); box.keyId = keyId; await P.putJournal(ACCT.uid, id, box); staged.push([id, box, type, obj]); }
+    for (const [id, box, type, obj] of staged) { const back = await C.decryptRecord(key, ACCT.uid, id, keyId, box); if (back.type !== type || JSON.stringify(back.obj) !== JSON.stringify(obj)) throw Error('verify'); }
+  } catch (e) { for (const s of staged) await P.delJournal(ACCT.uid, s[0]).catch(() => {}); ACCT.migrating = false; saveAcct(); throw e; }
+  let persist = false; try { persist = await P.keyPersistenceWorks(); if (persist) await P.putKey(ACCT.uid, key, keyId); } catch (e) { persist = false; }
+  try { const d = JSON.parse(localStorage.getItem(JOURNAL_DRAFT_KEY) || 'null'); if (d) { jdMem = d; const b = await C.encryptRecord(key, ACCT.uid, 'draft', keyId, d); await P.putDraft(ACCT.uid, b); } } catch (e) {}
+  KEYREF = { key }; localFp = new Map(staged.map(s => [s[0], fpJ(s[2], s[3])]));
+  ACCT.journalOn = true; ACCT.keyId = keyId; ACCT.keyDoc = keyDoc; ACCT.keyPersist = persist; ACCT.migrating = false; saveAcct(); jReady = true;
+  saveNow();   // from here the saved copy no longer holds the journal text
+  try { localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {}
+  acctUi = { step: 'home', phrase: null, pos: [], busy: '', msg: '', err: '' }; render(); toast('Encrypted journal sync is on.');
+  if (ENG) await ENG.unlocked(); else startEngine();
+}
+/* an interrupted setup leaves the readable journal exactly as it was */
+if (ACCT && ACCT.migrating && !ACCT.journalOn) { ACCT.migrating = false; saveAcct(); }
+
+acctHook = PACCT;
 /* ---------- setup: one optional step ---------- */
 function lookStepHtml() {
   const p = S.profile, goals = p.goals || [];
@@ -2047,7 +2463,7 @@ function energyFold(k) {
   } catch (err) { return inner0; }
 }
 /* You: the same rows, in clear groups. A row with an unknown name lands in the last group. */
-const YOU_GROUPS = [['About you', ['whole', 'fort', 'goals', 'body', 'mirror']], ['Your data', ['backup', 'health']], ['Prakash', ['settings', 'about']]];
+const YOU_GROUPS = [['About you', ['whole', 'fort', 'goals', 'body', 'mirror']], ['Your data', ['backup', 'acct', 'health']], ['Prakash', ['settings', 'about']]];
 function youGroupRows(rows) {
   const by = {}, used = {}; rows.forEach(r => { by[r[0]] = r; });
   const row = r => `<button class="navrow" data-a="you" data-v="${r[0]}"><span>${esc(r[1])}<small>${esc(r[2])}</small></span></button>`;
@@ -2061,8 +2477,8 @@ function youGroupRows(rows) {
   return `<div>${out}</div>`;
 }
 /* Practice: one plain line saying what each section is for. */
-const PRACTICE_CAPTIONS = { sit: 'Timed meditations, or sit with no goal.', listen: 'Osho’s talks, by theme or by series.', write: 'Your journal. It stays on this phone and is never sent anywhere.' };
-function practiceCaption(v) { return PRACTICE_CAPTIONS[v] ? `<p class="tiny" style="margin:2px 2px 0">${PRACTICE_CAPTIONS[v]}</p>` : ''; }
+const PRACTICE_CAPTIONS = { sit: 'Timed meditations, or sit with no goal.', listen: 'Osho’s talks, by theme or by series.', write: 'Your journal and moments. What you type stays on this phone. If you speak into a box, your phone’s speech service may process the audio.' };
+function practiceCaption(v) { if (v === 'write' && journalOn()) return '<p class="tiny" style="margin:2px 2px 0">Your journal and moments are encrypted on this phone before they sync. If you speak into a box, your phone’s speech service may process the audio.</p>'; return PRACTICE_CAPTIONS[v] ? `<p class="tiny" style="margin:2px 2px 0">${PRACTICE_CAPTIONS[v]}</p>` : ''; }
 R.today = function () {
   const k = todayKey(), d = day(k), t = totals(d), q = QUOTES[Math.floor(Date.now() / 864e5) % QUOTES.length];
   const left = (S.profile.kcalTarget || 0) - t.kcal;
@@ -2078,6 +2494,7 @@ R.today = function () {
   ${mods().food ? energyFold(k) : ''}
   ${howAreYouHtml()}
   ${wholeMirrorHtml()}
+  ${mods().mind ? `<button class="navrow" data-a="mom-new" style="border-bottom:0"><span>What just happened?<small>A photo, a line, or a few tags</small></span></button>` : ''}
   ${eveningLineHtml()}
   <blockquote class="quote" style="margin:6px 4px 0">“${esc(q.t)}”<span>${esc(q.b)}</span></blockquote>
   </div>`;
@@ -2879,7 +3296,7 @@ function foodWeekHtml() {
   <div class="card stack"><div><label class="lab" for="ev-n">What</label><input class="input" id="ev-n" placeholder="e.g. Diwali party"></div><div class="grid2"><div><label class="lab" for="ev-d">Date</label>${dateField('ev-d', '', `min="${t}"`)}</div><div><label class="lab" for="ev-x">Extra calories</label><input class="input" id="ev-x" inputmode="numeric" placeholder="800"></div></div><button class="btn" data-a="ev-add">Add to Coming up</button></div>
   </div>`;
 }
-R.food = () => view.food === 'week' ? foodWeekHtml() : view.food === 'review' ? reviewHtml() : view.food === 'month' ? monthPageHtml() : foodDayHtml();
+R.food = () => view.food === 'week' ? foodWeekHtml() : view.food === 'review' ? weeklyReviewHtml() : view.food === 'month' ? monthPageHtml() : foodDayHtml();
 
 /* ---------- recipe builder: My dishes from ingredients ---------- */
 function recTotals(rec) { const t = { kcal: 0, protein: 0, fat: 0, carbs: 0, fibre: 0 }; rec.ings.forEach(i => { const x = i.grams / 100; t.kcal += i.k * x; t.protein += i.p * x; t.fat += (i.f || 0) * x; t.carbs += (i.c || 0) * x; t.fibre += (i.b || 0) * x; }); const n = Math.max(1, rec.portions); return { kcal: n0(t.kcal / n), protein: n1(t.protein / n), fat: n1(t.fat / n), carbs: n1(t.carbs / n), fibre: n1(t.fibre / n), all: n0(t.kcal) }; }
@@ -3170,10 +3587,11 @@ document.addEventListener('change', e => { if (e.target.matches && e.target.matc
 /* ---------- meal photos, kept with the diary entry on this phone ---------- */
 const mealUrls = {};
 async function mealPhotoUrl(id) { if (mealUrls[id]) return mealUrls[id]; const r = await pget(id).catch(() => null); if (!r || !r.blob) return ''; return (mealUrls[id] = URL.createObjectURL(r.blob)); }
-function fillMealPhotos(root) { $$('img[data-mealphoto]', root || document).forEach(async im => { const u = await mealPhotoUrl(im.dataset.mealphoto); if (u) im.src = u; else im.remove(); }); }
+function fillMealPhotos(root) { $$('img[data-mealphoto]', root || document).forEach(async im => { const u = await mealPhotoUrl(im.dataset.mealphoto); if (u) im.src = u; else if (ACCT && ACCT.adopted) { const s = document.createElement('span'); s.className = 'tiny'; s.textContent = 'Photo available on the original device'; im.replaceWith(s); } else im.remove(); }); }
 // photos whose diary entry is gone (after the undo has passed) are cleared from the phone
 async function tidyMealPhotos() {
   try {
+    if (WSID !== 'guest' || Object.keys(localStorage).some(k => k.indexOf(ACCT_PREFIX) === 0)) return;   // another workspace on this phone may use these photos
     const used = new Set(); Object.values(S.days).forEach(d => (d.foods || []).forEach(f => { if (f.photoId) used.add(f.photoId); }));
     const db = await pdb(); const keys = await new Promise(res => { const q = db.transaction('photos').objectStore('photos').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
     for (const k of keys) if (String(k).startsWith('meal-') && !used.has(k)) await pdel(k).catch(() => {});
@@ -3312,7 +3730,7 @@ function weekMirrorHtml(keys, q) {
   if (mods().food) rows.push(row('Water', wa == null ? 'nothing logged' : 'avg ' + n1(wa) + ' glasses', wa == null ? '' : 'over ' + wd.length + ' day' + (wd.length === 1 ? '' : 's') + (waT ? ' · target ' + waT + ' (' + pct(wa, waT) + ')' : '')));
   return `<section class="card stack" style="gap:4px" aria-label="The week in one view"><h2>The week in one view</h2><div class="facts">${rows.join('')}</div><p class="tiny" style="margin-top:6px">${n === 7 ? 'Monday to Sunday' : 'The ' + n + (n === 1 ? ' day' : ' days') + ' so far'}. Only what was logged; the rest of the look-back goes into each in detail.</p></section>`;
 }
-function reviewHtml() {
+function weeklyReviewHtml() {
   const k = reviewWeek || todayKey(), f = weekFacts(k), q = !showK(), notes = weekNotes(), wk = mondayOf(k), prevNote = notes[addDays(wk, -7)], note = notes[wk];
   const row = (l, v) => `<div class="fact"><span>${l}</span><strong>${v}</strong></div>`, day = dk => WD[dateOf(dk).getDay()];
   const firstSunday = dateOf(k).getDay() === 0 && dateOf(k).getDate() <= 7;
@@ -3329,6 +3747,7 @@ function reviewHtml() {
   </div>${!q && f.bank != null ? `<p class="tiny" style="margin-top:6px">The week as a whole: ${f.logged.length} logged days came to ${big(f.logged.reduce((a, x) => a + x.eaten, 0))} calories against ${big(f.logged.reduce((a, x) => a + x.dt, 0))}.</p>` : ''}</section>
   <section class="card stack" style="gap:4px"><h2>Moving</h2><div class="facts">${row('Steps, a day on average', f.steps != null ? big(f.steps) + (q ? '' : '<span class="tiny" style="display:block;font-weight:400">of ' + big(f.sTarget) + '</span>') : 'None entered')}${f.steps != null ? row('Days with steps', f.stepDays) : ''}</div></section>
   ${dayByDayHtml(f.keys, q)}
+  ${momentsPlaybackHtml(f.keys)}
   ${!q && (f.closest.length || f.fullest.length) ? `<section class="card stack" style="gap:4px"><h2>The days</h2><div class="facts">${f.closest.length ? row('Closest to target', f.closest.map(x => day(x.dk)).join(', ')) : ''}${f.fullest.length ? row('Fullest', f.fullest.map(x => day(x.dk) + ' (' + big(x.diff) + ' over)').join(', ')) : ''}</div></section>` : ''}
   ${f.missing.length ? `<section class="card stack" style="gap:8px"><h2>Nothing logged</h2><p class="small muted">Add what you remember, or leave it.${f.target ? ' The week counts these at your usual ' + big(f.target) + '.' : ''}</p><div class="btns">${f.missing.map(x => `<button class="btn" data-a="review-fill" data-k="${x.dk}">${WDL[dateOf(x.dk).getDay()]}</button>`).join('')}</div></section>` : ''}
   <section class="card now stack" style="gap:10px"><p style="font-size:18px">${esc(weekQuestion(f))}</p>
@@ -3794,7 +4213,7 @@ R.train = function () {
   if (v === 'plan') return planHtml();
   if (v === 'setup') return setupPlanHtml();
   if (v === 'ask') return askHtml();
-  if (v === 'review' && TR().draft) return reviewHtml();
+  if (v === 'review' && TR().draft) return trainingDraftReviewHtml();
   if (v === 'fromdays') return fromDaysHtml();
   if (v === 'lighter' && TR().active) return lighterHtml();
   if (v === 'after' && after) return afterHtml();
@@ -3922,7 +4341,7 @@ function sessionCard(s, edit) {
   <ul class="list" style="margin:0">${s.ex.map(rx => { const c = catOf(rx.cat) || { name: rx.cat }; return `<li class="li" style="min-height:0;padding:8px 0;flex-wrap:wrap"><div class="t"><strong style="font-weight:500">${esc(c.name)}${rx.optional ? ' <span class="tiny" style="font-weight:400">· optional</span>' : ''}</strong><span>${esc(rxText(rx))}${rx.rest ? ' · ' + esc(restWord(rx.rest)) : ''}${rx.kind === 'reps' ? ' · ' + esc(effortText(rx).toLowerCase().replace(/\.$/, '')) : ''}${rx.note ? ' · ' + esc(rx.note) : ''}</span></div>${edit ? `<div class="bd-nums" style="width:100%"><div><label class="lab" for="ed-s-${s.id}-${rx.id}">Sets</label><input class="input" id="ed-s-${s.id}-${rx.id}" inputmode="numeric" maxlength="1" data-ed="sets:${s.id}:${rx.id}" value="${rx.sets}" ${rx.kind === 'min' ? 'disabled' : ''}></div><div><label class="lab" for="ed-r-${s.id}-${rx.id}">${esc(REPS_WORD[c.unit] || 'Reps')}</label><input class="input" id="ed-r-${s.id}-${rx.id}" autocomplete="off" data-ed="range:${s.id}:${rx.id}" value="${rxRange(rx)}"></div><button class="link" data-a="ed-del" data-s="${esc(s.id)}" data-x="${esc(rx.id)}" aria-label="Remove ${esc(c.name)}">Remove</button></div>` : ''}</li>`; }).join('')}</ul></section>`;
 }
 function planToRaw(p) { return { goal: p.goal, reason: p.reason, block_weeks: p.weeks, progression: 'double_progression', sessions: p.sessions.map(s => ({ name: s.name, kind: s.kind, exercises: s.ex.map(rx => { const o = { id: rx.cat, sets: rx.sets, rest_seconds: rx.rest || undefined, reps_in_reserve: rx.rir == null ? undefined : rx.rir, optional: rx.optional, note: rx.note }; o[{ reps: 'reps', sec: 'seconds', min: 'minutes', m: 'metres' }[rx.kind]] = [rx.lo, rx.hi]; return o; }) })) }; }
-function reviewHtml() {
+function trainingDraftReviewHtml() {
   const T0 = TR(), d = editPlan || T0.draft, edit = !!editPlan, note = cleanText((d.setup || T0.setup || {}).notes, 500);
   const by = d.source === 'ai' ? 'Drafted by ' + esc(d.provider) + ' (' + esc(d.model) + ') on ' + fmtD(d.createdAt) : 'Put together from your own days on ' + fmtD(d.createdAt);
   const diff = planDiff(T0.active, d), strength = d.sessions.filter(s => !s.optional), rec = d.sessions.filter(s => s.optional);
@@ -4429,7 +4848,7 @@ function sitHtml() {
 }
 
 /* ---------- Pray ---------- */
-on('pray-toggle', b => { const t = T(), id = b.dataset.id; t.prayers[id] = !t.prayers[id]; save(); if (t.prayers[id]) bell(528, 2.5); render(); });
+on('pray-toggle', b => { const t = T(), id = b.dataset.id; t.prayers[id] = !t.prayers[id]; day(todayKey()).prayers = Object.values(t.prayers).filter(Boolean).length; save(); if (t.prayers[id]) bell(528, 2.5); render(); });
 function prayHtml() {
   const t = T();
   return `<p class="muted">Light the lamp when a prayer is done. The lamps go out at midnight.</p>
@@ -4673,25 +5092,34 @@ function wdb() { return new Promise((res, rej) => { const r = indexedDB.open('sa
 function wput(id, v) { return wdb().then(db => new Promise((res, rej) => { const tx = db.transaction('notes', 'readwrite'); tx.objectStore('notes').put(v, id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })); }
 function wget(id) { return wdb().then(db => new Promise((res, rej) => { const q = db.transaction('notes').objectStore('notes').get(id); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); })); }
 function wclear() { return wdb().then(db => new Promise(res => { const tx = db.transaction('notes', 'readwrite'); tx.objectStore('notes').clear(); tx.oncomplete = res; tx.onerror = res; })).catch(() => {}); }
-const JQ = [['direct', 'What is moving in you right now? Watch it like clouds passing: anger, fear, wanting. Don’t hold it, don’t push it away.'], ['story', 'Who is watching?'], ['nextStep', 'Stay with the one who is watching. Where does the ‘I’ rise from?'], ['wonder', 'If you like: what surprised you today?']];
-on('j-mode', b => { journalMode = b.dataset.m; journalEdit = null; render(); window.scrollTo(0, 0); });
-on('j-edit', b => { journalEdit = S.witness.entries.find(e => e.id === b.dataset.id) || null; journalMode = 'write'; render(); });
-on('j-thread', b => { journalEdit = { tags: [b.dataset.t] }; journalMode = 'write'; render(); });
+/* the journal in layers. Both sets save into the same four fields (direct, story, nextStep, wonder), so older entries and every
+   other part of the app read them as before. An entry remembers which set it was written with (layer); older entries count as deep. */
+const JQ_SETS = {
+  everyday: [['direct', 'What\'s going on in you right now? Name it - anger, worry, wanting - and let it pass.'], ['story', 'And who\'s the one noticing all that?'], ['nextStep', 'Rest there a moment. That\'s the real you.'], ['wonder', 'Anything surprise you today?']],
+  deep: [['direct', 'Wherever you are - what\'s moving through you right now? A thought, a feeling, a tension. Watch it drift past like weather. Nothing to fix, nothing to chase away.'], ['story', 'And notice: whatever you can watch, you are watching. So who is the watcher?'], ['nextStep', 'Don\'t answer in words. Rest there, as the watching itself. A few easy breaths. Nothing to achieve.'], ['wonder', 'Now come back smiling. What made you wonder, laugh, or quietly glow today?']]
+};
+const JQ_LABELS = { everyday: ['What was going on', 'Who was noticing', 'Resting there', 'What surprised you'], deep: ['What was moving', 'The watcher', 'Resting there', 'What made you wonder'] };
+let journalLayer = 'everyday';
+const jqs = () => JQ_SETS[journalLayer] || JQ_SETS.deep;
+const entryLabel = (e, i) => JQ_LABELS[JQ_SETS[e && e.layer] ? e.layer : 'deep'][i];
+on('j-mode', b => { if (journalLocked() && (b.dataset.m === 'write' || b.dataset.m === 'moments')) { toast('Your journal is locked. Open You, Account and sync.'); return; } journalMode = b.dataset.m; if (b.dataset.l) journalLayer = b.dataset.l; journalEdit = null; render(); window.scrollTo(0, 0); });
+on('j-edit', b => { journalEdit = S.witness.entries.find(e => e.id === b.dataset.id) || null; journalLayer = (journalEdit && JQ_SETS[journalEdit.layer]) ? journalEdit.layer : 'deep'; journalMode = 'write'; render(); });
+on('j-thread', b => { journalEdit = { tags: [b.dataset.t] }; journalLayer = 'deep'; journalMode = 'write'; render(); });
 on('j-del', b => { const ix = S.witness.entries.findIndex(e => e.id === b.dataset.id); confirmSheet('Delete this entry?', 'It will be gone from this phone.', 'Delete', () => { const gone = S.witness.entries.splice(ix, 1)[0]; save(); render(); undoBar('Entry deleted.', () => { S.witness.entries.splice(ix, 0, gone); save(); render(); }); }, true); });
-on('j-play', async b => { const a = await wget(b.dataset.id).catch(() => null); if (!a || !a.blob) { toast('No voice note found on this phone.'); return; } const au = new Audio(URL.createObjectURL(a.blob)); au.play().catch(() => toast('Couldn’t play the voice note.')); });
+on('j-play', async b => { const a = await wget(b.dataset.id).catch(() => null); if (!a || !a.blob) { toast(ACCT && ACCT.adopted ? 'Available on the original device.' : 'No voice note found on this phone.'); return; } const au = new Audio(URL.createObjectURL(a.blob)); au.play().catch(() => toast('Couldn’t play the voice note.')); });
 on('j-rec', async b => {
   if (voiceRec && voiceRec.state === 'recording') { voiceRec.stop(); b.textContent = 'Record a voice note'; return; }
   try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); voiceChunks = []; voiceRec = new MediaRecorder(st); voiceRec.ondataavailable = e => voiceChunks.push(e.data); voiceRec.onstop = () => { voiceDraft = new Blob(voiceChunks, { type: voiceRec.mimeType }); st.getTracks().forEach(t => t.stop()); const s = $('#j-vs'); if (s) s.textContent = 'Voice note ready.'; }; voiceRec.start(); b.textContent = 'Stop recording'; } catch (e) { const s = $('#j-vs'); if (s) s.textContent = 'The microphone isn’t available.'; }
 });
-function journalCollect() { const o = { kind: ($('#j-kind') || {}).value || 'Free writing', tags: $$('[data-jtag]:checked').map(x => x.dataset.jtag) }; JQ.forEach(q => { const el = $('#j-' + q[0]); o[q[0]] = el ? el.value : ''; }); return o; }
+function journalCollect() { const o = { kind: ($('#j-kind') || {}).value || 'Free writing', tags: $$('[data-jtag]:checked').map(x => x.dataset.jtag) }; jqs().forEach(q => { const el = $('#j-' + q[0]); o[q[0]] = el ? el.value : ''; }); o.layer = journalLayer; return o; }
 on('j-save', async () => {
   jSpeakStop();
-  const o = journalCollect(); if (!JQ.some(q => (o[q[0]] || '').trim()) && !voiceDraft) { toast('Nothing written yet.'); return; }
+  const o = journalCollect(); if (!jqs().some(q => (o[q[0]] || '').trim()) && !voiceDraft) { toast('Nothing written yet.'); return; }
   const old = journalEdit && journalEdit.id ? journalEdit : {}, id = old.id || uid(), now = new Date().toISOString();
-  const entry = { ...old, id, created: old.created || now, updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags };
+  const entry = { ...old, id, created: old.created || now, updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags, layer: journalLayer };
   S.witness.entries = S.witness.entries.filter(x => x.id !== id); S.witness.entries.unshift(entry);
   if (voiceDraft) { await wput(id, { blob: voiceDraft, mime: voiceDraft.type }).catch(() => {}); entry.hasVoice = true; voiceDraft = null; }
-  try { localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {}
+  jdraftDel();
   save(); journalMode = 'entries'; journalEdit = null; render(); toast('Saved.');
 });
 /* speak into Write: the phone's own speech-to-text, into the box beside the microphone */
@@ -4711,25 +5139,30 @@ on('j-speak', b => {
 });
 function writeHtml() {
   const w = S.witness;
+  if (journalLocked()) return lockedCardHtml();
   if (journalMode === 'write') {
-    let e = journalEdit || {}; if (!journalEdit) { try { const d = JSON.parse(localStorage.getItem(JOURNAL_DRAFT_KEY) || 'null'); if (d) e = d; } catch (x) {} }
+    let e = journalEdit || {}; if (!journalEdit) { try { const d = jdraftGet(); if (d) { e = d; if (JQ_SETS[d.layer]) journalLayer = d.layer; } } catch (x) {} }
     return `${backBar('Journal', 'j-home')}<p class="journal-q">Not homework. Just watching, the way you'd watch the river.</p>
+    ${journalEdit && journalEdit.id ? '' : `<nav class="seg" aria-label="Which questions">${[['everyday', 'Everyday'], ['deep', 'Deeper']].map(x => `<button data-a="j-layer" data-l="${x[0]}" aria-current="${journalLayer === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>`}
     <div><label class="lab" for="j-kind">When</label><select class="input" id="j-kind">${['Free writing', 'Before meditation', 'After meditation', 'Gratitude'].map(k => `<option${e.kind === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
     ${micSupported() ? '<p class="small muted">Tap the microphone beside a question to speak your answer. Your phone’s browser turns speech into words, which may use Google or Apple.</p>' : ''}
-    ${JQ.map(q => `<div><div class="between" style="gap:10px;align-items:flex-end"><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px;flex:1">${esc(q[1])}</label>${micSupported() ? `<button class="iconbtn" data-a="j-speak" data-f="${q[0]}" aria-pressed="false" aria-label="Speak your answer to: ${esc(q[1])}" style="width:48px;min-height:48px;margin-bottom:6px">${MIC_SVG}</button>` : ''}</div><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea><span class="small muted" id="js-${q[0]}" role="status"></span></div>`).join('')}
+    ${jqs().map(q => `<div><div class="between" style="gap:10px;align-items:flex-end"><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px;flex:1">${esc(q[1])}</label>${micSupported() ? `<button class="iconbtn" data-a="j-speak" data-f="${q[0]}" aria-pressed="false" aria-label="Speak your answer to: ${esc(q[1])}" style="width:48px;min-height:48px;margin-bottom:6px">${MIC_SVG}</button>` : ''}</div><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea><span class="small muted" id="js-${q[0]}" role="status"></span></div>`).join('')}
     <p class="journal-q" style="font-size:18px;color:var(--ink2)">Now put it all down. Nothing to carry, nowhere to reach.</p>
     <div><span class="lab">Threads</span><div class="chips">${WITNESS_TAGS.map(t => `<label class="chip" style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" data-jtag="${esc(t)}" ${(e.tags || []).includes(t) ? 'checked' : ''} style="accent-color:var(--green)"> ${esc(t)}</label>`).join('')}</div></div>
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap">${esc(e.story)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">What surprised you · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${fmtD(e.created) + ', ' + fmtTime(e.created)}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 1)} · </span>${esc(e.story)}</p>` : ''}${e.nextStep ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 2)} · </span>${esc(e.nextStep)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 3)} · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'moments') return momentsPageHtml();
   if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
-  return `<section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing.</p><button class="btn primary big" data-a="j-mode" data-m="write">Write</button></section>
-  <div><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
+  return `<section class="card stack"><h2>What just happened?</h2><p class="muted small">A photo, a line, or a few tags. One tap, in the moment.</p><button class="btn primary big" data-a="mom-new">Add a moment</button></section>
+  <section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing. A few easy questions, or go deeper.</p><div class="btns"><button class="btn primary" data-a="j-mode" data-m="write" data-l="everyday">Write</button><button class="btn" data-a="j-mode" data-m="write" data-l="deep">Go deeper</button></div></section>
+  <div><button class="navrow" data-a="j-mode" data-m="moments"><span>Moments<small>What you kept, in the order it happened</small></span></button><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
   ${onThisDay()}
   ${readingCard()}
   ${gratitudeHtml()}`;
 }
+on('j-layer', b => { const o = journalCollect(); journalLayer = b.dataset.l; jdraftSet(Object.assign(o, { layer: journalLayer })); if (journalEdit && !journalEdit.id) journalEdit = Object.assign({}, journalEdit, o); render(); });
 on('j-home', () => { jSpeakStop(); journalMode = 'home'; journalEdit = null; render(); });
 
 /* ---------- Remember: the Stop, anger, the bell, gratitude ---------- */
@@ -4805,11 +5238,11 @@ R.practiceAfter = function (main) {
     const g = e.target.closest('[data-grat]'); if (g) { day(todayKey()).gratitude[+g.dataset.grat] = g.value; save(); return; }
     if (e.target.id === 'st-wait') { S.remember.waitNote = e.target.value; save(); return; }
     if (e.target.id === 'stayed-text' && stayed) { stayed.draft = e.target.value; return; }
-    if (journalMode === 'write' && !journalEdit && (e.target.matches('[data-jdraft]') || e.target.matches('[data-jtag]'))) { try { localStorage.setItem(JOURNAL_DRAFT_KEY, JSON.stringify(journalCollect())); } catch (x) {} }
+    if (journalMode === 'write' && !journalEdit && (e.target.matches('[data-jdraft]') || e.target.matches('[data-jtag]'))) { jdraftSet(journalCollect()); }
   };
   main.onchange = e => {
     if (e.target.id === 'st-from' || e.target.id === 'st-to') { S.remember[e.target.id === 'st-from' ? 'from' : 'to'] = e.target.value || (e.target.id === 'st-from' ? '08:00' : '22:00'); S.remember.schedule = null; save(); }
-    if (journalMode === 'write' && !journalEdit && (e.target.matches('[data-jtag]') || e.target.id === 'j-kind')) { try { localStorage.setItem(JOURNAL_DRAFT_KEY, JSON.stringify(journalCollect())); } catch (x) {} }
+    if (journalMode === 'write' && !journalEdit && (e.target.matches('[data-jtag]') || e.target.id === 'j-kind')) { jdraftSet(journalCollect()); }
   };
 };
 /* ================= YOU ================= */
@@ -4836,6 +5269,7 @@ function youHome() {
     ['goals', 'Goals and your day', (tgt('kcalTarget') ? big(p.kcalTarget) + ' calories' : 'No calorie target yet') + (p.wake ? ' · wake ' + p.wake : '') + (p.bed ? ' · bed ' + p.bed : '')],
     ['whole', 'Whole picture', wholeRowSummary()],
     ['fort', 'Your last two weeks', fortRowSummary()],
+    ['acct', 'Account and sync', acctRowSummary()],
     ['backup', 'Backup and restore', age == null ? 'Everything lives on this phone' : 'Last backup ' + (age === 0 ? 'today' : age === 1 ? 'yesterday' : age + ' days ago')],
     ['settings', 'Settings', 'What to show, units, Gemini, meditation music'],
     ['about', 'About Prakash', 'What’s new, and a note on privacy']
@@ -4855,13 +5289,20 @@ function youHome() {
 /* ---------- Ask the mirror ----------
    One question, one answer, from your own logs only. The AI is told to give facts and numbers and nothing else:
    no advice, no judgement, no commentary; and to say plainly when the logs can't answer.
-   What goes out: the question and a summary of the last 90 days of logs. Your journal is never sent. Nothing is kept. */
+   What goes out: the question and a summary of the last 90 days of logs (see the screen's own list). Your journal and moments are never sent. Nothing is kept. */
 let mirrorQ = '', mirrorA = null, mirrorBusy = false, mirrorBy = '';
 function mirrorContext() {
   const t = todayKey(), from = addDays(t, -90), p = S.profile, r1 = x => Math.round(x * 10) / 10;
   const days = Object.keys(S.days).filter(k => k >= from && k <= t).sort().map(k => { const d = S.days[k], tt = totals(d), o = { date: k };
     if ((d.foods || []).length) { o.kcal = tt.kcal; o.protein_g = r1(tt.protein); o.foods = d.foods.slice(0, 12).map(f => f.name + (f.slot ? ' (' + f.slot + ')' : '')); }
-    if (d.silent) o.marked_nothing_to_log = true; if (+d.steps) o.steps = +d.steps; if (+d.water) o.water_glasses = +d.water; if (+d.sleep) o.sleep_h = +d.sleep; if (+d.walkMin) o.walk_min = +d.walkMin; return o; }).filter(o => Object.keys(o).length > 1);
+    if (d.silent) o.marked_nothing_to_log = true; if (+d.steps) o.steps = +d.steps; if (+d.water) o.water_glasses = +d.water; if (+d.sleep) o.sleep_h = +d.sleep; if (+d.walkMin) o.walk_min = +d.walkMin;
+    const sn = stressEntries(k); if (sn.length) o.stress_checkins = sn.map(x => +x.n);
+    if (d.rested >= 1) o.rested_1_to_5 = +d.rested;
+    if (d.sleepNote && ((d.sleepNote.chips || []).length || d.sleepNote.text)) o.sleep_notes = { tags: (d.sleepNote.chips || []).map(c => wLabel(REST_CHIPS, c)), text: d.sleepNote.text || '' };
+    const fl = {}; (d.foods || []).forEach(f => { if (f.feel && f.feel.chips && f.feel.chips.length) fl[f.slot || 'snack'] = f.feel.chips.map(c => wLabel(FEEL_CHIPS, c)); }); if (Object.keys(fl).length) o.meal_feelings = fl;
+    const gt = gutRec(k); if (areaOn('gut') && gt && (gt.chips.length || gt.stool)) o.gut = { felt: gt.chips.map(c => wLabel(GUT_CHIPS, c)), stool: gt.stool ? wLabel(STOOL_CHIPS, gt.stool) : '' };
+    const mr = menoRec(k); if (areaOn('meno') && Object.keys(mr).length) { o.symptoms = {}; Object.keys(mr).forEach(x => { o.symptoms[wLabel(MENO_SYMPTOMS, x)] = MENO_LEVELS[mr[x]]; }); }
+    return o; }).filter(o => Object.keys(o).length > 1);
   const inRange = x => x.date >= from && x.date <= t;
   return {
     today: t,
@@ -4903,7 +5344,7 @@ function mirrorHtml() {
   <button class="btn primary big" data-a="mirror-ask" ${mirrorBusy || !keys || off ? 'disabled' : ''}>${mirrorBusy ? 'Looking at your logs…' : 'Ask'}</button>
   ${!keys ? '<p class="small">This needs an AI key: You › Settings › Connect Gemini, or Backup AIs.</p>' : off ? '<p class="small">You’re offline. Ask again when you’re online.</p>' : ''}
   ${mirrorA ? `<section class="card stack" style="gap:6px" aria-live="polite"><p style="white-space:pre-wrap">${esc(mirrorA)}</p><p class="tiny">From ${esc(mirrorBy)}, reading your logs. Not saved.</p></section>` : ''}
-  <p class="tiny">What goes to your AI: the question and a summary of the last 90 days of food, steps, water, sleep, workouts, sittings, talks, weight, waist and blood pressure. Your journal is not sent. Nothing is kept on this phone or anywhere.</p></div>`;
+  <p class="tiny">What goes to your AI: the question and a summary of the last 90 days of food, steps, water, sleep, how rested you felt and your sleep notes, stress check-ins (the numbers only), how meals felt (the ticked words), gut and symptom records if you keep them (ticked words and levels, not typed notes), workouts, sittings, talks, weight, waist and blood pressure. Your journal and your moments are not sent. Nothing is kept on this phone or anywhere.</p></div>`;
 }
 on('mirror-ask', async () => {
   const q = (($('#mq') || {}).value || '').trim(); if (!q) { toast('Type a question first.'); return; }
@@ -5218,7 +5659,7 @@ function staplesHtml() {
 }
 function stapleFormHtml() {
   const e = stEdit, c = e.c, piece = c.per === 'portion';
-  return `<div class="stack">${backBar('Staples table', 'st-cancel')}<h1>${e.key ? esc(c.name) : 'Add a food'}</h1>
+  return `<div class="stack">${backBar('Staples table', 'stp-cancel')}<h1>${e.key ? esc(c.name) : 'Add a food'}</h1>
   <section class="card stack" style="gap:12px">
   <div><label class="lab" for="st-n">Name</label><input class="input" id="st-n" value="${esc(c.name || '')}" placeholder="e.g. Methi thepla"></div>
   <div><span class="lab">The numbers are for</span><div class="seg"><button data-a="st-per" data-p="100g" aria-selected="${!piece}">100 g</button><button data-a="st-per" data-p="portion" aria-selected="${piece}">One piece</button></div></div>
@@ -5232,7 +5673,7 @@ function stRead() { const e = stEdit, v = id => ($('#' + id) || {}).value; if (!
 on('st-new', () => { stEdit = { key: '', own: true, c: { per: '100g', name: stFind.trim() } }; render(); });
 on('st-edit', b => { const r = stapleRows().find(x => x.key === b.dataset.key); if (!r) return; stEdit = { key: r.key, own: !!r.own, edited: !!r.edited, base: r.base, c: { ...r.c } }; render(); });
 on('st-per', b => { stRead(); stEdit.c.per = b.dataset.p; render(); });
-on('st-cancel', () => { stEdit = null; render(); });
+on('stp-cancel', () => { stEdit = null; render(); });
 on('st-save', () => {
   stRead(); const e = stEdit, c = e.c; if (!c.name) { toast('Give the food a name.'); return; } if (!(c.k >= 0) || c.k == null) { toast('Add the calories.'); return; }
   const x = { id: c.id || uid(), name: c.name.charAt(0).toUpperCase() + c.name.slice(1), per: c.per, k: c.k, p: c.p || 0, f: 0, c: 0, b: 0 };
@@ -5253,6 +5694,7 @@ async function backupObject() {
   for (const e of out.witness.entries) { const a = await wget(e.id).catch(() => null); if (a && a.blob) { e.audio = { mimeType: a.blob.type || a.mime || 'audio/webm', base64: await blob64(a.blob) }; voices++; } }
   for (const p of out.photos) { if (p.dataUrl) { photos++; continue; } const r = await pget(p.id).catch(() => null); if (r && r.blob) { p.image = { mimeType: r.blob.type || 'image/jpeg', base64: await blob64(r.blob) }; photos++; } }
   for (const d of Object.values(out.days || {})) for (const f of (d.foods || [])) { if (!f.photoId) continue; const r = await pget(f.photoId).catch(() => null); if (r && r.blob) { f.photoImage = { mimeType: r.blob.type || 'image/jpeg', base64: await blob64(r.blob) }; photos++; } }
+  for (const m of (out.moments || [])) { if (!m.photoId) continue; const r = await pget(m.photoId).catch(() => null); if (r && r.blob) { m.photoImage = { mimeType: r.blob.type || 'image/jpeg', base64: await blob64(r.blob) }; photos++; } }
   out.backup = { format: 'sadhana-v1', app: 'Prakash ' + VERSION, exported: new Date().toISOString(), voiceNotes: voices, photos };
   return out;
 }
@@ -5272,9 +5714,9 @@ on('bk-dl', () => { if (!backupReady) return; download(backupReady.name, backupR
 async function cryptKey(pass, salt) { const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 310000 }, km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
 const b64u = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(s); };
 const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-on('backup-plain', async () => { try { const o = await backupObject(); offerBackup('prakash-backup-' + todayKey() + '.json', new Blob([JSON.stringify(o)], { type: 'application/json' }), o.backup.photos ? 'It includes ' + o.backup.photos + ' photos. ' : ''); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
+on('backup-plain', async () => { if (journalLocked()) { toast('Your journal is locked, so it would not be in this backup. Unlock it first.'); return; } try { const o = await backupObject(); offerBackup('prakash-backup-' + todayKey() + '.json', new Blob([JSON.stringify(o)], { type: 'application/json' }), o.backup.photos ? 'It includes ' + o.backup.photos + ' photos. ' : ''); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
 on('backup-enc', () => { openSheet(`<div class="stack"><p class="muted small">At least 8 characters. Write it down: it can't be recovered.</p><div><label class="lab" for="pp1">Passphrase</label><input class="input" type="password" id="pp1" autocomplete="new-password"></div><div><label class="lab" for="pp2">Same again</label><input class="input" type="password" id="pp2" autocomplete="new-password"></div><button class="btn primary" data-a="backup-enc-go">Make encrypted backup</button></div>`, { title: 'Encrypted backup' }); });
-on('backup-enc-go', async () => { const a = $('#pp1').value, b = $('#pp2').value; if (a.length < 8) { toast('Use at least 8 characters.'); return; } if (a !== b) { toast('The two passphrases are different.'); return; } closeSheet(true); try { const o = await backupObject(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await cryptKey(a, salt), c = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(o)))); offerBackup('prakash-backup-' + todayKey() + '.prakash', new Blob([JSON.stringify({ format: 'prakash-encrypted', version: 1, kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: b64u(salt), iv: b64u(iv), ciphertext: b64u(c) })], { type: 'application/octet-stream' }), 'Encrypted with your passphrase. '); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
+on('backup-enc-go', async () => { if (journalLocked()) { toast('Your journal is locked, so it would not be in this backup. Unlock it first.'); return; } const a = $('#pp1').value, b = $('#pp2').value; if (a.length < 8) { toast('Use at least 8 characters.'); return; } if (a !== b) { toast('The two passphrases are different.'); return; } closeSheet(true); try { const o = await backupObject(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await cryptKey(a, salt), c = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(o)))); offerBackup('prakash-backup-' + todayKey() + '.prakash', new Blob([JSON.stringify({ format: 'prakash-encrypted', version: 1, kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: b64u(salt), iv: b64u(iv), ciphertext: b64u(c) })], { type: 'application/octet-stream' }), 'Encrypted with your passphrase. '); } catch (e) { toast('The backup couldn’t be made. Nothing changed.'); } });
 let restoreCandidate = null;
 function restoreFile(f) {
   if (!f) return; const r = new FileReader();
@@ -5287,20 +5729,22 @@ on('restore-dec', async () => { try { const env = restoreCandidate.enc, key = aw
 function previewRestore(j) {
   if (!j || j.v !== 1 || !j.profile) { toast('That isn’t a Prakash backup. Nothing changed.'); return; }
   const keys = Object.keys(j.days || {}).sort(); restoreCandidate = { j };
-  openSheet(`<div class="stack"><p>${keys.length} days, from ${keys[0] ? fmtDay(keys[0]) : '-'} to ${keys.length ? fmtDay(keys[keys.length - 1]) : '-'}. ${(j.photos || []).length} photos, ${((j.witness || {}).entries || []).length} journal entries.</p><p class="muted small">Restoring replaces what's on this phone now. Download a backup first if you want to keep both.</p><button class="btn primary" data-a="restore-go">Restore this backup</button><button class="btn" data-a="sheet-close">Cancel</button></div>`, { title: 'Check before restoring' });
+  openSheet(`<div class="stack"><p>${keys.length} days, from ${keys[0] ? fmtDay(keys[0]) : '-'} to ${keys.length ? fmtDay(keys[keys.length - 1]) : '-'}. ${(j.photos || []).length} photos, ${((j.witness || {}).entries || []).length} journal entries.</p><p class="muted small">Restoring replaces what's on this phone now. Download a backup first if you want to keep both.${ACCT && ACCT.adopted && ACCT.syncOn !== false ? ' Sync is on, so records this restore removes would be removed from your account too.' : ''}</p><button class="btn primary" data-a="restore-go">Restore this backup</button><button class="btn" data-a="sheet-close">Cancel</button></div>`, { title: 'Check before restoring' });
 }
 on('restore-go', async () => {
   const j = restoreCandidate && restoreCandidate.j; if (!j) return;
   for (const e of ((j.witness || {}).entries || [])) { if (e.audio && e.audio.base64) { await wput(e.id, { blob: b64blob(e.audio.base64, e.audio.mimeType), mime: e.audio.mimeType }).catch(() => {}); e.hasVoice = true; } delete e.audio; }
   for (const d of Object.values(j.days || {})) for (const f of (d.foods || [])) { if (f.photoImage && f.photoImage.base64 && f.photoId) await pput(f.photoId, { blob: b64blob(f.photoImage.base64, f.photoImage.mimeType), mime: f.photoImage.mimeType }).catch(() => {}); delete f.photoImage; }
+  for (const m of (j.moments || [])) { if (m.photoImage && m.photoImage.base64 && m.photoId) await pput(m.photoId, { blob: b64blob(m.photoImage.base64, m.photoImage.mimeType), mime: m.photoImage.mimeType }).catch(() => {}); delete m.photoImage; }
   for (const p of (j.photos || [])) { if (p.image && p.image.base64) { await pput(p.id, { blob: b64blob(p.image.base64, p.image.mimeType), mime: p.image.mimeType }).catch(() => {}); } delete p.image; }
   const key = S.profile.geminiKey, more = {}; AI_KEYS.forEach(k => { if (S.profile[k]) more[k] = S.profile[k]; }); const live = { walkTimer: S.walkTimer, meditationTimer: S.meditationTimer, sleepTimer: S.sleepTimer }; S = migrate(j); Object.assign(S, live); AI_KEYS.forEach(k => delete S.profile[k]); if (key) S.profile.geminiKey = key; Object.assign(S.profile, more); delete S.needsWelcome; S.profile.setupDone = true; S.profile.onboardedV = 1;
   saveNow(); closeSheet(true); restoreCandidate = null; go('today'); toast('Backup restored.');
 });
 function backupHtml() {
-  return `<div class="stack">${backBar('You', 'you-home')}<h1>Backup and restore</h1><p class="muted small">Everything lives on this phone. Download a backup every week or two, and always before changing phones or clearing the browser.</p>
+  return `<div class="stack">${backBar('You', 'you-home')}<h1>Backup and restore</h1><p class="muted small">${ACCT && ACCT.adopted && ACCT.syncOn !== false ? 'Your records live on this phone and, while sync is on, in your account. Sync is not a backup: a delete on one device is a delete on all of them.' : 'Everything lives on this phone.'} Download a backup every week or two, and always before changing phones or clearing the browser.</p>
   <div class="stack"><button class="btn primary big" data-a="backup-plain">Back up now</button><button class="btn" data-a="backup-enc">Download an encrypted backup</button><label class="btn filebtn">Restore from a backup file<input type="file" id="restore-file" accept=".json,.prakash,application/json,application/octet-stream"></label></div>
   <p class="tiny">Backups include photos and voice notes, but never your Gemini key.</p>
+  <p class="tiny">A plain backup can be read by anyone who gets the file. The encrypted one is the safer choice.</p>
   <section class="card stack" style="border-color:var(--danger-line)"><h2>Start fresh</h2><p class="muted small">Downloads a backup first, then clears your logs, photos and journal. Your settings stay.</p><button class="btn danger" data-a="fresh">Download a backup and start fresh</button></section></div>`;
 }
 on('fresh', async b => {
@@ -5309,13 +5753,16 @@ on('fresh', async b => {
 });
 async function freshStart() {
   const p = { ...S.profile }, mine = S.myStaples || []; S = defaults(); S.profile = Object.assign(S.profile, p); S.myStaples = mine; S.profile.setupDone = true; S.profile.onboardedV = 1;
-  await pclear(); await wclear(); try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(JOURNAL_DRAFT_KEY); } catch (e) {} draft = null; saveNow();
+  await pclear(); await wclear(); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} jdraftDel(); draft = null; saveNow();
 }
 function aboutHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>About Prakash</h1><p class="muted">Numbers as a mirror, not a judge.</p><p class="small">Prakash looks at the whole person: body, mind and heart, side by side.</p>
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
   <section class="card stack" style="gap:8px"><p class="small">Eat, move, sit, pray, listen, write. Six ways of looking at the same day. None of it is a course and none of it needs finishing.</p></section>
   <details class="fold card" style="padding:0 16px"><summary>What’s new</summary><ul class="small" style="padding-left:20px;margin:0 0 14px;display:flex;flex-direction:column;gap:6px">
+  <li>1.17.0, account and sync: you can sign in with Google to keep the same records on more than one device. It is optional and off until set up. The journal, moments, gratitude, weekly, reading and talk notes and your Stop note are encrypted on your phone with a key that only your 12 recovery words can restore. Food, movement and other logs sync as ordinary records. Photos and voice notes stay on the phone where they were made.</li>
+  <li>1.17.0, the whole mirror: the whole picture now includes food and its numbers, weight, waist, blood pressure, prayers and talks; Ask the mirror sees your stress, sleep, meal and symptom records; My record carries everything it says it does. New: Moments (a photo, a line or a few tags, in the moment) and a journal in two layers, everyday and deeper.</li>
+  <li>1.17.0, fixes: The week, looked back on opens again (two pages shared one name); the stretch timer’s Cancel works; a journal entry that has only the third answer shows it.</li>
   <li>1.15.0: the bottom bar now reads Today, Body, Mind, Heart and You. Body holds food and training (switch between Eat and Move at the top), Mind holds sitting and your journal, Heart holds prayers and talks. Every screen is where it was inside its group; the old Body page in You is now called Measurements. Also: after 14 days with records, a page called Your last two weeks lays the record side by side, with the days behind each number. If you chose goals in Whole picture it also offers a few options some people try, which you can swipe away for good. Each area has a list of things worth discussing with a professional, and you can make a summary for a doctor or pharmacist, or a plain record of the two weeks, on this phone. The words it uses are all in one readable list (How these are worked out). Nothing is sent anywhere and nothing you saved has changed.</li>
   <li>1.14.0: Prakash now looks at the whole person: body, mind and heart. A quick stress check-in, two optional taps on waking for how rested you feel, and how a meal felt, asked after you save it. Optional gut and menopause records, off until you turn them on in You > Whole picture. The numbers behind each food (protein, carbs, fat, fibre), and a folded Today card that shows the last seven days side by side. The Stop has plainer words. Everything is stored on this phone and included in your backup, and nothing you saved before has changed.</li>
   <li>1.13.3: Today puts whatever is asking for you now above the rings and folds the Energy card to one line. The Stop explains itself for your first three signals, Practice says what each part is for, and You is grouped. Your saved data is unchanged.</li>
@@ -5325,7 +5772,7 @@ function aboutHtml() {
   <li>1.12.0: training became your own plan. You answer a few questions, one AI request drafts a plan, you review it, and nothing changes until you choose Use this plan. Every saved workout stayed exactly as it was.</li></ul></details>
   <p class="small muted" style="margin:0">Not medical advice. If you train with a health condition, follow your clinician's guidance.</p><p class="tiny" style="text-align:center;margin-top:10px">Prakash · ${VERSION}</p></div>`;
 }
-R.you = function () { const v = view.you; return ({ fort: fortHtml, rules: rulesHtml, mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, lookup: lookupHtml, staples: staplesHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, whole: wholePageHtml, about: aboutHtml }[v] || youHome)(); };
+R.you = function () { const v = view.you; return ({ acct: acctHtml, fort: fortHtml, rules: rulesHtml, mirror: mirrorHtml, how: howHtml, units: unitsHtml, home: youHome, body: bodyHtml, bp: bpHtml, goals: goalsHtml, settings: settingsHtml, targets: goalsHtml, rhythm: goalsHtml, gemini: geminiHtml, moreai: moreAiHtml, lookup: lookupHtml, staples: staplesHtml, sections: sectionsHtml, music: musicHtml, backup: backupHtml, whole: wholePageHtml, about: aboutHtml }[v] || youHome)(); };
 /* ================= SETUP ================= */
 function ageOf(dob) { if (!dob) return null; const d = new Date(dob + 'T12:00:00'), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--; return a > 0 && a < 120 ? a : null; }
 function parseHeight(v) { const r = String(v || '').trim().toLowerCase().replace(/\s+/g, ''); if (!r) return null; let cm = null, m; if ((m = r.match(/^(\d+(?:\.\d+)?)cm$/))) cm = +m[1]; else if ((m = r.match(/^(\d)(?:'|ft|’)(\d+(?:\.\d+)?)?(?:"|in|”|'')?$/))) cm = (+m[1] * 12 + +(m[2] || 0)) * 2.54; else if (/^\d+(?:\.\d+)?$/.test(r)) { cm = +r; if (cm < 3) cm *= 100; } return cm >= 90 && cm <= 250 ? n1(cm) : null; }
@@ -5494,7 +5941,7 @@ applyTextSize();
 /* after an update: one quiet line, once */
 if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) setTimeout(() => toast('Prakash has been updated. What’s new is in You › About Prakash.', 6000), 1500);
 if (S.seenVersion !== VERSION) { S.seenVersion = VERSION; save(); }
-window.__pkHoldReload = () => !!draft || !!build || genBusy || !!pf || !!editPlan || !!(after && (after.ease.start || after.st)) || !!(mob && mob.timer.start) || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open') || !!$('#talk-layer');
+window.__pkHoldReload = () => !!draft || !!build || genBusy || !!pf || !!editPlan || !!(after && (after.ease.start || after.st)) || !!(mob && mob.timer.start) || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open') || !!$('#talk-layer') || !!acctUi.phrase || !!acctUi.busy;
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
 render();
 if (!S.profile.setupDone || S.needsWelcome || !S.profile.onboardedV) showSetup(0);
@@ -5507,6 +5954,7 @@ setInterval(checkStop, 30000);
 // a tapped Stop notification brings you to Today, where the Stop waits as a card; nothing opens full screen by itself
 function stopFromNotice() { if (!stopPending()) { T().stop = { ix: Math.floor(Math.random() * STOP_FORMS.length), at: Date.now() }; save(); } if (!stopBusy()) go('today'); }
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'show-stop') stopFromNotice(); });
+acctBoot();
 if (/[?&]stop=1/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTimeout(stopFromNotice, 300); }
 </script>
 <script>
