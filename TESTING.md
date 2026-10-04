@@ -1,3 +1,14 @@
+# Testing 1.19.1 (the pause) on top of 1.19.0
+
+1.19.1: with a Stop pending and a schedule due, nothing appears on Today and no notification is sent; no notifications ask in You; Sit › Through the day › A pause opens the overlay with the new wording and counts one when you leave it. Syntax and 412 px layout unchanged.
+
+# Testing 1.19.0 (polish pass)
+
+Run on 1.19.0 at 412 px from a seeded 1.18.0 data set (days, moments, a journal entry, a heard talk, a half-played talk): all present after the upgrade. Checked: Eat add sheet heading; Write with the food question last (both layers) and the entry list; the six new moment feelings (same size, save and show); one prayer card at 22:00, 08:30 and 12:15 with the lamp unlit; setup Skip; Account and sync as a visitor while sign-in is still starting; the update card opens Moments, then goes; a played talk shows in the week looked back on, and talks marked heard before 1.19 are still counted; pointers fire only on a real pattern (none for a new user) and Leave it hides one for the week; no horizontal overflow on Today, Eat, Body, Write, Listen, You or Account. `node --test test/crypto.test.mjs test/sync.test.mjs`: 23 pass. Feature diff against 1.18.0: nothing removed except the two renamed icon files.
+Not run: offline reload of the installed web app (the test browser will not register the service worker; the cache list was checked against the files), a real phone, real sign-in.
+
+---
+
 # Testing 1.17.0 (including 1.15.1 and 1.16.0)
 
 Throwaway data only. Test phrases are random and thrown away. Nothing here was run against your Firebase project or your Google account.

@@ -2,8 +2,8 @@
 // Network first with a 2-second fallback to the saved copy, so updates show quickly and
 // a weak signal never leaves a blank screen. Only old Prakash caches are removed;
 // localStorage and IndexedDB (your data) are never touched.
-const CACHE = 'prakash-1.18.0';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './prakash-om-favicon.png', './prakash-om-192.png', './prakash-om-512.png',
+const CACHE = 'prakash-1.19.1';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './prakash-diya-favicon.png', './prakash-diya-192.png', './prakash-diya-512.png',
   // 1.17.0: sync and journal-encryption modules, cached so the journal opens offline. Network first, so config edits show up.
   './firebase-config.js', './prakash-crypto.js', './prakash-kdf-worker.js', './prakash-sync.js', './prakash-auth.js', './prakash-account.js', './vendor/argon2.umd.min.js', './vendor/bip39-english.js'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())));

@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-title" content="Prakash">
 <title>Prakash</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="64x64" href="prakash-om-favicon.png">
-<link rel="apple-touch-icon" sizes="192x192" href="prakash-om-192.png">
+<link rel="icon" type="image/png" sizes="64x64" href="prakash-diya-favicon.png">
+<link rel="apple-touch-icon" sizes="192x192" href="prakash-diya-192.png">
 <style>
 :root{
   --page:#121615;--card:#1c2220;--card2:#171c1a;--raise:#252d2a;--sel:#35403c;
@@ -350,7 +350,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.18.0';
+const VERSION = '1.19.1';
 const KEY = 'sadhana-v1';            // kept so existing data carries over (the guest workspace)
 /* 1.17.0: a signed-in account has its own workspace on this phone, beside the guest one. Guest data is never overwritten by it. */
 const WS_KEY = 'prakash-ws-active', ACCT_PREFIX = 'prakash-acct-';
@@ -438,7 +438,7 @@ function defaults() {
     days: {}, weights: [], waists: [], photos: [], workouts: [], meditations: [],
     bloodPressures: [], moments: [], events: [], foodFavourites: [], dishes: [], foundFoods: [], myStaples: [],
     witness: { entries: [], readings: [] },
-    talks: { heard: {}, themes: {}, notes: {} },
+    talks: { heard: {}, themes: {}, notes: {}, listens: [] },
     remember: { on: true, from: '08:00', to: '22:00', schedule: null, waitNote: '' },
     walkTimer: { startedAt: null }, meditationTimer: { startedAt: null }, sleepTimer: { startedAt: null },
     todayOnly: null, photoReminder: { on: false },
@@ -471,8 +471,10 @@ function migrate(s) {
   s.witness.entries = s.witness.entries.filter(e => e && (validDate(e.created) || ['direct', 'story', 'nextStep', 'wonder'].some(k => String(e[k] || '').trim())));
   if (!s.talks) s.talks = { heard: {}, themes: {}, notes: {} };
   ['heard', 'themes', 'notes'].forEach(k => { if (!s.talks[k]) s.talks[k] = {}; });
+  if (!Array.isArray(s.talks.listens)) s.talks.listens = [];   // 1.19: plain record of which talk was played, and when
   // talks that moved address: what was heard, noted or renamed follows the talk
   if (typeof TALK_MOVES !== 'undefined') ['heard', 'themes', 'notes', 'titles', 'pos'].forEach(k => { const o = s.talks[k]; if (!o) return; Object.keys(TALK_MOVES).forEach(from => { if (o[from] !== undefined) { if (o[TALK_MOVES[from]] === undefined) o[TALK_MOVES[from]] = o[from]; delete o[from]; } }); });
+  if (typeof TALK_MOVES !== 'undefined') s.talks.listens.forEach(x => { if (x && TALK_MOVES[x.url]) x.url = TALK_MOVES[x.url]; });
   // 1.7: a calorie target nobody chose (the old 1,700 default left by "Skip for now") becomes "not set yet"
   if (!was17) { const p = s.profile; if (+p.kcalTarget === 1700 && !p.dob && !p.heightCm && !p.kcalSet) p.kcalTarget = null; p.v17 = 1; }
   // Gemini auth keys start with 'AQ.'; earlier versions saved them without the dot, so ask for the key again
@@ -626,7 +628,7 @@ function bodySwitchIn(html) {
   const m = mods(), both = m.food && m.train;
   const on = (tab === 'food' && view.food === 'day') ? 'food' : (tab === 'train' && view.train === 'home' && !(draft && !woAway)) ? 'train' : null; if (!on) return html;
   const sw = `<h1>Body</h1>${both ? `<nav class="seg" aria-label="Body">${[['food', 'Eat'], ['train', 'Move']].map(x => `<button data-a="body-sw" data-v="${x[0]}" aria-current="${on === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>` : ''}`;
-  return html.replace(on === 'food' ? '<h1>Food</h1>' : '<h1>Train</h1>', sw + BODY_RECORDS);
+  return html.replace(on === 'food' ? '<h1>Eat</h1>' : '<h1>Move</h1>', sw + BODY_RECORDS);
 }
 on('body-sw', b => { tabHome(b.dataset.v); go(b.dataset.v); });
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (!b) return; const t = b.dataset.tab, tg = navTarget(t); const keep = view.practice; tabHome(tg); if (tg === 'practice') view.practice = keep; go(tg); });
@@ -1221,10 +1223,10 @@ function lighterPreview(p) {
 }
 
 const STOP_FORMS = [
-  { word: 'Stop.', line: 'Just for a moment.' },
-  { word: 'Notice where you are.', line: 'Notice this breath.' },
-  { word: 'Come back to yourself.', line: 'This moment is enough.' },
-  { word: 'Nothing to do right now.', line: 'Just be here.' }];
+  { word: 'A pause.', line: 'It is here if you want it.' },
+  { word: 'This breath.', line: 'Notice it, if you like.' },
+  { word: 'Here.', line: 'This moment is enough, if you want it to be.' },
+  { word: 'Nothing to do right now.', line: 'You can just be here.' }];   // 1.19.1: statements and open offers, never commands
 const ANGER_STEPS = ["Don't express it. Not yet.", 'Sense your body. Where is it: jaw, chest, hands?', 'It is anger. You are the one seeing it.'];
 const WITNESS_TAGS = ['recognition', 'direct knowing', 'seer and ego', 'Shiva and Shakti', 'nobody · nothing · wanting nothing', 'Gauri Shankar', 'Om', 'gratitude'];
 const GS_DEFAULT = 'https://open.spotify.com/album/6V3RwoUa3HVKssuLQe0zBK';
@@ -1372,7 +1374,7 @@ function energyHtml(k) {
     const d = peekDay(k) || {}, steps = +d.steps || 0, walk = +d.walkMin || 0, wm = S.workouts.filter(w => w.date === k).reduce((a, w) => a + (+w.durationMin || 0), 0);
     const moved = [steps ? big(steps) + ' steps' : walk ? walk + ' min walking' : '', wm ? wm + ' min training' : ''].filter(Boolean).join(' · ') || 'nothing logged';
     return `<section class="card stack" style="gap:4px" aria-label="Energy in and out"><h2 style="font-size:20px">Energy in and out</h2>
-  <div class="facts"><div class="fact"><span>Food</span><strong>${e.logged ? big(e.in) + ' kcal' : 'nothing logged'}</strong></div><div class="fact"><span>Steps and training</span><strong style="font-weight:500">${esc(moved)}</strong></div></div>
+  <div class="facts"><div class="fact"><span>Eat</span><strong>${e.logged ? big(e.in) + ' kcal' : 'nothing logged'}</strong></div><div class="fact"><span>Steps and training</span><strong style="font-weight:500">${esc(moved)}</strong></div></div>
   <button class="link" data-a="energy-how" style="align-self:flex-start;padding:0">How this is worked out</button></section>`;
   }
   return `<section class="card stack" style="gap:4px" aria-label="Energy in and out"><h2 style="font-size:20px">Energy in and out</h2>
@@ -1482,11 +1484,13 @@ function chaiHtml() {
   return `<section class="card chai-card" aria-label="Morning chai"><div><h2>Morning chai</h2><p class="muted">One cup, taken slowly.</p></div><button class="btn primary" data-a="chai">Have my chai</button></section>`;
 }
 function nowHtml() {
-  const sp = stopPending(); return (sp ? stopCardHtml(sp) : '') + nowCardHtml();
+  return nowCardHtml();   // 1.19.1: the Stop no longer comes to you as a card; the pause is opened by you, in Sit
 }
 function stopCardHtml(sp) {
   { const f = STOP_FORMS[sp.ix]; return `<section class="card now stop-card stack" aria-label="The Stop" style="gap:10px;text-align:center;padding:28px 18px"><span class="eyebrow">The Stop · ${fmtTime(sp.at)}</span><button class="stop-open" data-a="stop-open" aria-label="Open the Stop full screen"><span style="display:block;font-family:var(--serif);font-size:40px;line-height:1.1">${esc(f.word)}</span><span class="muted" style="display:block;margin-top:10px">${esc(f.line)}</span></button><button class="stop-leave" data-a="stop-card-leave" style="margin:0;align-self:center">leave</button></section>`; }
 }
+/* one prayer card at a time: when the Now card is itself a prayer, the lamp-first card waits */
+function nowIsPrayer() { const c = nowCard(); return !!(c && c.prayer); }
 function nowCardHtml() {
   const c = nowCard(); if (!c) return '';
   return `<section class="card now stack" aria-label="Now" style="gap:10px"><span class="eyebrow">${esc(c.eyebrow)}</span><h2>${esc(c.title)}</h2>${c.body ? `<p class="${c.prayer ? 'prayer-text' : 'muted'}" style="${c.prayer ? 'font-size:18px' : ''}">${esc(c.body)}</p>` : ''}
@@ -1656,10 +1660,10 @@ function entryMacros(f) {
   if (+f.fibre > 0) bits.push(pre + n0(f.fibre) + ' g fibre');
   return bits.join(' · ') || (+f.kcal > 0 ? 'no macro numbers' : '');
 }
-function macroTotalsHtml(d, tot) {
+function macroTotalsHtml(d, tot, noProtein) {
   const real = (d.foods || []).filter(f => +f.kcal > 0), bare = real.filter(f => !(+f.protein > 0 || +f.carbs > 0 || +f.fat > 0 || +f.fibre > 0)).length;
   if (!real.length) return '';
-  const bits = [n0(tot.protein) + ' g protein', n0(tot.carbs) + ' g carbs', n0(tot.fat) + ' g fat', n0(tot.fibre) + ' g fibre'];
+  const bits = [noProtein ? '' : n0(tot.protein) + ' g protein', n0(tot.carbs) + ' g carbs', n0(tot.fat) + ' g fat', n0(tot.fibre) + ' g fibre'].filter(Boolean);
   return `<div class="tiny" style="margin-top:2px">${bits.join(' · ')}${bare ? ` · ${wPlural(bare, 'entry').replace('entrys', 'entries')} without macro numbers` : ''}</div>`;
 }
 
@@ -1692,15 +1696,15 @@ function wholeFacts(days, D) {
   if (areaOn('meno')) { const cnt = {}; let any = 0; ks.forEach(k => { const r = menoRec(k); const has = Object.keys(r).length; if (has) any++; Object.keys(r).forEach(s => { if (r[s] > 0) cnt[s] = (cnt[s] || 0) + 1; }); }); const bits = MENO_SYMPTOMS.filter(s => cnt[s[0]]).map(s => s[1].toLowerCase() + ' ' + wPlural(cnt[s[0]], 'day')); row('Symptoms', any ? (bits.join(' · ') || 'none noted') : 'not yet', any ? wPlural(any, 'day') + ' checked' : ''); }
   { // 1.16.0: the rest of what is recorded
     const fd = ks.map(k => { const d = peekDay(k); return d && realFoods(d).length ? Object.assign({ k }, totals(d)) : null; }).filter(x => x && x.kcal > 0);
-    if (fd.length) row('Food', 'calories average ' + big(wAvg(fd.map(x => x.kcal))), [wPlural(fd.length, 'day') + ' of ' + ks.length + ' with food', 'protein ' + n0(wAvg(fd.map(x => x.protein))) + ' g', 'carbs ' + n0(wAvg(fd.map(x => x.carbs))) + ' g', 'fat ' + n0(wAvg(fd.map(x => x.fat))) + ' g', 'fibre ' + n0(wAvg(fd.map(x => x.fibre))) + ' g'].join(' · '));
+    if (fd.length) row('Eat', 'calories average ' + big(wAvg(fd.map(x => x.kcal))), [wPlural(fd.length, 'day') + ' of ' + ks.length + ' with food', 'protein ' + n0(wAvg(fd.map(x => x.protein))) + ' g', 'carbs ' + n0(wAvg(fd.map(x => x.carbs))) + ' g', 'fat ' + n0(wAvg(fd.map(x => x.fat))) + ' g', 'fibre ' + n0(wAvg(fd.map(x => x.fibre))) + ' g'].join(' · '));
     const wt = S.weights.filter(x => ks.includes(x.date) && +x.kg > 0).sort((a, b) => a.date < b.date ? -1 : 1);
     if (wt.length) row('Weight', wShow(wt[wt.length - 1].kg), wPlural(wt.length, 'weigh-in') + (wt.length > 1 ? ' · first in this period ' + wShow(wt[0].kg) : ''));
     const wa = S.waists.filter(x => ks.includes(x.date) && +x.cm > 0).sort((a, b) => a.date < b.date ? -1 : 1);
     if (wa.length) row('Waist', waistShow(wa[wa.length - 1].cm), wPlural(wa.length, 'measurement') + (wa.length > 1 ? ' · first in this period ' + waistShow(wa[0].cm) : ''));
     const bp = S.bloodPressures.filter(x => { try { return ks.includes(keyOf(new Date(x.at))); } catch (e) { return false; } });
     if (bp.length) { const m = bpMean(bp); row('Blood pressure', 'average ' + m.sys + '/' + m.dia, wPlural(bp.length, 'reading') + ' · pulse average ' + m.pulse); }
-    const pr = ks.reduce((a, k) => a + (+((peekDay(k) || {}).prayers) || 0), 0), prDays = ks.filter(k => +((peekDay(k) || {}).prayers) > 0).length, tk = Object.values(S.talks.heard || {}).filter(dd => ks.includes(dd)).length;
-    if (pr || tk) row('Prayers and talks', [pr ? wPlural(pr, 'prayer') + ' on ' + wPlural(prDays, 'day') : '', tk ? wPlural(tk, 'talk') + ' heard' : ''].filter(Boolean).join(' · '), 'of ' + ks.length + ' days');
+    const pr = ks.reduce((a, k) => a + (+((peekDay(k) || {}).prayers) || 0), 0), prDays = ks.filter(k => +((peekDay(k) || {}).prayers) > 0).length, tk = talkWeekFacts(ks).talks.length;
+    if (pr || tk) row('Prayers and talks', [pr ? wPlural(pr, 'prayer') + ' on ' + wPlural(prDays, 'day') : '', tk ? wPlural(tk, 'talk') + ' listened to' : ''].filter(Boolean).join(' · '), 'of ' + ks.length + ' days');
     const mo = (S.moments || []).filter(m => ks.includes(m.date)); if (mo.length) row('Moments', wPlural(mo.length, 'moment'), 'on ' + wPlural(new Set(mo.map(m => m.date)).size, 'day'));
   }
   return rows;
@@ -2045,7 +2049,7 @@ function fortRowSummary() { const n = recordDayCount(); return n >= FORT_MIN ? '
    photos, and travel in the backup. No streaks, no counts shown as a score. */
 const MOM_WHO = [['alone', 'On my own'], ['family', 'Family'], ['partner', 'My partner'], ['children', 'Children'], ['friends', 'Friends'], ['colleagues', 'Colleagues']];
 const MOM_WHERE = [['home', 'Home'], ['outside', 'Outside'], ['work', 'Work'], ['travelling', 'Travelling'], ['new', 'Somewhere new'], ['quiet', 'A quiet place']];
-const MOM_FELT = [['warm', 'Warm'], ['joyful', 'Joyful'], ['calm', 'Calm'], ['grateful', 'Grateful'], ['moved', 'Moved'], ['playful', 'Playful']];
+const MOM_FELT = [['warm', 'Warm'], ['joyful', 'Joyful'], ['calm', 'Calm'], ['grateful', 'Grateful'], ['moved', 'Moved'], ['playful', 'Playful'], ['sad', 'Sad'], ['angry', 'Angry'], ['afraid', 'Afraid'], ['lonely', 'Lonely'], ['tired', 'Tired'], ['restless', 'Restless']];
 let momDraft = null;   // the moment being added or changed: { id|null, date, text, who, where, felt, photo (data URL) | photoId }
 const momById = id => (S.moments || []).find(m => m.id === id) || null;
 function momTags(m) { return [].concat((m.who || []).map(c => wLabel(MOM_WHO, c)), (m.where || []).map(c => wLabel(MOM_WHERE, c)), (m.felt || []).map(c => wLabel(MOM_FELT, c))); }
@@ -2108,7 +2112,7 @@ function momentsPlaybackHtml(keys, limit) {
 }
 function momentsPageHtml() {
   const l = S.moments || [];
-  return `${backBar('Journal', 'j-home')}<h2>Moments</h2><p class="muted small">What just happened, kept in a line, a photo or a few tags.</p><button class="btn primary big" data-a="mom-new">Keep a moment</button>${l.length ? `<section class="card stack" style="gap:0">${l.map(m => momCardHtml(m, false)).join('')}</section>` : '<p class="tiny">Nothing yet.</p>'}`;
+  return `${backBar('Write', 'j-home')}<h2>Moments</h2><p class="muted small">What just happened, kept in a line, a photo or a few tags.</p><button class="btn primary big" data-a="mom-new">Keep a moment</button>${l.length ? `<section class="card stack" style="gap:0">${l.map(m => momCardHtml(m, false)).join('')}</section>` : '<p class="tiny">Nothing yet.</p>'}`;
 }
 
 /* ---------- 1.18.0: where a moment or entry was kept (optional, off until you turn it on) ----------
@@ -2177,6 +2181,7 @@ function recordDayLines(k) {
   S.weights.filter(w => w.date === k).forEach(w => sub('weight ' + wShow(w.kg))); S.waists.filter(w => w.date === k).forEach(w => sub('waist ' + waistShow(w.cm)));
   S.bloodPressures.filter(x => { try { return keyOf(new Date(x.at)) === k; } catch (e) { return false; } }).forEach(x => sub('blood pressure ' + x.sys + '/' + x.dia + ', pulse ' + x.pulse + (x.note ? ' · ' + x.note : '')));
   Object.entries(S.talks.heard || {}).filter(([u, dd]) => dd === k).forEach(([u]) => sub('talk heard: ' + (talkTitle(u) || u)));
+  (S.talks.listens || []).filter(x => x.date === k).forEach(x => sub('talk played: ' + (talkTitle(x.url) || x.url) + ' · ' + fmtTime(Date.parse(x.at))));
   (S.moments || []).filter(m => m.date === k).forEach(m => sub('moment: ' + [m.text, momTags(m).join(', ')].filter(Boolean).join(' · ') + (m.photoId ? ' (with a photo)' : '')));
   return out;
 }
@@ -2233,6 +2238,7 @@ function plainRecords() {
   S.meditations.forEach(x => x && add('meditation:' + (x.id || idHash(JSON.stringify(x))), 'meditation', x));
   const pr = {}; PROFILE_SYNC.forEach(k => { if (S.profile[k] !== undefined) pr[k] = S.profile[k]; }); add('profile', 'profile', pr);
   add('talksheard', 'talksheard', S.talks.heard || {});
+  if ((S.talks.listens || []).length) add('talklistens', 'talklistens', S.talks.listens);
   return m;
 }
 function journalRecords() {
@@ -2257,6 +2263,7 @@ function applyPlain(id, v) {
   else if (kind === 'meditation') upsert(S.meditations, x => (x.id || idHash(JSON.stringify(x))) === key, v);
   else if (kind === 'profile' && v) PROFILE_SYNC.forEach(k => { if (k in v.obj) S.profile[k] = v.obj[k]; });
   else if (kind === 'talksheard' && v) S.talks.heard = Object.assign({}, v.obj);
+  else if (kind === 'talklistens' && v && Array.isArray(v.obj)) { const L = S.talks.listens = S.talks.listens || [], have = new Set(L.map(x => x.url + ' ' + x.at)); v.obj.forEach(x => { if (x && x.url && x.at && !have.has(x.url + ' ' + x.at)) L.push(x); }); L.sort((a, b) => a.at < b.at ? -1 : 1); }   // merged, never replaced: a play on this phone stays
 }
 function applyJournal(id, v) {
   const [kind, key] = splitId(id);
@@ -2350,7 +2357,7 @@ async function acctWarm() {
 }
 function acctRefresh() { if (tab === 'you' && view.you === 'acct' && !document.querySelector('.sheet')) { const a = document.activeElement; if (a && /TEXTAREA|INPUT/.test(a.tagName)) return; render(); } else if (tab === 'you' && view.you === 'home') render(); }
 function acctRowSummary() {
-  if (!ACCT || !ACCT.adopted) return 'Optional. Your records stay on this phone';
+  if (!ACCT || !ACCT.adopted) return 'Local only. Your records stay on this phone';
   const s = SYNCSTAT.state; return ACCT.email + ' · ' + (journalLocked() ? 'journal locked' : s === 'idle' ? 'in sync' : s === 'syncing' ? 'syncing' : s === 'offline' ? 'offline, saved here' : s === 'error' ? 'needs attention' : s === 'othertab' ? 'syncing in another tab' : s === 'signin' ? 'sign in again' : 'sync off');
 }
 const agoText = ms => { if (!ms) return 'not yet'; const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : fmtDay(keyOf(new Date(ms))); };
@@ -2361,9 +2368,12 @@ function acctHtml() {
   const cover = `<section class="card stack" style="gap:8px"><h2>What sync does</h2><p class="small">${esc(SYNC_COVERS.enc)}</p><p class="small">${esc(SYNC_COVERS.plain)}</p><p class="small">${esc(SYNC_COVERS.local)}</p><p class="tiny">Google handles the sign-in and stores the synced records. Sync is not a backup: a delete on one device is a delete on all of them. Keep downloading backups.</p></section>`;
   if (CFG === 'none') return `<div class="stack">${back}${head}<section class="card stack"><p>Sync is not set up in this copy of Prakash. Everything works on this phone.</p><p class="small muted">Setting it up needs a Firebase project and its web configuration. The steps are in SYNC-README.md.</p></section>${cover}</div>`;
   if (CFG === 'offline') return `<div class="stack">${back}${head}<section class="card stack"><p>Sync could not start because there is no connection, or the sign-in service could not be reached. Everything works on this phone.</p></section>${cover}</div>`;
-  if (CFG !== 'ok') return `<div class="stack">${back}${head}<p class="muted">Getting ready…</p></div>`;
+  if (CFG !== 'ok') {   // still starting up: say what is true now, instead of waiting on the sign-in service
+    if (ACCT && ACCT.adopted) return `<div class="stack">${back}${head}<section class="card stack"><p>Signed in as <strong>${esc(ACCT.email)}</strong>.</p><p class="small muted">Sync is starting. Everything is saved on this phone.</p></section>${cover}</div>`;
+    return `<div class="stack">${back}${head}<section class="card stack"><p><strong>Local only.</strong></p><p class="small">Your records stay on this phone. Prakash works fully without an account.</p><button class="btn" data-a="acct-signin">Sign in with Google</button><p class="tiny">Sign-in is for keeping the same records on more than one device.</p></section>${cover}</div>`;
+  }
   if (!ACCT || !ACCT.adopted) {
-    if (!FBU) return `<div class="stack">${back}${head}<section class="card stack"><p>Optional. Sign in with Google to keep the same records on more than one device. Prakash works fully without it.</p><button class="btn primary big" data-a="acct-signin">Sign in with Google</button>${acctUi.err ? `<p class="small">${esc(acctUi.err)}</p>` : ''}<p class="tiny">${isNativeApp2() ? 'Google’s sign-in sheet opens on your phone.' : 'If a sign-in window does not open, open Prakash in your normal browser (Chrome or Safari) and try there.'}</p></section>${cover}</div>`;
+    if (!FBU) return `<div class="stack">${back}${head}<section class="card stack"><p><strong>Local only.</strong></p><p>Optional. Sign in with Google to keep the same records on more than one device. Prakash works fully without it.</p><button class="btn primary big" data-a="acct-signin">Sign in with Google</button>${acctUi.err ? `<p class="small">${esc(acctUi.err)}</p>` : ''}<p class="tiny">${isNativeApp2() ? 'Google’s sign-in sheet opens on your phone.' : 'If a sign-in window does not open, open Prakash in your normal browser (Chrome or Safari) and try there.'}</p></section>${cover}</div>`;
     const n = recordDayCount();
     return `<div class="stack">${back}${head}<section class="card stack"><p>Signed in as <strong>${esc(FBU.email)}</strong>.</p><p class="small">Use this account and sync these records? What is on this phone now (${wPlural(n, 'day')} with a record${S.witness.entries.length + (S.moments || []).length ? ', ' + wPlural(S.witness.entries.length, 'journal entry').replace('entrys', 'entries') + ' and ' + wPlural((S.moments || []).length, 'moment') : ''}) moves into this account’s own workspace on this phone. If the account already holds records from another device, they are merged; where the same record differs, the cloud version is used and this phone’s version is kept aside for you to see.</p><button class="btn primary big" data-a="acct-adopt">Use this account and sync these records</button><button class="btn" data-a="acct-local">Keep this phone local only</button></section>${cover}</div>`;
   }
@@ -2496,11 +2506,14 @@ function lookStepHtml() {
   return `<span class="diya" aria-pressed="true" style="padding:0;justify-content:flex-start">${diyaSvg(56)}</span><h1 style="font-size:26px">The whole picture</h1><p class="muted">Prakash looks at the whole person: body, mind and heart. Two optional questions. Skip them if you like; you can change everything later in You.</p>
   <section class="stack" style="gap:8px"><h2 style="font-size:19px">What would you like to look at?</h2><div class="chips" role="group" aria-label="Goals">${GOAL_CHIPS.map(c => wChip('su-goal', `data-g="${c[0]}"`, c[1], goals.includes(c[0]))).join('')}</div></section>
   <section class="stack" style="gap:8px"><h2 style="font-size:19px">Anything you would like to keep an eye on?</h2><div class="chips" role="group" aria-label="Areas">${AREA_CHIPS.map(c => wChip('su-area', `data-area="${c[0]}"`, c[1], areaOn(c[0]))).join('')}</div></section>
-  <div class="btns" style="margin-top:8px"><button class="btn" data-a="su-look-back">Back</button><button class="btn primary big" data-a="su-light">Light the lamp</button></div>`;
+  <div class="btns" style="margin-top:8px"><button class="btn" data-a="su-look-back">Back</button><button class="btn primary big" data-a="su-light">Light the lamp</button></div>
+  <button class="btn ghost" data-a="su-look-skip">Skip these two</button>`;
 }
 on('su-goal', b => { const g = S.profile.goals = S.profile.goals || [], c = b.dataset.g, i = g.indexOf(c); if (i < 0) g.push(c); else g.splice(i, 1); save(); showSetup(); });
 on('su-area', b => { const a = S.profile.areas = S.profile.areas || {}, c = b.dataset.area; a[c] = !a[c]; save(); showSetup(); });
 on('su-look-back', () => showSetup(0));
+/* Skip: the two questions are left unanswered (anything ticked here is put back), and the day opens as usual */
+on('su-look-skip', () => { const p = S.profile; p.goals = []; p.areas = { stress: false, gut: false, meno: false }; save(); const t = T(); t.lamp = true; if (mods().spiritual) t.prayers.wake = t.prayers.wake || new Date().toISOString(); finishSetup(); bell(528, 2.5); });
 on('su-first-next', () => {
   const p = S.profile, kg = readWeight('su-kg'), wake = ($('#su-wake') || {}).value;
   if (kg != null) { if (kg < 20 || kg > 400) { toast('Enter your weight, or leave it empty.'); return; } S.weights = S.weights.filter(w => w.date !== todayKey()); S.weights.push({ date: todayKey(), kg: n1(kg) }); }
@@ -2538,20 +2551,65 @@ function youGroupRows(rows) {
   return `<div>${out}</div>`;
 }
 /* Practice: one plain line saying what each section is for. */
-const PRACTICE_CAPTIONS = { sit: 'Timed meditations, or sit with no goal.', listen: 'Osho’s talks, by theme or by series.', write: 'Your journal and moments. What you type stays on this phone. If you speak into a box, your phone’s speech service may process the audio.' };
-function practiceCaption(v) { if (v === 'write' && journalOn()) return '<p class="tiny" style="margin:2px 2px 0">Your journal and moments are encrypted on this phone before they sync. If you speak into a box, your phone’s speech service may process the audio.</p>'; return PRACTICE_CAPTIONS[v] ? `<p class="tiny" style="margin:2px 2px 0">${PRACTICE_CAPTIONS[v]}</p>` : ''; }
+const PRACTICE_CAPTIONS = { sit: 'Timed meditations, or sit with no goal.', listen: 'Osho’s talks, by theme or by series.', write: 'Your journal and moments. What you type stays on this phone.' };
+function practiceCaption(v) { if (v === 'write' && journalOn()) return '<p class="tiny" style="margin:2px 2px 0">Your journal and moments are encrypted on this phone before they sync.</p>'; return PRACTICE_CAPTIONS[v] ? `<p class="tiny" style="margin:2px 2px 0">${PRACTICE_CAPTIONS[v]}</p>` : ''; }
+/* ---------- 1.19: a gentle pointer ----------
+   Now and then the record shows something plain. Then, and only then, one quiet line says it in ordinary words and leaves an open offer.
+   Facts come only from your own record. No targets, no streaks, no comparing you to a number or to anyone, no "should", no colour, no question,
+   nothing pushed to your phone. At most one is shown at a time. If nothing is worth seeing, nothing is shown. "Leave it" hides it for the week. */
+const PTR_HEAVY = ['sad', 'angry', 'afraid', 'lonely', 'tired', 'restless'], PTR_REASONS = ['Habit', 'Feeling', 'Bored'];
+const ptrNum = n => ({ 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven' })[n] || String(n);
+function pointerFor(keys, today) {
+  keys = keys.filter(k => k < todayKey()); if (keys.length < 5 || !mods().mind) return null;
+  const span = today ? 'over the last seven days' : 'this week';
+  const used = keys.filter(k => { const d = peekDay(k); return d && !dayIsBlank(d); }).length;
+  // a sit that was there before and was not there for most of these days
+  const noSit = keys.filter(k => !S.meditations.some(m => m.date === k)).length, before = addDays(keys[0], -21);
+  if (used >= 4 && noSit >= 4 && S.meditations.some(m => m.date >= before && m.date < keys[0])) return { id: 'sit', text: today ? ptrNum(noSit) + ' of the last seven days had no sit. The 10-minute one is there if you want it.' : ptrNum(noSit) + ' days this week had no sit. The 10-minute one is there if you want it.', label: 'Open Sit' };
+  // the same heavy feeling kept in several moments
+  const mo = (S.moments || []).filter(m => keys.includes(m.date)), heavy = PTR_HEAVY.map(c => [c, mo.filter(m => (m.felt || []).includes(c)).length]).sort((a, b) => b[1] - a[1])[0];
+  if (heavy && heavy[1] >= 3) return { id: 'feel:' + heavy[0], text: wLabel(MOM_FELT, heavy[0]) + ' was kept in ' + heavy[1] + ' moments ' + span + '. Write is there if you want to put it down.', label: 'Open Write' };
+  // the same reason ticked on several foods
+  if (mods().food) {
+    const fs = keys.reduce((a, k) => a.concat(realFoods(peekDay(k) || { foods: [] })), []), r = PTR_REASONS.map(x => [x, fs.filter(f => f.trigger === x).length]).sort((a, b) => b[1] - a[1])[0];
+    if (r && r[1] >= 4) return { id: 'food:' + r[0], text: r[0] + ' was ticked on ' + r[1] + ' foods ' + span + '. The food question in Write is there if you want it.', label: 'Open Write' };
+  }
+  return null;
+}
+const ptrHidden = id => { const o = S.profile.pointerOff; return !!(o && o.week === mondayOf(todayKey()) && (o.ids || []).includes(id)); };
+function pointerHtml(keys, today) {
+  let c = null; try { c = pointerFor(keys, today); } catch (e) { c = null; }
+  if (!c || ptrHidden(c.id)) return '';
+  return `<section class="card stack ptr" style="gap:6px" aria-label="A note from your record"><p class="small" style="margin:0">${esc(c.text)}</p><div class="btns" style="gap:16px"><button class="link" data-a="ptr-go" data-id="${esc(c.id)}" style="padding:0">${esc(c.label)}</button><button class="link" data-a="ptr-off" data-id="${esc(c.id)}" style="padding:0;color:var(--ink3)">Leave it</button></div></section>`;
+}
+on('ptr-go', b => { if (b.dataset.id === 'sit') { go('practice', 'sit'); return; } journalMode = 'write'; journalLayer = 'everyday'; journalEdit = null; go('practice', 'write'); });
+on('ptr-off', b => { const wk = mondayOf(todayKey()), o = S.profile.pointerOff; S.profile.pointerOff = o && o.week === wk ? { week: wk, ids: [...new Set((o.ids || []).concat(b.dataset.id))] } : { week: wk, ids: [b.dataset.id] }; save(); render(); });
+/* the update card: once after an update, on Today. If the changed section can be reached, the whole card is a tap that
+   opens it and then dismisses the card; if it cannot (that section is switched off), the card is only a note and does not look tappable. */
+const UPDATE_CARDS = { '1.19.0': { text: 'Moments now has heavier feelings beside the pleasant ones.', can: () => mods().mind, open: () => { journalMode = 'moments'; journalEdit = null; go('practice', 'write'); } } };
+function updateCardHtml() {
+  const v = S.profile.updateCard; if (!v || v !== VERSION) return '';
+  const u = UPDATE_CARDS[v], tap = !!(u && u.can && u.can());
+  const body = `<span><span class="tiny" style="display:block">Prakash ${esc(v)}</span><strong>${esc(u ? u.text : 'Prakash has been updated.')}</strong><small class="tiny" style="display:block;margin-top:2px">${tap ? 'Tap to open it. ' : ''}All that’s new is in You › About Prakash.</small></span>`;
+  return tap ? `<button class="card now continue" data-a="upd-open" aria-label="Open what changed: ${esc(u.text)}">${body}<span aria-hidden="true" style="color:var(--ink3);font-size:24px">›</span></button>`
+    : `<section class="card now between" style="gap:10px" aria-label="Updated">${body}<button class="link" data-a="upd-dismiss">Dismiss</button></section>`;
+}
+on('upd-open', () => { const u = UPDATE_CARDS[S.profile.updateCard]; delete S.profile.updateCard; save(); if (u && u.open) u.open(); else render(); });
+on('upd-dismiss', () => { delete S.profile.updateCard; save(); render(); });
 R.today = function () {
   const k = todayKey(), d = day(k), t = totals(d), q = QUOTES[Math.floor(Date.now() / 864e5) % QUOTES.length];
   const left = (S.profile.kcalTarget || 0) - t.kcal;
   return `<div class="stack">
   <div class="top"><div><h1 style="font-size:28px;line-height:1.1">${fmtD(new Date())}</h1></div>
   ${T().lamp ? `<button class="diya" data-a="lamp" aria-pressed="true" aria-label="The lamp is lit for today. Tap to let it go out">${diyaSvg(46)}</button>` : ''}</div>
-  ${T().lamp ? '' : morningHtml()}
+  ${updateCardHtml()}
+  ${T().lamp || nowIsPrayer() ? '' : morningHtml()}
   ${chaiHtml()}
   ${closeOfferHtml()}
   ${nowHtml()}
   ${ringsHtml(k)}
   ${quietTodayHtml()}
+  ${pointerHtml(wLastDays(8).slice(0, 7), true)}
   ${mods().food ? energyFold(k) : ''}
   ${howAreYouHtml()}
   ${wholeMirrorHtml()}
@@ -2763,9 +2821,9 @@ function foodDayHtml() {
   if (silent) status = `<div class="okbox"><strong>Nothing logged this day</strong><p class="tiny" style="margin-top:4px">Nothing to log.${tgt('kcalTarget') ? ' The week counts it at your usual ' + big(p.kcalTarget) + '.' : ''}</p><button class="link" data-a="silent-off" style="padding:0">Log this day after all</button></div>`;
   else if (past && !real) status = `<p class="tiny">Not logged.${tgt('kcalTarget') ? ' The week counts it at your usual ' + big(p.kcalTarget) + '.' : ''} Add what you remember, or leave it.</p>`;
   return `<div class="stack">
-  <h1>Food</h1>
+  <h1>Eat</h1>
   ${weekStrip(k)}
-  <section class="card"><div class="between"><div><span class="tiny">${k === t ? 'Today' : fmtDay(k)}</span><div class="big-num">${big(tot.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div></div><div style="text-align:right">${showK() ? `<strong>${left >= 0 ? big(left) + ' left' : big(-left) + ' over'}</strong>` : tgt('kcalTarget') ? '' : '<span class="tiny">No calorie target yet</span>'}<div class="tiny">${n0(tot.protein)}${showP() ? ' of ' + p.proteinTarget : ''} g protein</div></div></div>${macroTotalsHtml(d, tot)}${proteinWhy()}<button class="link" data-a="how" style="padding:8px 0 0">${tgt('kcalTarget') ? 'How the target was worked out' : 'Set a calorie target'}</button></section>
+  <section class="card"><div class="between"><div><span class="tiny">${k === t ? 'Today' : fmtDay(k)}</span><div class="big-num">${big(tot.kcal)} <span style="font-size:17px;font-weight:400;color:var(--ink2)">calories</span></div></div><div style="text-align:right">${showK() ? `<strong>${left >= 0 ? big(left) + ' left' : big(-left) + ' over'}</strong>` : tgt('kcalTarget') ? '' : '<span class="tiny">No calorie target yet</span>'}<div class="tiny">${n0(tot.protein)}${showP() ? ' of ' + p.proteinTarget : ''} g protein</div></div></div>${macroTotalsHtml(d, tot, true)}${proteinWhy()}<button class="link" data-a="how" style="padding:8px 0 0">${tgt('kcalTarget') ? 'How the target was worked out' : 'Set a calorie target'}</button></section>
   ${silent ? '' : `<button class="btn primary big say-open" data-a="say-open" data-k="${k}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="margin-right:8px;vertical-align:-4px"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Say it</button>`}
   ${status}
   ${silent ? '' : MEALS.map(([sl, nm]) => { const fs = mealFoods(d, sl), kc = fs.reduce((n, f) => n + (+f.kcal || 0), 0); const y = peekDay(addDays(k, -1)); const hadY = y && mealFoods(y, sl).length && !fs.length;
@@ -2948,7 +3006,7 @@ function addRender() {
     h = addTop('Add to ' + nm) + `<div class="stack">
     ${a.added.length ? `<div class="okbox small">Added to ${nm}: ${esc(a.added.join(', '))}</div>` : ''}
     ${sayHtml()}
-    ${a.breath ? `<div class="pause" role="group" aria-labelledby="pause-q"><p id="pause-q" class="pause-q">One slow breath. What's asking for food? <span class="tiny">Optional</span></p><div class="chips">${REASONS.map(r => `<button class="chip" data-a="add-reason" data-r="${r}" aria-pressed="${a.reason === r}">${r}</button>`).join('')}</div></div>` : ''}
+    ${a.breath ? `<div class="pause" role="group" aria-labelledby="pause-q"><p id="pause-q" class="pause-q">One slow breath. This was: <span class="tiny">Optional</span></p><div class="chips">${REASONS.map(r => `<button class="chip" data-a="add-reason" data-r="${r}" aria-pressed="${a.reason === r}">${r}</button>`).join('')}</div></div>` : ''}
     <div class="seg${emptyTabs ? '' : ' hidden'}" id="add-tabs" role="tablist" aria-label="Food lists">${[['recent', 'Recent'], ['fav', 'Favourites'], ['dish', 'My dishes']].map(x => `<button role="tab" id="add-tab-${x[0]}" aria-controls="add-res" data-a="add-list" data-l="${x[0]}" aria-selected="${a.list === x[0]}" tabindex="${a.list === x[0] ? 0 : -1}">${x[1]}</button>`).join('')}</div>
     <div id="add-res"${emptyTabs ? ` role="tabpanel" aria-labelledby="add-tab-${a.list}"` : ''}>${addResultsHtml()}</div>
     </div>`;
@@ -3334,7 +3392,7 @@ function foodWeekHtml() {
   const wAvg = ks => { const w = S.weights.filter(x => ks.includes(x.date) && +x.kg > 0); return w.length ? n1(w.reduce((a, x) => a + +x.kg, 0) / w.length) : null; };
   const wThis = wAvg(wb.keys), wLast = wAvg(weekKeys(addDays(wb.keys[0], -1)));
   const list = arr => arr.length === 1 ? arr[0] : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
-  return `<div class="stack">${backBar('Food', 'food-back')}
+  return `<div class="stack">${backBar('Eat', 'food-back')}
   <div class="between"><button class="link" data-a="week-shift" data-n="-7" aria-label="Previous week">‹</button><h1 style="font-size:26px">${cur ? 'This week' : fmtDate(wb.keys[0]) + ' – ' + fmtDate(wb.keys[6])}</h1><button class="link" data-a="week-shift" data-n="7" aria-label="Next week" ${cur ? 'disabled style="visibility:hidden"' : ''}>›</button></div>
   ${!showK() ? `<section class="card"><div class="facts"><div class="fact"><span>Calories logged</span><strong>${big(wb.days.filter(x => ['logged', 'partly', 'today'].includes(x.status)).reduce((a, x) => a + x.eaten, 0))}</strong></div><div class="fact"><span>Days logged</span><strong>${wb.days.filter(x => ['logged', 'partly', 'today'].includes(x.status) && x.eaten > 0).length}</strong></div></div></section>` : `<section class="card"><div class="facts">
     <div class="fact"><span>Calories for the week</span><strong>${big(wb.target)}</strong></div>
@@ -3342,8 +3400,8 @@ function foodWeekHtml() {
     ${cur ? `<div class="fact"><span>Left for the week</span><strong>${big(wb.left)}</strong></div><div class="fact"><span>Each day, for the ${wb.daysLeft} day${wb.daysLeft === 1 ? '' : 's'} left</span><strong>about ${big(Math.max(0, wb.perDay))}</strong></div>` : `<div class="fact"><span>${wb.left >= 0 ? 'Under' : 'Over'} by</span><strong>${big(Math.abs(wb.left))}</strong></div>`}
   </div></section>`}
   ${weekBars(wb)}
-  ${missing.length && !!showK() ? `<p class="small">${list(missing)} ${missing.length === 1 ? "isn't" : "aren't"} logged, so ${missing.length === 1 ? "it's" : "they're"} counted at your usual ${big(p.kcalTarget)}. Tap a day in Food to fill it in.</p>` : ''}
-  ${partly.length && !!showK() ? `<p class="tiny">${list(partly)} may be missing a meal. Close the day in Food when it's all there.</p>` : ''}
+  ${missing.length && !!showK() ? `<p class="small">${list(missing)} ${missing.length === 1 ? "isn't" : "aren't"} logged, so ${missing.length === 1 ? "it's" : "they're"} counted at your usual ${big(p.kcalTarget)}. Tap a day in Eat to fill it in.</p>` : ''}
+  ${partly.length && !!showK() ? `<p class="tiny">${list(partly)} may be missing a meal. Close the day in Eat when it's all there.</p>` : ''}
   ${!!showK() && wb.days.some(x => x.status === 'none' && x.dk < st) ? `<p class="tiny">Days before you started with Prakash are counted at your usual ${big(p.kcalTarget)}.</p>` : ''}
   ${!showK() ? '' : '<p class="tiny">Solid bars: what you logged. Outlined: counted at your target. The dashes are each day\'s target.</p>'}
   <section class="card"><div class="facts">
@@ -3593,11 +3651,14 @@ ${list}` }], { schema: SAY_SCHEMA, onWait: () => { if (a.draft) { a.draft.msg = 
 }
 /* the device's own speech-to-text */
 let sayRec = null;
+/* the speech-service note is said once, at the first microphone tap, and not again */
+function micNoteOnce() { if (S.profile.micNoted) return; S.profile.micNoted = true; save(); toast('Your phone’s speech service turns speech into words. It may use Google or Apple, and may need the internet.', 7000); }
 on('say-here', () => { if (!ADD) return; ADD.mode = 'say'; ADD.breath = false; addRender(); });
 function micSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
 on('say-mic', b => {
   if (sayRec) { try { sayRec.stop(); } catch (e) {} return; }
   const R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R) return;
+  micNoteOnce();
   const r = new R(); sayRec = r; r.lang = 'en-GB'; r.interimResults = true; r.continuous = false;
   const box = $('#say-t') || $('#add-q'), before = box ? box.value.trim() : '', sayBox = !!box && box.id === 'say-t';
   b.setAttribute('aria-pressed', 'true'); b.querySelector('span').textContent = 'Listening…';
@@ -3752,7 +3813,7 @@ function dayByDayHtml(keys, q) {
   const stepWeek = sa == null ? '<p class="small muted" style="margin-top:8px">Week: nothing logged.</p>' : `<div class="stack" style="gap:2px;margin-top:8px"><p class="small" style="margin:0">Week avg ${big(sa)} <span class="muted">(over ${of(steps.length)})</span></p>
     ${sT ? `<p class="small muted" style="margin:0">Target ${big(sT)} · ${signed(Math.round(sa) - sT)} vs target</p>` : ''}</div>`;
   // the week's averages and targets already stand in Food and Moving above: the day lists stay lists
-  return `<section class="card stack" style="gap:4px" aria-label="Food, day by day"><h2>Food, day by day</h2><div class="facts">${foodRows}</div></section>
+  return `<section class="card stack" style="gap:4px" aria-label="Eat, day by day"><h2>Eat, day by day</h2><div class="facts">${foodRows}</div></section>
   <section class="card stack" style="gap:4px" aria-label="Steps, day by day"><h2>Steps, day by day</h2><div class="facts">${stepRows}</div></section>`;
 }
 /* The week in one view: every part of the practice side by side, as plain numbers.
@@ -3766,7 +3827,7 @@ function weekMirrorHtml(keys, q) {
   // food
   const fd = past.filter(k => ((peekDay(k) || {}).foods || []).length), fk = fd.length ? sum(fd, k => totals(peekDay(k)).kcal) / fd.length : null, fp = fd.length ? sum(fd, k => totals(peekDay(k)).protein) / fd.length : null;
   const kT = !q && tgt('kcalTarget'), pT = !q && tgt('proteinTarget');
-  if (mods().food) rows.push(row('Food', fd.length + ' of ' + n + (n === 1 ? ' day' : ' days') + ' logged', fk == null ? 'nothing logged' : 'avg ' + big(fk) + ' kcal · ' + n0(fp) + ' g protein' + (kT || pT ? '<br>' + [kT ? 'target ' + big(kT) + ' kcal (' + pct(fk, kT) + ')' : '', pT ? pT + ' g protein (' + pct(fp, pT) + ')' : ''].filter(Boolean).join(' · ') : '')));
+  if (mods().food) rows.push(row('Eat', fd.length + ' of ' + n + (n === 1 ? ' day' : ' days') + ' logged', fk == null ? 'nothing logged' : 'avg ' + big(fk) + ' kcal · ' + n0(fp) + ' g protein' + (kT || pT ? '<br>' + [kT ? 'target ' + big(kT) + ' kcal (' + pct(fk, kT) + ')' : '', pT ? pT + ' g protein (' + pct(fp, pT) + ')' : ''].filter(Boolean).join(' · ') : '')));
   // energy: in from the diary; out only as an estimate, and only when your details allow one. Days logged are stated.
   if (mods().food && fd.length) { const es = fd.map(k => energyDay(k)), ein = sum(es, e => e.in) / es.length, full = es.every(e => e.full), eout = full ? sum(es, e => e.out) / es.length : null;
     rows.push(row('Energy', fd.length + ' of ' + n + (n === 1 ? ' day' : ' days') + ' logged', 'avg in ' + big(ein) + ' kcal' + (full ? ' · out ~' + big(eout) + ' kcal (estimate)<br>difference ' + (ein - eout > 0 ? '+' : ein - eout < 0 ? '−' : '±') + big(Math.abs(ein - eout)) + ' a day, over the logged days' : '<br>out needs your ' + energyMissing().join(', ')))); }
@@ -3781,8 +3842,8 @@ function weekMirrorHtml(keys, q) {
   if (mods().mind) { const by = {}; meds.forEach(m => { const k = typeof sitName === 'function' ? sitName(m) : 'Sitting'; by[k] = (by[k] || 0) + 1; });
     rows.push(row('Meditation', meds.length ? meds.length + (meds.length === 1 ? ' sitting' : ' sittings') + ' · ' + mm + ' min' : 'nothing logged', [Object.entries(by).map(([k, v]) => k + ' ' + v).join(', '), stT ? 'target ' + stT + ' min a day = ' + stT * n + ' (' + pct(mm, stT * n) + ')' : ''].filter(Boolean).join('<br>'))); }
   // talks
-  const heard = Object.entries(S.talks.heard || {}).filter(([u, d]) => past.includes(d)).map(([u]) => u);
-  if (mods().spiritual || mods().mind) rows.push(row('Talks', heard.length ? heard.length + (heard.length === 1 ? ' talk heard' : ' talks heard') : 'none heard', heard.slice(0, 4).map(u => esc(talkTitle(u) || '')).filter(Boolean).join('<br>') + (heard.length > 4 ? '<br>and ' + (heard.length - 4) + ' more' : '')));
+  const tw = talkWeekFacts(past), heard = tw.talks;
+  if (mods().spiritual || mods().mind) rows.push(row('Talks', heard.length ? wPlural(heard.length, 'talk') + ' on ' + wPlural(tw.days, 'day') : 'none played', heard.slice(0, 4).map(u => esc(talkTitle(u) || '')).filter(Boolean).join('<br>') + (heard.length > 4 ? '<br>and ' + (heard.length - 4) + ' more' : '') + (tw.marked ? '<br>' + tw.marked + ' marked heard' : '')));
   // sleep
   const sl = days.filter(d => +d.sleep > 0).map(d => +d.sleep);
   rows.push(row('Sleep', sl.length ? 'avg ' + n1(sum(sl, x => x) / sl.length) + ' h' : 'nothing logged', sl.length ? 'over ' + sl.length + ' night' + (sl.length === 1 ? '' : 's') + (sl.length > 1 ? ' · shortest ' + n1(Math.min(...sl)) + ' h, longest ' + n1(Math.max(...sl)) + ' h' : '') : ''));
@@ -3795,12 +3856,13 @@ function weeklyReviewHtml() {
   const k = reviewWeek || todayKey(), f = weekFacts(k), q = !showK(), notes = weekNotes(), wk = mondayOf(k), prevNote = notes[addDays(wk, -7)], note = notes[wk];
   const row = (l, v) => `<div class="fact"><span>${l}</span><strong>${v}</strong></div>`, day = dk => WD[dateOf(dk).getDay()];
   const firstSunday = dateOf(k).getDay() === 0 && dateOf(k).getDate() <= 7;
-  return `<div class="stack">${backBar('Food', 'review-back')}
+  return `<div class="stack">${backBar('Eat', 'review-back')}
   <div class="between"><button class="link" data-a="review-shift" data-n="-7" aria-label="Week before">‹</button><h1 style="font-size:clamp(20px,5.6vw,26px);text-align:center;white-space:nowrap">The week, looked back on</h1><button class="link" data-a="review-shift" data-n="7" aria-label="Week after" ${addDays(k, 7) > todayKey() ? 'disabled style="visibility:hidden"' : ''}>›</button></div>
   <p class="muted small" style="text-align:center;margin-top:-6px">${fmtDate(f.keys[0])} to ${fmtDate(f.keys[6])}</p>
   ${prevNote && prevNote.text ? `<section class="card stack" style="gap:6px"><span class="eyebrow">Last week you wrote</span><p class="journal-q" style="font-size:18px">${esc(prevNote.text)}</p></section>` : ''}
   ${weekMirrorHtml(f.keys, q)}
-  <section class="card stack" style="gap:4px"><h2>Food</h2><div class="facts">
+  ${pointerHtml(f.keys, false)}
+  <section class="card stack" style="gap:4px"><h2>Eat</h2><div class="facts">
     ${row('Calories, a day on average', f.kcal != null ? big(f.kcal) + (q ? '' : '<span class="tiny" style="display:block;font-weight:400">of ' + big(f.target) + '</span>') : '-')}
     ${!q && f.bank != null ? row('Across the logged days', f.bank >= 0 ? big(f.bank) + ' over' : big(-f.bank) + ' under') : ''}
     ${row('Protein, a day on average', f.protein != null ? n0(f.protein) + ' g' + (q ? '' : '<span class="tiny" style="display:block;font-weight:400">of ' + f.pTarget + ' g</span>') : '-')}
@@ -4040,7 +4102,7 @@ function startAfter(rec) {
 function afterHtml() {
   const A0 = after, W = S.workouts.find(w => w.id === A0.wid), d = day(todayKey()), stand = standingPref(A0), note = myNote();
   const running = !!A0.ease.start, el = tmEl(A0.ease);
-  return `<div class="stack">${backBar('Train', 'after-away')}<h1>Workout saved</h1>
+  return `<div class="stack">${backBar('Move', 'after-away')}<h1>Workout saved</h1>
   <div class="okbox"><strong>${esc(A0.title)}</strong><p class="tiny">${W ? A0.dur + ' min · saved' : 'Saved'}. Everything below is optional.</p></div>
   <section class="card stack" style="gap:8px" aria-label="Ease down"><h2>Ease down</h2><p class="small muted" style="margin:0">Walk, march or cycle easily for about 5–10 minutes as a guide, letting it get gradually slower. Shorter is fine. Stand up slowly and keep moving gently rather than stopping suddenly.</p>
   ${A0.easeMin == null ? `<div class="between"><strong id="ease-t" style="font-size:22px">${mmss(el)}</strong><span class="warm-tm">${running ? '<button class="btn" data-a="ease-pause">Pause</button>' : `<button class="btn" data-a="ease-start">${el ? 'Resume' : 'Start a timer'}</button>`}</span></div>
@@ -4093,7 +4155,7 @@ function saveMob() { try { if (mob) localStorage.setItem(MOB_KEY, JSON.stringify
 function mobHtml() {
   if (!mob) mob = { i: 0, alt: {}, timer: { start: null, acc: 0 }, standing: false };
   const n = MOB.length, i = Math.min(mob.i, n - 1), m = MOB[i], stand = standingPref(mob), useAlt = !!mob.alt[i] || (stand && m.kneel), note = myNote();
-  return `<div class="stack">${backBar('Train', 'mob-away')}<h1>Mobility</h1><p class="muted small">A short general routine: shoulders, hips, ankles and trunk. About 6–8 minutes at an easy pace. No kit, works offline, nothing is saved.</p>
+  return `<div class="stack">${backBar('Move', 'mob-away')}<h1>Mobility</h1><p class="muted small">A short general routine: shoulders, hips, ankles and trunk. About 6–8 minutes at an easy pace. No kit, works offline, nothing is saved.</p>
   <label class="check" style="min-height:44px"><input type="checkbox" id="mob-stand" ${stand ? 'checked' : ''}>Kneeling or the floor is hard: show supported options</label>
   <section class="card stack" style="gap:6px" aria-label="Move ${i + 1} of ${n}"><span class="eyebrow">Move ${i + 1} of ${n}</span><h2>${esc(m.name)}</h2><p class="small" style="margin:0">${esc(m.dose)}</p><p class="small muted" style="margin:0">${esc(useAlt ? m.alt : m.setup)}</p>
   <button class="link" data-a="mob-alt" style="align-self:flex-start;min-height:40px">${useAlt ? 'Usual version' : m.kneel ? 'Supported option' : 'Easier option'}</button>
@@ -4205,7 +4267,7 @@ function playerHtml() {
   const ex = draft.ex[draft.i], n = draft.ex.length, last = lastExercise(ex.name, ex.cat), felts = lastFelts(ex.name, ex.cat), uu = unitOf(ex);
   const resting = restEnd > Date.now(), U = UNITS[unitOf(ex)];
   return `<div class="player" role="region" aria-label="Workout"><div class="player-in">
-  <div class="between"><span><button class="link" data-a="wo-away">‹ Train home</button><button class="link" data-a="wo-close" style="margin-left:14px">Close</button></span><span class="tiny" id="wo-clock"></span></div>
+  <div class="between"><span><button class="link" data-a="wo-away">‹ Move home</button><button class="link" data-a="wo-close" style="margin-left:14px">Close</button></span><span class="tiny" id="wo-clock"></span></div>
   <div><span class="tiny">${esc(draftDayTitle())} · exercise ${draft.i + 1} of ${n}${ex.core ? ' · core' : ''}${ex.rx && ex.rx.optional ? ' · optional' : ''}</span><h1 style="font-size:28px">${esc(ex.name)}</h1><p class="muted">${esc(ex.spec)}${ex.rx && ex.rx.rest ? ' · ' + esc(restWord(ex.rx.rest)) : ''}${ex.cue ? ' · ' + esc(ex.cue) : ''}</p>${ex.swappedFrom ? `<p class="tiny" style="margin:0">In place of ${esc(ex.swappedFrom)}</p>` : ''}</div>
   <div class="progress"><i style="width:${(draft.i + 1) / n * 100}%"></i></div>
   ${draft.i === 0 && !prepOf(draft).state ? prepHtml() : ''}
@@ -4282,7 +4344,7 @@ R.train = function () {
   const d = day(todayKey()), today = S.workouts.filter(w => w.date === todayKey()), p = TR().active, nx = nextSession();
   const recent = [...S.workouts].slice(-6).reverse(), note = myNote();
   const others = p ? p.sessions.filter(s => !nx || s.id !== nx.id) : [];
-  return `<div class="stack"><h1>Train</h1>
+  return `<div class="stack"><h1>Move</h1>
   ${draft ? `<div class="wo-bar" role="status"><span><strong>Workout in progress</strong><span class="tiny" style="display:block">${esc(woWhere())}</span></span><button class="btn primary" data-a="wo-resume">Resume</button></div>` : ''}
   ${after && after.date === todayKey() ? `<div class="wo-bar" role="status"><span><strong>After your workout</strong><span class="tiny" style="display:block">Ease down and stretch, if you want</span></span><button class="btn" data-a="after-open">Open</button></div>` : ''}
   ${today.length ? `<div class="okbox"><strong>Trained today</strong><p class="tiny">${esc(today.map(w => w.title).join(', '))}</p></div>` : ''}
@@ -4319,7 +4381,7 @@ function setupPlanHtml() {
   const L = pf.loads, kitChip = k => `<button class="chip" data-a="pf-kit" data-k="${k[0]}" aria-pressed="${!!pf.kit[k[0]]}">${k[1]}</button>`;
   const offerGym = hadStockPlan() && !TR().setup && !pf.usedEarlier;
   const loadField = (id, label, val, ph, hint) => `<div><label class="lab" for="${id}">${label}</label><input class="input" id="${id}" data-pl="${id.slice(3)}" autocomplete="off" value="${esc(val || '')}" placeholder="${ph}">${hint ? `<p class="tiny" style="margin:4px 0 0">${hint}</p>` : ''}</div>`;
-  return `<div class="stack">${backBar('Train', 'plan-setup-back')}<h1>Your plan</h1><p class="muted small">A few questions. Nothing is sent anywhere from this page.</p>
+  return `<div class="stack">${backBar('Move', 'plan-setup-back')}<h1>Your plan</h1><p class="muted small">A few questions. Nothing is sent anywhere from this page.</p>
   <section class="card stack">${chipRow('goal', Object.entries(GOALS), pf.goal, 'Goal')}
   ${chipRow('days', [[2, '2'], [3, '3'], [4, '4']], pf.days, 'Strength days a week')}
   ${chipRow('minutes', [[30, '30 min'], [45, '45 min'], [60, '60 min'], [75, '75 min']], pf.minutes, 'Session length, warm-up and rests included')}
@@ -4457,7 +4519,7 @@ on('plan-accept', () => {
 let fromPick = [];
 function fromDaysHtml() {
   const L = S.myDays;
-  return `<div class="stack">${backBar('Train', 'tr-home')}<h1>A plan from your own days</h1><p class="muted small">Tick your days in the order you want them. No AI is used. You review the plan before it is used.</p>
+  return `<div class="stack">${backBar('Move', 'tr-home')}<h1>A plan from your own days</h1><p class="muted small">Tick your days in the order you want them. No AI is used. You review the plan before it is used.</p>
   ${L.length ? `<div class="stack" style="gap:8px">${L.map(d => { const ix = fromPick.indexOf(d.id); return `<button class="choice" data-a="fd-pick" data-id="${esc(d.id)}" aria-pressed="${ix >= 0}"><span><strong>${esc(d.name)}</strong><small>${d.ex.length} ${d.ex.length === 1 ? 'exercise' : 'exercises'}</small></span><span class="tiny">${ix >= 0 ? 'Session ' + (ix + 1) : 'Not in the plan'}</span></button>`; }).join('')}</div>` : '<p class="tiny">Build a day first, in Your own days.</p>'}
   <button class="btn primary big" data-a="fd-make" ${fromPick.length ? '' : 'disabled'}>Review this plan</button></div>`;
 }
@@ -4485,10 +4547,10 @@ on('plan-add-day-go', b => {
 /* ---------- Your plan page ---------- */
 function planHtml() {
   const T0 = TR(), p = T0.active, nx = nextSession();
-  if (!p) return `<div class="stack">${backBar('Train', 'tr-home')}<h1>Your plan</h1>${T0.draft ? `<section class="card now stack"><h2>A draft is ready to review</h2><button class="btn primary big" data-a="tr-view" data-v="review">Review the draft</button></section>` : ''}<p class="muted small">Prakash has no plan for you yet. Walking, yoga and your history all work without one.</p><button class="btn${T0.draft ? '' : ' primary big'}" data-a="plan-setup">Create my plan</button>${S.myDays.length ? '<button class="btn" data-a="tr-view" data-v="fromdays">Make a plan from your own days</button>' : ''}${planHistoryHtml()}</div>`;
+  if (!p) return `<div class="stack">${backBar('Move', 'tr-home')}<h1>Your plan</h1>${T0.draft ? `<section class="card now stack"><h2>A draft is ready to review</h2><button class="btn primary big" data-a="tr-view" data-v="review">Review the draft</button></section>` : ''}<p class="muted small">Prakash has no plan for you yet. Walking, yoga and your history all work without one.</p><button class="btn${T0.draft ? '' : ' primary big'}" data-a="plan-setup">Create my plan</button>${S.myDays.length ? '<button class="btn" data-a="tr-view" data-v="fromdays">Make a plan from your own days</button>' : ''}${planHistoryHtml()}</div>`;
   const f = blockFacts(p), note = cleanText((p.setup || {}).notes, 500), L = T0.lighter && T0.lighter.planId === p.id ? T0.lighter : null;
   const review = p.weeks && f.weeks >= Math.max(6, p.weeks - 2) || f.offer || f.pains.length;
-  return `<div class="stack">${backBar('Train', 'tr-home')}<h1>Your plan</h1>
+  return `<div class="stack">${backBar('Move', 'tr-home')}<h1>Your plan</h1>
   ${T0.draft ? `<section class="card now stack" style="gap:8px"><h2>A new draft is waiting</h2><p class="small muted" style="margin:0">Your plan below stays in use until you accept it.</p><button class="btn primary" data-a="tr-view" data-v="review">Review the draft</button></section>` : ''}
   <section class="card stack" style="gap:6px"><div class="facts">${p.goal ? `<div class="fact"><span>Goal</span><strong>${esc(GOALS[p.goal])}</strong></div>` : ''}<div class="fact"><span>In use since</span><strong>${fmtD(p.acceptedAt)}</strong></div><div class="fact"><span>From</span><strong>${p.source === 'manual' ? 'Your own days' : 'AI draft you accepted'}</strong></div>${p.weeks ? `<div class="fact"><span>Block</span><strong>${p.weeks} weeks · week ${Math.min(p.weeks, f.weeks + 1)}</strong></div>` : ''}<div class="fact"><span>Next</span><strong>${esc(nx ? nx.name : '-')}</strong></div></div>${p.reason ? `<p class="small muted" style="margin:6px 0 0">${esc(p.reason)}</p>` : ''}</section>
   ${note ? `<section class="card"><span class="eyebrow">Your note</span><p class="small" style="margin:4px 0 0">${esc(note)}</p></section>` : ''}
@@ -4564,14 +4626,14 @@ function actDayHtml() {
   const wos = S.workouts.filter(w => w.date === k);
   const fact = (name, logged, val, later, act) => `<section class="card stack" style="gap:8px" aria-label="${name}"><div class="between"><h3>${name}</h3>${logged ? `<strong>${val}</strong>` : ''}</div>
   ${logged ? laterTag(later) : `<p class="tiny" style="margin:0">${NOT_LOGGED}</p>`}<button class="btn" data-a="${act}" data-k="${k}">${logged ? 'Change' : 'Add'} ${name.toLowerCase()} for ${dayWord(k)}</button></section>`;
-  return `<div class="stack">${backBar('Train', 'act-close')}<h1>Add to a past day</h1>
+  return `<div class="stack">${backBar('Move', 'act-close')}<h1>Add to a past day</h1>
   ${draft ? `<div class="wo-bar" role="status"><span><strong>Workout in progress</strong><span class="tiny" style="display:block">${esc(woWhere())}</span></span><button class="btn primary" data-a="wo-resume">Resume</button></div>` : ''}
   ${dayStrip(k, 'act', dk => { const x = peekDay(dk); return stepsLogged(x) || walkLogged(x) || wd.has(dk); })}
   ${fact('Steps', stepsLogged(d), stepsLogged(d) ? big(d.steps) : '', d && d.stepsLater, 'act-steps')}
   ${fact('Walking minutes', walkLogged(d), walkLogged(d) ? big(d.walkMin) + ' min' : '', d && d.walkLater, 'act-walk')}
   <section class="card stack" style="gap:8px" aria-label="Workouts"><h3>Workouts</h3>
   ${wos.length ? `<ul class="list" style="margin:0">${wos.map(w => `<li class="li"><div class="t"><strong>${esc(w.title)}</strong><span>${w.durationMin ? w.durationMin + ' min · ' : ''}${w.manual ? (w.note ? esc(w.note) : 'Logged from memory') : (w.exercises || []).reduce((a, e) => a + e.sets.length, 0) + ' sets · recorded with the workout player'}</span>${w.manual ? laterTag(w.later) : ''}</div><span style="display:flex;flex-direction:column;align-items:flex-end">${w.manual ? `<button class="link" data-a="pw-open" data-k="${k}" data-id="${esc(w.id)}">Edit</button>` : ''}<button class="link" data-a="wo-del" data-id="${esc(w.id)}" aria-label="Remove this workout">Remove</button></span></li>`).join('')}</ul>` : `<p class="tiny" style="margin:0">${past ? NOT_LOGGED : 'Nothing yet today.'}</p>`}
-  ${past ? `<button class="btn" data-a="pw-open" data-k="${k}">Log a past workout for ${dayWord(k)}</button>` : '<p class="tiny" style="margin:0">Today’s workouts are recorded with the workout player on Train. Choose an earlier day to log one from memory.</p>'}</section>
+  ${past ? `<button class="btn" data-a="pw-open" data-k="${k}">Log a past workout for ${dayWord(k)}</button>` : '<p class="tiny" style="margin:0">Today’s workouts are recorded with the workout player on Move. Choose an earlier day to log one from memory.</p>'}</section>
   <p class="tiny">Only what you enter is kept. A past day never changes today’s rings, and a workout logged here doesn’t change which workout is next.</p></div>`;
 }
 on('act-open', () => { closeSheet(true); actDate = addDays(todayKey(), -1); go('train', 'days'); if (draft && !woAway) { woAway = true; render(); } });
@@ -4665,7 +4727,7 @@ on('tr-home', () => { view.train = 'home'; render(); window.scrollTo(0, 0); });
 function exRow(c, act, why) { return `<li class="li" data-exq="${esc((c.name + ' ' + c.muscles.join(' ') + ' ' + PATTERN_WORD[c.pattern]).toLowerCase())}"><button class="t" data-a="${act}" data-n="${esc(c.name)}"><strong>${esc(c.name)}</strong><span>${esc(why || PATTERN_WORD[c.pattern] + ' · ' + c.muscles.join(', '))}</span></button></li>`; }
 function exSearch(box, q) { q = String(q || '').trim().toLowerCase(); let shown = 0; $$('[data-exq]', box).forEach(li => { const hit = !q || li.dataset.exq.includes(q); li.hidden = !hit; li.style.display = hit ? '' : 'none'; if (hit) shown++; }); const none = $('.ex-none', box); if (none) none.hidden = shown > 0; }
 function catalogueHtml() {
-  return `<div class="stack">${backBar('Train', 'tr-home')}<h1>Exercises</h1>
+  return `<div class="stack">${backBar('Move', 'tr-home')}<h1>Exercises</h1>
   <div><label class="lab" for="ex-q">Find an exercise</label><input class="input" id="ex-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="e.g. squat"></div>
   <ul class="list" id="ex-list">${CATALOGUE.map(c => exRow(c, 'ex-info')).join('')}</ul><p class="tiny ex-none" hidden>No exercise by that name.</p></div>`;
 }
@@ -4686,7 +4748,7 @@ function trainSubAfter(main) {
 }
 function myDaysHtml() {
   const L = S.myDays;
-  return `<div class="stack">${backBar('Train', 'tr-home')}<h1>Your own days</h1>
+  return `<div class="stack">${backBar('Move', 'tr-home')}<h1>Your own days</h1>
   <p class="muted small">Days you build from the exercises. Start one on its own any time; it doesn’t change your plan or what comes next. To make one part of your plan, use Your plan.</p>
   ${L.length ? `<ul class="list">${L.map(d => `<li class="li"><div class="t"><strong>${esc(d.name)}</strong><span>${d.ex.length} ${d.ex.length === 1 ? 'exercise' : 'exercises'}</span></div><button class="link" data-a="bd-edit" data-id="${esc(d.id)}" aria-label="Change ${esc(d.name)}">Change</button><button class="btn" data-a="wo-start" data-id="${esc(d.id)}">Start</button></li>`).join('')}</ul>` : ''}
   <button class="btn${L.length ? '' : ' primary big'}" data-a="bd-new">Build your own day</button></div>`;
@@ -4987,7 +5049,7 @@ function talkUi() {
 function talkMedia(url) {
   if (!('mediaSession' in navigator)) return;
   try {
-    navigator.mediaSession.metadata = new MediaMetadata({ title: talkTitle(url), artist: /Alan Watts/.test(talkDesc(url)) ? 'Alan Watts' : 'Osho', album: talkDesc(url), artwork: [{ src: 'prakash-om-512.png', sizes: '512x512', type: 'image/png' }, { src: 'prakash-om-192.png', sizes: '192x192', type: 'image/png' }] });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: talkTitle(url), artist: /Alan Watts/.test(talkDesc(url)) ? 'Alan Watts' : 'Osho', album: talkDesc(url), artwork: [{ src: 'prakash-diya-512.png', sizes: '512x512', type: 'image/png' }, { src: 'prakash-diya-192.png', sizes: '192x192', type: 'image/png' }] });
     const h = (k, f) => { try { navigator.mediaSession.setActionHandler(k, f); } catch (e) {} };
     h('play', () => talkAudio && talkAudio.play()); h('pause', () => talkAudio && talkAudio.pause());
     h('seekbackward', d => talkSkip(-(d && d.seekOffset || 15))); h('seekforward', d => talkSkip(d && d.seekOffset || 30));
@@ -4995,10 +5057,24 @@ function talkMedia(url) {
     h('stop', () => talkStop());
   } catch (e) {}
 }
+/* Listen activity as plain facts: which talk and when. One entry when a play starts; the same talk is not entered again within half an hour. */
+function noteListen(url, how) {
+  if (!url) return; const L = S.talks.listens = S.talks.listens || [], now = Date.now(), last = L.filter(x => x.url === url).pop();
+  if (last && now - Date.parse(last.at) < 30 * 60000) return;
+  L.push(Object.assign({ url, at: new Date(now).toISOString(), date: todayKey() }, how ? { how } : {})); save();
+}
+/* what the look-back counts for a set of days: plays and "heard" marks together (a talk on one day counts once), so talks marked heard before 1.19 are still in */
+function talkWeekFacts(ks) {
+  const pairs = new Map();
+  (S.talks.listens || []).forEach(x => { if (x && ks.includes(x.date)) pairs.set(x.url + ' ' + x.date, [x.url, x.date]); });
+  Object.entries(S.talks.heard || {}).forEach(([u, d]) => { if (ks.includes(d)) pairs.set(u + ' ' + d, [u, d]); });
+  const all = [...pairs.values()], talks = [...new Set(all.map(x => x[0]))], days = new Set(all.map(x => x[1])).size;
+  return { talks, days, marked: Object.entries(S.talks.heard || {}).filter(([u, d]) => ks.includes(d)).length };
+}
 function talkLoad(url) {
   if (!talkAudio) {
     talkAudio = new Audio(); talkAudio.preload = 'metadata';
-    ['play', 'pause', 'loadedmetadata', 'durationchange', 'ended'].forEach(ev => talkAudio.addEventListener(ev, () => { if (ev === 'pause' || ev === 'ended') saveTalkPos(true); if ('mediaSession' in navigator) try { navigator.mediaSession.playbackState = talkPlaying() ? 'playing' : 'paused'; } catch (e) {} talkUi(); }));
+    ['play', 'pause', 'loadedmetadata', 'durationchange', 'ended'].forEach(ev => talkAudio.addEventListener(ev, () => { if (ev === 'play') noteListen(talkAudioUrl); if (ev === 'pause' || ev === 'ended') saveTalkPos(true); if ('mediaSession' in navigator) try { navigator.mediaSession.playbackState = talkPlaying() ? 'playing' : 'paused'; } catch (e) {} talkUi(); }));
     talkAudio.addEventListener('timeupdate', () => { saveTalkPos(false); talkUi(); });
     talkAudio.addEventListener('error', () => { const b = $('#tp-btn'); if (b) b.textContent = 'Couldn’t load the talk. Try again'; toast(navigator.onLine === false ? 'You’re offline. Talks need a connection.' : 'Osho World didn’t send the talk. Try again, or open its page.'); });
   }
@@ -5012,6 +5088,8 @@ function talkLoad(url) {
 function talkSkip(n) { if (!talkAudio || !talkAudioUrl) return; const d = isFinite(talkAudio.duration) ? talkAudio.duration : 1e9; talkAudio.currentTime = Math.max(0, Math.min(d - 1, talkAudio.currentTime + n)); talkUi(); }
 on('tp-toggle', () => { const url = readerUrl; if (!url || !TALK_AUDIO[url]) return; talkLoad(url); if (talkPlaying()) talkAudio.pause(); else { if (talkAudio.ended) talkAudio.currentTime = 0; const pr = talkAudio.play(); if (pr && pr.catch) pr.catch(() => {}); } talkUi(); });
 on('tp-skip', b => talkSkip(+b.dataset.s));
+/* a talk that opens on its own site (the "Open the talk" button) is entered as opened, so it still shows in the look-back */
+document.addEventListener('click', e => { const l = e.target && e.target.closest && e.target.closest('#talk-layer a.btn.primary'); if (l && readerUrl) noteListen(readerUrl, 'opened'); });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'tp-pos' && talkAudio && talkAudioUrl === readerUrl) { talkAudio.currentTime = +e.target.value; talkUi(); } });
 window.addEventListener('pagehide', () => saveTalkPos(true));
 
@@ -5124,8 +5202,8 @@ function listenHtml() {
   if (listenCh != null) {
     const ch = TALKS[listenCh]; let i = 0;
     return `${backBar('Listen', 'ch-back')}<span class="eyebrow">The path</span><h2>${esc(chTitle(ch[0]))}</h2><p class="muted small">${esc(ch[1])} Tap a talk to open it. The lamp is yours to light.</p>
-    ${ch[2].map(g => { const st = seriesState(g); return `<section class="card flat" style="padding-bottom:6px"><div class="between" style="min-height:56px"><h3>${esc(g[0])}</h3>${st.all ? `<span class="lampbtn" aria-pressed="true" style="width:36px;height:36px;border:0;background:none">${diyaSvg(28)}</span>` : ''}</div>
-      ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++, title = talkTitle(url); return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(title)}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><button class="name talk-open" data-a="talk-open" data-url="${esc(url)}"><span>${esc(title)}</span><small>${heard ? 'Heard · ' : ''}${talkDescRow(url)}${oshoRowLine(url)}</small></button>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : ''}</div>${url === readerUrl ? '' : themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
+    ${ch[2].map(g => { const st = seriesState(g), blurbs = new Set(g[1].map(t => talkLines(t[1])[0])), once = blurbs.size === 1 && g[1].length > 1 ? [...blurbs][0] : ''; return `<section class="card flat" style="padding-bottom:6px"><div class="between" style="min-height:56px"><h3>${esc(g[0])}</h3>${st.all ? `<span class="lampbtn" aria-pressed="true" style="width:36px;height:36px;border:0;background:none">${diyaSvg(28)}</span>` : ''}</div>${once ? `<p class="tiny" style="margin:-8px 0 6px">${esc(once)}</p>` : ''}
+      ${g[1].map(t => { const url = t[1], heard = !!S.talks.heard[url], th = S.talks.themes[url], my = i++, title = talkTitle(url); return `<div class="talk" data-talk="${esc(url)}"><button class="lampbtn" style="width:44px;height:44px" data-a="talk-heard" data-url="${esc(url)}" aria-pressed="${heard}" aria-label="${esc(title)}: ${heard ? 'heard. Tap to undo' : 'tap when heard'}">${diyaSvg(30)}</button><button class="name talk-open" data-a="talk-open" data-url="${esc(url)}"><span>${esc(title)}</span><small>${heard ? 'Heard · ' : ''}${once ? esc(talkLine2(url)) : talkDescRow(url)}${oshoRowLine(url)}</small></button>${th ? `<button class="link" data-a="themes-toggle" data-i="${my}">Themes</button>` : ''}</div>${url === readerUrl ? '' : themesBlock(url, my)}`; }).join('')}</section>`; }).join('')}`;
   }
   const cont = [];
   TALKS.forEach(ch => ch[2].forEach(g => { const st = seriesState(g); if (st.heard && !st.all) { const last = g[1].map(t => S.talks.heard[t[1]] || '').sort().pop(); cont.push({ g, st, last }); } }));
@@ -5156,10 +5234,10 @@ function wclear() { return wdb().then(db => new Promise(res => { const tx = db.t
 /* the journal in layers. Both sets save into the same four fields (direct, story, nextStep, wonder), so older entries and every
    other part of the app read them as before. An entry remembers which set it was written with (layer); older entries count as deep. */
 const JQ_SETS = {
-  everyday: [['direct', 'What\'s going on in you right now? Name it, whether it\'s worry, anger, wanting or something lighter.'], ['story', 'Who is noticing this?'], ['nextStep', 'Rest there for a moment, with a few easy breaths. Nothing to write.', 'pause'], ['wonder', 'What surprised you today?']],
-  deep: [['direct', 'Wherever you are, what\'s moving through you right now? A thought, a feeling, a tension. Watch it drift past like weather. Nothing to fix, nothing to chase away.'], ['story', 'Whatever you can watch, you are watching. So who is the watcher?'], ['nextStep', 'Don\'t answer in words. Rest there, as the watching itself, for a few easy breaths. Nothing to achieve.', 'pause'], ['wonder', 'What made you wonder, laugh, or quietly glow today?']]
+  everyday: [['direct', 'What\'s going on in you right now? Name it, whether it\'s worry, anger, wanting or something lighter.'], ['story', 'Who is noticing this?'], ['nextStep', 'Rest there for a moment, with a few easy breaths. Nothing to write.', 'pause'], ['wonder', 'What surprised you today?'], ['food', 'What\'s asking for food?']],
+  deep: [['direct', 'Wherever you are, what\'s moving through you right now? A thought, a feeling, a tension. Watch it drift past like weather. Nothing to fix, nothing to chase away.'], ['story', 'Whatever you can watch, you are watching. So who is the watcher?'], ['nextStep', 'Don\'t answer in words. Rest there, as the watching itself, for a few easy breaths. Nothing to achieve.', 'pause'], ['wonder', 'What made you wonder, laugh, or quietly glow today?'], ['food', 'What\'s asking for food?']]
 };
-const JQ_LABELS = { everyday: ['What was going on', 'Who was noticing', 'Resting there', 'What surprised you'], deep: ['What was moving', 'The watcher', 'Resting there', 'What made you wonder'] };
+const JQ_LABELS = { everyday: ['What was going on', 'Who was noticing', 'Resting there', 'What surprised you', 'What was asking for food'], deep: ['What was moving', 'The watcher', 'Resting there', 'What made you wonder', 'What was asking for food'] };
 let journalLayer = 'everyday';
 const jqs = () => JQ_SETS[journalLayer] || JQ_SETS.deep;
 const entryLabel = (e, i) => JQ_LABELS[JQ_SETS[e && e.layer] ? e.layer : 'deep'][i];
@@ -5177,7 +5255,7 @@ on('j-save', async () => {
   jSpeakStop();
   const o = journalCollect(); if (!jqs().some(q => (o[q[0]] || '').trim()) && !voiceDraft) { toast('Nothing written yet.'); return; }
   const old = journalEdit && journalEdit.id ? journalEdit : {}, id = old.id || uid(), now = new Date().toISOString();
-  const entry = { ...old, id, created: old.created || now, tz: old.created ? old.tz : new Date().getTimezoneOffset(), updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), tags: o.tags, layer: journalLayer };
+  const entry = { ...old, id, created: old.created || now, tz: old.created ? old.tz : new Date().getTimezoneOffset(), updated: now, kind: o.kind, direct: o.direct.trim(), story: o.story.trim(), nextStep: o.nextStep.trim(), wonder: (o.wonder || '').trim(), food: (o.food || '').trim(), tags: o.tags, layer: journalLayer };
   S.witness.entries = S.witness.entries.filter(x => x.id !== id); S.witness.entries.unshift(entry);
   if (voiceDraft) { await wput(id, { blob: voiceDraft, mime: voiceDraft.type }).catch(() => {}); entry.hasVoice = true; voiceDraft = null; }
   jdraftDel();
@@ -5191,6 +5269,7 @@ function jSpeakStop() { if (jRec) { try { jRec.stop(); } catch (e) {} } }
 on('j-speak', b => {
   const f = b.dataset.f, was = jRec && jRec._f; jSpeakStop(); if (was === f) return;
   const R = window.SpeechRecognition || window.webkitSpeechRecognition, box = $('#j-' + f), st = $('#js-' + f); if (!R || !box) return;
+  micNoteOnce();
   const r = new R(); jRec = r; r._f = f; r.lang = 'en-GB'; r.interimResults = true; r.continuous = true;
   const before = box.value.replace(/\s+$/, ''); let final = '';
   b.setAttribute('aria-pressed', 'true'); if (st) st.textContent = 'Listening… tap the microphone again to stop.';
@@ -5204,19 +5283,19 @@ function writeHtml() {
   if (journalLocked()) return lockedCardHtml();
   if (journalMode === 'write') {
     let e = journalEdit || {}; if (!journalEdit) { try { const d = jdraftGet(); if (d) { e = d; if (JQ_SETS[d.layer]) journalLayer = d.layer; } } catch (x) {} }
-    return `${backBar('Journal', 'j-home')}<p class="journal-q">Not homework. Just watching, the way you'd watch the river.</p>
+    return `${backBar('Write', 'j-home')}<p class="journal-q">Not homework. Just watching, the way you'd watch the river.</p>
     ${journalEdit && journalEdit.id ? '' : `<nav class="seg" aria-label="Which questions">${[['everyday', 'Everyday'], ['deep', 'Deeper']].map(x => `<button data-a="j-layer" data-l="${x[0]}" aria-current="${journalLayer === x[0]}" style="font-size:16px">${x[1]}</button>`).join('')}</nav>`}
     <div><label class="lab" for="j-kind">Kind of entry</label><select class="input" id="j-kind">${['Free writing', 'Before meditation', 'After meditation', 'Gratitude'].map(k => `<option${e.kind === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
-    ${micSupported() ? '<p class="small muted">Tap the microphone beside a question to speak your answer. Your phone’s browser turns speech into words, which may use Google or Apple.</p>' : ''}
+    ${micSupported() ? '<p class="small muted">Tap the microphone beside a question to speak your answer.</p>' : ''}
     ${jqs().map(q => q[2] === 'pause' && !e[q[0]] ? `<p class="journal-q" style="font-size:18px;color:var(--ink2)">${esc(q[1])}</p>` : `<div><div class="between" style="gap:10px;align-items:flex-end"><label class="lab" for="j-${q[0]}" style="color:var(--ink);font-size:16px;flex:1">${esc(q[1])}</label>${micSupported() ? `<button class="iconbtn" data-a="j-speak" data-f="${q[0]}" aria-pressed="false" aria-label="Speak your answer to: ${esc(q[1])}" style="width:48px;min-height:48px;margin-bottom:6px">${MIC_SVG}</button>` : ''}</div><textarea class="input" id="j-${q[0]}" data-jdraft>${esc(e[q[0]] || '')}</textarea><span class="small muted" id="js-${q[0]}" role="status"></span></div>`).join('')}
     <p class="journal-q" style="font-size:18px;color:var(--ink2)">Now put it all down. Nothing to carry, nowhere to reach.</p>
     <div><span class="lab">Threads</span><span class="tiny" style="display:block;margin-bottom:6px">Optional. Tick any that fit, so you can find entries on a theme later.</span><div class="chips">${WITNESS_TAGS.map(t => `<label class="chip" style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" data-jtag="${esc(t)}" ${(e.tags || []).includes(t) ? 'checked' : ''} style="accent-color:var(--green)"> ${esc(t)}</label>`).join('')}</div></div>
     <div class="card stack" style="gap:8px"><button class="btn" data-a="j-rec">Record a voice note</button><span class="tiny" id="j-vs"></span></div>
     <button class="btn primary big" data-a="j-save">Save</button>`;
   }
-  if (journalMode === 'entries') return `${backBar('Journal', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${esc(stampText(e.created, e.tz))}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.loc ? ' · ' + esc(locText(e.loc)) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 1)} · </span>${esc(e.story)}</p>` : ''}${e.nextStep ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 2)} · </span>${esc(e.nextStep)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 3)} · </span>${esc(e.wonder)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
+  if (journalMode === 'entries') return `${backBar('Write', 'j-home')}<h2>Entries</h2>${w.entries.length ? w.entries.map(e => `<article class="card stack" style="gap:6px">${validDate(e.created) ? `<span class="tiny">${esc(stampText(e.created, e.tz))}${e.practice || e.kind ? ' · ' + esc(e.practice || e.kind) : ''}${e.loc ? ' · ' + esc(locText(e.loc)) : ''}${e.from === 'witnessJournal' ? ' · from Witness Journal' : ''}</span>` : e.practice || e.kind || e.from === 'witnessJournal' ? `<span class="tiny">${esc([e.practice || e.kind, e.from === 'witnessJournal' ? 'from Witness Journal' : ''].filter(Boolean).join(' · '))}</span>` : ''}${e.direct ? `<p style="white-space:pre-wrap">${esc(e.direct)}</p>` : ''}${e.story ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 1)} · </span>${esc(e.story)}</p>` : ''}${e.nextStep ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 2)} · </span>${esc(e.nextStep)}</p>` : ''}${e.wonder ? `<p class="small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 3)} · </span>${esc(e.wonder)}</p>` : ''}${e.food ? `<p class="muted small" style="white-space:pre-wrap"><span class="tiny">${entryLabel(e, 4)} · </span>${esc(e.food)}</p>` : ''}${(e.tags || []).length ? `<p class="tiny">${e.tags.map(esc).join(' · ')}</p>` : ''}<div class="btns">${e.hasVoice ? `<button class="btn" data-a="j-play" data-id="${e.id}">Play voice note</button>` : ''}<button class="btn" data-a="j-edit" data-id="${e.id}">Edit</button><button class="btn danger" data-a="j-del" data-id="${e.id}">Delete</button></div></article>`).join('') : '<p class="tiny">Nothing written yet.</p>'}`;
   if (journalMode === 'moments') return momentsPageHtml();
-  if (journalMode === 'threads') return `${backBar('Journal', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
+  if (journalMode === 'threads') return `${backBar('Write', 'j-home')}<h2>Threads</h2><p class="muted small">Questions to return to, without forcing an answer.</p><div>${WITNESS_TAGS.map(t => `<button class="navrow" data-a="j-thread" data-t="${esc(t)}"><span>${esc(t)}</span></button>`).join('')}</div>`;
   return `<section class="card stack"><h2>What just happened?</h2><p class="muted small">A photo, a line, or a few tags. One tap, in the moment.</p><button class="btn primary big" data-a="mom-new">Add a moment</button></section>
   <section class="card stack"><h2>What is true in experience now?</h2><p class="muted small">A quiet place for direct seeing. A few easy questions, or go deeper.</p><div class="btns"><button class="btn primary" data-a="j-mode" data-m="write" data-l="everyday">Write</button><button class="btn" data-a="j-mode" data-m="write" data-l="deep">Go deeper</button></div></section>
   <div><button class="navrow" data-a="j-mode" data-m="moments"><span>Moments<small>What you kept, in the order it happened</small></span></button><button class="navrow" data-a="j-mode" data-m="entries"><span>Entries<small>Read back what you’ve written</small></span></button><button class="navrow" data-a="j-mode" data-m="threads"><span>Threads<small>Questions to return to</small></span></button></div>
@@ -5238,7 +5317,9 @@ function stopSchedule() {
 }
 let stopShown = [];
 function stopBusy() { return !S.profile.setupDone || !!(draft || $('.sheet-back') || $('.focus-mode') || $('#setup.open')); }
+/* 1.19.1: nothing is scheduled or sent any more. The pause is there when you open it (Sit › Through the day). */
 function checkStop() {
+  return;
   if (!S || !S.remember || S.remember.on === false || stopBusy()) return;
   const due = stopSchedule().filter(t => t.getTime() <= Date.now() && !stopShown.includes(t.getTime())); if (!due.length) return;
   stopShown.push(...due.map(t => t.getTime()));
@@ -5253,7 +5334,7 @@ function showStop(ix) {
   $$('.focus-mode.stop').forEach(x => x.remove());
   const o = document.createElement('div'); o.className = 'focus-mode stop leaveable'; o.setAttribute('role', 'dialog');
   o.innerHTML = `<div class="big" style="font-size:44px">${esc(f.word)}</div><div class="line">${esc(f.line)}</div><button class="stop-leave">leave</button>`;
-  document.body.appendChild(o); o.querySelector('button').onclick = () => { o.remove(); stopClear(); };
+  document.body.appendChild(o); o.querySelector('button').onclick = () => { const had = !!stopPending(); o.remove(); if (had) stopClear(); else { const d = day(todayKey()); d.moments = (+d.moments || 0) + 1; save(); if (tab === 'today') render(); } };
 }
 function stopPending() { const st = S.todayOnly && S.todayOnly.date === todayKey() && S.todayOnly.stop; return st && Date.now() - st.at < 3 * 3600e3 && STOP_FORMS[st.ix] ? st : null; }
 function stopClear() { if (S.todayOnly && S.todayOnly.stop) { day(todayKey()).moments = (+day(todayKey()).moments || 0) + 1; delete S.todayOnly.stop; save(); if (tab === 'today') render(); } }
@@ -5273,12 +5354,7 @@ const GRAT_PROMPTS = ['Someone you love', 'Something you’re grateful for', 'So
 function gratitudeHtml() { const d = day(todayKey()); return `<section class="card stack"><h2>Gratitude</h2><p class="muted small">Three optional lines before bed.</p>${[0, 1, 2].map(i => `<input class="input" data-grat="${i}" value="${esc(d.gratitude[i] || '')}" placeholder="${GRAT_PROMPTS[i]}" aria-label="${GRAT_PROMPTS[i]}">`).join('')}</section>`; }
 function rememberHtml() {
   const r = S.remember, d = day(todayKey()), np = 'Notification' in window ? Notification.permission : 'none';
-  return `<details class="fold through"><summary><span>Through the day<span class="tiny" style="display:block;font-weight:400;margin-top:2px">Pause signals: the Stop, the anger pause, the bell</span></span></summary><div class="stack" style="margin-top:10px">${stressCardHtml()}<section class="card stack"><h2>The Stop</h2><p class="muted small">A gentle bell at random moments, inviting you to stop and come back to the present. No streaks, no scores - just a moment of awareness.</p>
-  <label class="check"><input type="checkbox" data-a="stop-toggle" ${r.on !== false ? 'checked' : ''}>Signals on</label>
-  <details class="fold"><summary class="small">Hours and how it works</summary><div class="stack"><div class="grid2"><div><label class="lab" for="st-from">From</label><input class="input" type="time" id="st-from" value="${esc(r.from || '08:00')}"></div><div><label class="lab" for="st-to">Until</label><input class="input" type="time" id="st-to" value="${esc(r.to || '22:00')}"></div></div>
-  <p class="tiny">Signals appear while Prakash is open, or the next time you open it.${np === 'granted' ? ' With the app in the background, one arrives as a silent notification.' : ''}</p><p class="tiny">A reminder can itself become mechanical. When this one does, change it or turn it off.</p></div></details>
-  <div class="btns"><button class="btn" data-a="stop-preview">See one now</button>${np === 'default' ? '<button class="btn" data-a="stop-notify">Allow quiet notifications</button>' : ''}</div>
-</section>
+  return `<details class="fold through"><summary><span>Through the day<span class="tiny" style="display:block;font-weight:400;margin-top:2px">Pauses you open yourself: the pause, the anger pause, the bell</span></span></summary><div class="stack" style="margin-top:10px">${stressCardHtml()}<section class="card stack"><h2>A pause</h2><p class="muted small">A moment to come back to the present, if you want one. It never comes to you. It opens when you tap, and nothing is scored.</p><button class="btn big" data-a="stop-preview">Open the pause</button></section>
   <section class="card stack"><h2>When anger comes</h2><p class="muted small">A three-step pause for the moment itself.</p><button class="btn big" data-a="anger">Open the pause</button>
   <details class="fold"><summary class="small">Wait before replying</summary><div class="stack"><p class="small muted">Osho retells Gurdjieff's advice to wait twenty-four hours before replying in anger.</p><label class="lab" for="st-wait">Your own note (optional)</label><input class="input" id="st-wait" value="${esc(r.waitNote || '')}" placeholder="Sleep on it before sending."></div></details></section>
   <section class="card stack"><h2>Bell of mindfulness</h2><p class="muted small">Ring it when you notice yourself speaking. Today's rings go at midnight.</p><button class="btn big" data-a="bell-ring">Ring the bell</button>${T().bell.length ? `<p class="tiny">Today: ${T().bell.map(fmtTime).join(' · ')}</p>` : ''}</section>
@@ -5336,11 +5412,9 @@ function youHome() {
     ['settings', 'Settings', 'What to show, units, Gemini, meditation music'],
     ['about', 'About Prakash', 'What’s new, and a note on privacy']
   ].filter(Boolean);
-  const notifAsk = 'Notification' in window && Notification.permission === 'default', geminiAsk = !p.geminiKey, homeAsk = !isInstalled();
-  const extras = !p.extrasDismissed && (notifAsk || geminiAsk || homeAsk) ? `<section class="card stack" aria-labelledby="olt-h"><h2 id="olt-h">One last thing</h2>
+  const homeAsk = !isInstalled();
+  const extras = !p.extrasDismissed && homeAsk ? `<section class="card stack" aria-labelledby="olt-h"><h2 id="olt-h">One last thing</h2>
     ${homeAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Put Prakash on your Home Screen.</strong> It opens like an app, works offline, and the phone keeps its data safer.</p>${installPrompt ? '<button class="btn" data-a="install">Add to Home Screen</button>' : /iPhone|iPad|iPod/.test(navigator.userAgent) ? '<p class="small muted">In Safari, tap the Share button <span aria-hidden="true">(the square with an arrow)</span>, then <strong>Add to Home Screen</strong>.</p>' : '<p class="small muted">Open your browser’s menu <span aria-hidden="true">(⋮)</span> and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>'}</div>` : ''}
-    ${geminiAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Gemini fills in dishes from a photo.</strong> Free, with a key from Google.</p><button class="btn" data-a="you" data-v="gemini">Connect Gemini</button></div>` : ''}
-    ${notifAsk ? `<div class="stack" style="gap:6px"><p class="small"><strong>Quiet notifications for the Stop.</strong> A silent reminder to pause, a few times a day. No sound, no buzz.</p><button class="btn" data-a="extras-notify">Allow quiet notifications</button></div>` : ''}
     <button class="btn ghost" data-a="extras-later">Not now</button></section>` : '';
   return `<div class="stack"><h1>You</h1>
   <button class="choice" data-a="quiet-choose" aria-pressed="${!!(p.quiet || p.quietDefault)}"><span><strong>Quiet</strong><small>${p.quiet ? 'Always: only what happened. No targets, nothing left or over.' : p.quietDefault ? 'Until 6 pm each day: targets are hidden until the evening' : quietToday() ? 'Quiet for today is on until midnight' : 'Hide targets and show only what happened'}</small></span><span class="tiny">${p.quiet ? 'Always' : p.quietDefault ? 'Until 6 pm' : 'Off'}</span></button>
@@ -5626,8 +5700,8 @@ function rhythmHtml() {
   return `<div class="stack">${backBar('You', 'you-home')}<h1>Your day</h1><p class="muted small">These times decide what Today shows, and when.</p>
   <section class="card stack"><div class="grid2">${field('r-w', 'Wake', 'wake', p.wake, 'text', 'type="time"')}${field('r-b', 'Bed', 'bed', p.bed, 'text', 'type="time"')}${field('r-f', 'First food', 'foodFrom', p.foodFrom, 'text', 'type="time"')}${field('r-t', 'Last food', 'foodTo', p.foodTo, 'text', 'type="time"')}</div></section>
   <section class="card stack"><h2>A day with nothing to log</h2><p class="muted small">One day a week with nothing to log. The week counts it at your usual calories.</p><div class="chips">${[[-1, 'None'], [0, 'Sun'], [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat']].map(x => `<button class="chip" data-a="silent-day" data-d="${x[0]}" aria-pressed="${+p.silentWeekday === x[0]}">${x[1]}</button>`).join('')}</div></section>
-  <section class="card stack"><h2>Food</h2><label class="check"><input type="checkbox" data-set="vegetarian" ${p.vegetarian ? 'checked' : ''}>Vegetarian</label><label class="check"><input type="checkbox" data-set="eggFree" ${p.eggFree ? 'checked' : ''}>No eggs</label></section>
-  <section class="card stack"><h2>Before eating</h2><label class="check"><input type="checkbox" data-set="breathBeforeMeals" ${p.breathBeforeMeals ? 'checked' : ''}>Ask “What’s asking for food?” once per meal</label></section></div>`;
+  <section class="card stack"><h2>Eat</h2><label class="check"><input type="checkbox" data-set="vegetarian" ${p.vegetarian ? 'checked' : ''}>Vegetarian</label><label class="check"><input type="checkbox" data-set="eggFree" ${p.eggFree ? 'checked' : ''}>No eggs</label></section>
+  <section class="card stack"><h2>Before eating</h2><label class="check"><input type="checkbox" data-set="breathBeforeMeals" ${p.breathBeforeMeals ? 'checked' : ''}>Ask “This was:” once per meal</label></section></div>`;
 }
 on('silent-day', b => { S.profile.silentWeekday = +b.dataset.d; save(); render(); });
 function sectionsHtml() {
@@ -5823,6 +5897,8 @@ function aboutHtml() {
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
   <section class="card stack" style="gap:8px"><p class="small">Eat, move, sit, pray, listen, write. Six ways of looking at the same day. None of it is a course and none of it needs finishing.</p></section>
   <details class="fold card" style="padding:0 16px"><summary>What’s new</summary><ul class="small" style="padding-left:20px;margin:0 0 14px;display:flex;flex-direction:column;gap:6px">
+  <li>1.19.1, the pause: the Stop no longer arrives by itself, as a card on Today or as a notification. The pause is there when you open it yourself (Sit, Through the day), and its words are plain statements and open offers. Nothing you saved has changed.</li>
+  <li>1.19.0, polish: Eat’s add sheet now says “This was:”, and Write has a last question, “What’s asking for food?”. Moments has heavy feelings beside the pleasant ones (Sad, Angry, Afraid, Lonely, Tired, Restless). Today shows one prayer card, the speech-service note is said once at the first microphone tap, and a few repeats are gone. Setup has a real Skip. The sections are named Eat, Move, Sit, Moments and Write everywhere. Talks you play now count in the week looked back on. Rarely, when your own record shows something plain, one quiet line says so and leaves an open offer. Nothing you saved has changed.</li>
   <li>1.18.0, journal and moments: the journal’s questions are tighter (the “rest there” step is now a pause, not a box to fill; “Who is noticing this?” stands alone), an entry’s kind is labelled “Kind of entry”, moments always show the time they were kept (with the timezone if you were elsewhere), and an optional, off-by-default note of roughly where you were, with places you can name (You, Settings, Where you are).</li>
   <li>1.17.0, account and sync: you can sign in with Google to keep the same records on more than one device. It is optional and off until set up. The journal, moments, gratitude, weekly, reading and talk notes and your Stop note are encrypted on your phone with a key that only your 12 recovery words can restore. Food, movement and other logs sync as ordinary records. Photos and voice notes stay on the phone where they were made.</li>
   <li>1.17.0, the whole mirror: the whole picture now includes food and its numbers, weight, waist, blood pressure, prayers and talks; Ask the mirror sees your stress, sleep, meal and symptom records; My record carries everything it says it does. New: Moments (a photo, a line or a few tags, in the moment) and a journal in two layers, everyday and deeper.</li>
@@ -6003,7 +6079,7 @@ function tagImportedJournal() {
 try { tagImportedJournal(); } catch (e) {}
 applyTextSize();
 /* after an update: one quiet line, once */
-if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) setTimeout(() => toast('Prakash has been updated. What’s new is in You › About Prakash.', 6000), 1500);
+if (S.profile.setupDone && S.profile.onboardedV && (S.seenVersion || 'before') !== VERSION) S.profile.updateCard = VERSION;
 if (S.seenVersion !== VERSION) { S.seenVersion = VERSION; save(); }
 window.__pkHoldReload = () => !!draft || !!build || genBusy || !!pf || !!editPlan || !!(after && (after.ease.start || after.st)) || !!(mob && mob.timer.start) || (tab === 'practice' && view.practice === 'write' && journalMode === 'write') || !!ADD || !!$('#setup.open') || !!$('#talk-layer') || !!acctUi.phrase || !!acctUi.busy;
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
@@ -6016,7 +6092,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) retur
 window.addEventListener('load', () => setTimeout(checkStop, 5000));
 setInterval(checkStop, 30000);
 // a tapped Stop notification brings you to Today, where the Stop waits as a card; nothing opens full screen by itself
-function stopFromNotice() { if (!stopPending()) { T().stop = { ix: Math.floor(Math.random() * STOP_FORMS.length), at: Date.now() }; save(); } if (!stopBusy()) go('today'); }
+function stopFromNotice() { if (!stopBusy()) go('today'); }   // an old notification, tapped: just Today
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'show-stop') stopFromNotice(); });
 acctBoot();
 if (/[?&]stop=1/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTimeout(stopFromNotice, 300); }

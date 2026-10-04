@@ -1,5 +1,5 @@
 {"id":"./","name":"Prakash","short_name":"Prakash","start_url":"./","scope":"./","display":"standalone","background_color":"#121615","theme_color":"#121615","icons":[
-{"src":"prakash-om-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
-{"src":"prakash-om-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
-{"src":"prakash-om-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},
-{"src":"prakash-om-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
+{"src":"prakash-diya-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+{"src":"prakash-diya-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+{"src":"prakash-diya-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},
+{"src":"prakash-diya-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
