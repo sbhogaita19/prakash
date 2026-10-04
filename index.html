@@ -350,7 +350,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.19.1';
+const VERSION = '1.19.2';
 const KEY = 'sadhana-v1';            // kept so existing data carries over (the guest workspace)
 /* 1.17.0: a signed-in account has its own workspace on this phone, beside the guest one. Guest data is never overwritten by it. */
 const WS_KEY = 'prakash-ws-active', ACCT_PREFIX = 'prakash-acct-';
@@ -1466,8 +1466,9 @@ function nowCard() {
     if (next && gap >= 2) return { eyebrow: 'Training', title: 'Next: ' + next.name, body: next.ex.length + ' exercises, from your plan.', btns: [['Start workout', 'wo-start-next', 'primary']] };
   }
   if (mods().spiritual && m >= mins('11:50') && m < mins('13:00') && !lit('noon')) return prayerCard('noon');
-  if (reviewDue()) return { eyebrow: 'Sunday evening', title: 'The week, looked back on', body: 'Plain facts from the food week, and room for one note.', btns: [['Look back', 'review-now', 'primary'], ['Not this week', 'review-skip', '']] };
-  if (checkinDue()) return { eyebrow: 'Sunday', title: 'Weekly check-in', body: 'Weight, waist and a photo, in one go. Skip any of them.', btns: [['Begin', 'checkin', 'primary'], ['Not this week', 'checkin-skip', '']] };
+  /* 1.19.2: Sunday from 6:00am, the morning weigh-in comes first, then the look-back; no weight is asked again in the evening */
+  if (checkinDue()) return { eyebrow: 'Sunday morning', title: 'Weekly check-in', body: 'Weight, waist and a photo, in one go. Skip any of them.', btns: [['Begin', 'checkin', 'primary'], ['Not this week', 'checkin-skip', '']] };
+  if (reviewDue()) return { eyebrow: 'Sunday', title: 'The week, looked back on', body: 'Plain facts from the food week, and room for one note.', btns: [['Look back', 'review-now', 'primary'], ['Not this week', 'review-skip', '']] };
   if (photoDue) return { eyebrow: 'Every two weeks', title: 'Progress photo', body: 'Front and side, same light, same spot.', btns: [['Open photos', 'photos-open', 'primary'], ['Not now', 'photo-snooze', '']] };
   return null;
 }
@@ -3758,12 +3759,12 @@ function estToDraft(e, src, manual) {
   e.ings = null; e.loading = false; openDraft([it], 'photo');
 }
 /* ================= THE WEEK, LOOKED BACK ON =================
-   Sunday evening, a calm look at the food week: plain facts, one open question, one note of your own.
+   Sunday morning (from 6:00, all day until seen), a calm look at the food week that includes Sunday itself: plain facts, one open question, one note of your own.
    Once a month, the notes read together, with what repeated in the diary. Everything stays on this phone. */
 let reviewWeek = null, reviewMonth = null;
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 function weekNotes() { if (!S.weekNotes) S.weekNotes = {}; return S.weekNotes; }
-function reviewDue() { const k = todayKey(), m = nowMins(); return mods().food && dateOf(k).getDay() === 0 && m >= mins('17:00') && S.profile.reviewWeek !== mondayOf(k) && Object.keys(S.days).some(dk => dk >= mondayOf(k) && realFoods(peekDay(dk)).length); }
+function reviewDue() { const k = todayKey(), m = nowMins(); return mods().food && dateOf(k).getDay() === 0 && m >= mins('06:00') && S.profile.reviewWeek !== mondayOf(k) && Object.keys(S.days).some(dk => dk >= mondayOf(k) && realFoods(peekDay(dk)).length); }
 function weekFacts(k) {
   const wb = weekBudget(k), p = S.profile, keys = wb.keys, t = todayKey();
   const past = wb.days.filter(x => x.dk <= t && x.status !== 'future');
@@ -5593,7 +5594,7 @@ on('photo-del', b => confirmSheet('Delete this photo?', 'It will be gone from th
 async function addPhoto(f) { try { const data = await downscale(f, 1400, 0.82); const blob = b64blob(data.split(',')[1], 'image/jpeg'); const id = uid(); await pput(id, { blob, mime: 'image/jpeg' }); S.photos.push({ id, date: todayKey() }); save(); return true; } catch (x) { toast('Couldn’t save that photo.'); return false; } }
 /* ---------- the weekly check-in: weight, waist, photo, in one go ---------- */
 function sundayOf(k) { const d = dateOf(k); return addDays(k, -d.getDay()); }
-function checkinDue() { const k = todayKey(); return mods().body && dateOf(k).getDay() === 0 && nowMins() >= mins(S.profile.wake || '06:00') && S.profile.checkinWeek !== sundayOf(k); }
+function checkinDue() { const k = todayKey(); return mods().body && dateOf(k).getDay() === 0 && nowMins() >= mins('06:00') && S.profile.checkinWeek !== sundayOf(k); }
 let CI = null;
 function checkinStep() {
   const p = S.profile, lw = [...S.waists].sort((a, b) => a.date < b.date ? -1 : 1).pop(), steps = ['weight', 'waist', 'photo', 'done'], k = steps[CI.i];
@@ -5897,6 +5898,7 @@ function aboutHtml() {
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
   <section class="card stack" style="gap:8px"><p class="small">Eat, move, sit, pray, listen, write. Six ways of looking at the same day. None of it is a course and none of it needs finishing.</p></section>
   <details class="fold card" style="padding:0 16px"><summary>What’s new</summary><ul class="small" style="padding-left:20px;margin:0 0 14px;display:flex;flex-direction:column;gap:6px">
+  <li>1.19.2, Sunday: the week looked back on now opens on Sunday morning, from 6:00, and includes Sunday itself. The weekly weigh-in comes first, in the morning, and is not asked again in the evening. Nothing you saved has changed.</li>
   <li>1.19.1, the pause: the Stop no longer arrives by itself, as a card on Today or as a notification. The pause is there when you open it yourself (Sit, Through the day), and its words are plain statements and open offers. Nothing you saved has changed.</li>
   <li>1.19.0, polish: Eat’s add sheet now says “This was:”, and Write has a last question, “What’s asking for food?”. Moments has heavy feelings beside the pleasant ones (Sad, Angry, Afraid, Lonely, Tired, Restless). Today shows one prayer card, the speech-service note is said once at the first microphone tap, and a few repeats are gone. Setup has a real Skip. The sections are named Eat, Move, Sit, Moments and Write everywhere. Talks you play now count in the week looked back on. Rarely, when your own record shows something plain, one quiet line says so and leaves an open offer. Nothing you saved has changed.</li>
   <li>1.18.0, journal and moments: the journal’s questions are tighter (the “rest there” step is now a pause, not a box to fill; “Who is noticing this?” stands alone), an entry’s kind is labelled “Kind of entry”, moments always show the time they were kept (with the timezone if you were elsewhere), and an optional, off-by-default note of roughly where you were, with places you can name (You, Settings, Where you are).</li>
