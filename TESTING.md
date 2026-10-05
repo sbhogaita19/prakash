@@ -1,4 +1,4 @@
-# Testing 1.19.2 (Sunday timing) on top of 1.19.1
+# Testing 1.19.3 (sleep on the Energy card; talks with screen off on Android) on top of 1.19.2
 
 Simulated clock in a 412 px browser, seeded with a 1.19.1 week (Mon to Sat logged): Saturday 23:00 no check-in or look-back; Sunday 05:59 nothing; Sunday 06:00 the weekly check-in card (weight first) appears, then the look-back after it, and both stay until seen; Sunday's own entry is counted in the 7 days ending today; Monday 08:00 neither is pushed. The check-in sheet opens on Weight, no horizontal overflow. No data shape changed, so a 1.19.1 data set loads as it was. Not run: offline reload of the installed app (service worker cache list unchanged but for the version), a real phone.
 

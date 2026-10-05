@@ -350,7 +350,7 @@ table.t th,table.t td{padding:8px 6px;border-bottom:1px solid var(--hair2);text-
 <script>
 'use strict';
 /* ================= Prakash ================= */
-const VERSION = '1.19.2';
+const VERSION = '1.19.3';
 const KEY = 'sadhana-v1';            // kept so existing data carries over (the guest workspace)
 /* 1.17.0: a signed-in account has its own workspace on this phone, beside the guest one. Guest data is never overwritten by it. */
 const WS_KEY = 'prakash-ws-active', ACCT_PREFIX = 'prakash-acct-';
@@ -1374,20 +1374,20 @@ function energyHtml(k) {
     const d = peekDay(k) || {}, steps = +d.steps || 0, walk = +d.walkMin || 0, wm = S.workouts.filter(w => w.date === k).reduce((a, w) => a + (+w.durationMin || 0), 0);
     const moved = [steps ? big(steps) + ' steps' : walk ? walk + ' min walking' : '', wm ? wm + ' min training' : ''].filter(Boolean).join(' · ') || 'nothing logged';
     return `<section class="card stack" style="gap:4px" aria-label="Energy in and out"><h2 style="font-size:20px">Energy in and out</h2>
-  <div class="facts"><div class="fact"><span>Eat</span><strong>${e.logged ? big(e.in) + ' kcal' : 'nothing logged'}</strong></div><div class="fact"><span>Steps and training</span><strong style="font-weight:500">${esc(moved)}</strong></div></div>
+  <div class="facts"><div class="fact"><span>Eat</span><strong>${e.logged ? big(e.in) + ' kcal' : 'nothing logged'}</strong></div><div class="fact"><span>Steps and training</span><strong style="font-weight:500">${esc(moved)}</strong></div>${e.sleep ? `<div class="fact"><span>Sleep<span class="tiny" style="display:block">part of resting, adds no energy of its own</span></span><strong style="font-weight:500">${e.sleep} h</strong></div>` : ''}</div>
   <button class="link" data-a="energy-how" style="align-self:flex-start;padding:0">How this is worked out</button></section>`;
   }
   return `<section class="card stack" style="gap:4px" aria-label="Energy in and out"><h2 style="font-size:20px">Energy in and out</h2>
   <div class="facts"><div class="fact"><span>In<span class="tiny" style="display:block">from your food diary</span></span><strong>${e.logged ? big(e.in) + ' kcal' : 'nothing logged'}</strong></div>
   <div class="fact"><span>Out<span class="tiny" style="display:block">estimate</span></span><strong>~${big(e.out)} kcal</strong></div></div>
-  <span class="eyebrow" style="margin-top:8px">What makes up “out” (estimate)</span><div class="facts">${energyRows(e)}${e.sleep ? `<p class="tiny" style="margin:6px 0 0">Sleep last night: ${e.sleep} h, counted within resting.</p>` : ''}</div>
+  <span class="eyebrow" style="margin-top:8px">What makes up “out” (estimate)</span><div class="facts">${energyRows(e)}${e.sleep ? `<div class="fact" style="padding:6px 0;align-items:center"><span>Sleep<span class="tiny" style="display:block">part of resting, adds no energy of its own</span></span><strong style="font-weight:500">${e.sleep} h</strong></div>` : ''}</div>
   ${e.logged ? `<p class="small" style="margin:4px 0 0">Difference ${e.in - e.out > 0 ? '+' : e.in - e.out < 0 ? '−' : '±'}${big(Math.abs(e.in - e.out))} kcal <span class="tiny">(estimate)</span></p>` : ''}</section>`;
 }
 /* the explanation that used to sit on the card, unchanged in substance: what is missing, and what is shown until then */
 on('energy-how', () => {
   const k = todayKey(), e = energyDay(k), miss = energyMissing(), list = a => a.length === 1 ? a[0] : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
   openSheet(`<div class="stack"><p class="small">The full estimate of energy out needs your ${list(miss)} (You › Body and You › Goals and your day). Until then only what you logged is shown${e.kg ? ', with the energy of movement from your weight' : ''}. No weight is ever assumed.</p>
-  <span class="eyebrow">Movement logged today</span><div class="facts">${energyRows(e)}</div></div>`, { title: 'Energy in and out', label: 'How energy in and out is worked out' });
+  <span class="eyebrow">Movement logged today</span><div class="facts">${energyRows(e)}</div>${e.sleep ? `<p class="small">Sleep you noted: ${e.sleep} h. Sleep is part of resting energy, which covers the whole day, so it is shown for the picture and adds no energy of its own.</p>` : ''}</div>`, { title: 'Energy in and out', label: 'How energy in and out is worked out' });
 });
 function eveningLineHtml() {
   if (!mods().mind || nowMins() < 18 * 60) return '';
@@ -5898,6 +5898,7 @@ function aboutHtml() {
   <section class="card stack" style="gap:8px"><h2>Why a mirror</h2><p class="small">In Kashmir Shaivism, <i>prakāśa</i> is light: the plain awareness in which everything shows itself. <i>Vimarśa</i> is that light knowing itself, the way a mirror shows a face without adding to it.</p><p class="small">Prakash tries to do only the second part. It shows your day back to you, numbers included: what you ate, how you moved, when you sat. The numbers are there to be seen, not to grade you. The seeing is yours.</p><p class="small">What looks through all of this, the seeing itself, Kashmir Shaivism calls Shiva. Prakash doesn’t show that. It only leaves room for it.</p></section>
   <section class="card stack" style="gap:8px"><p class="small">Eat, move, sit, pray, listen, write. Six ways of looking at the same day. None of it is a course and none of it needs finishing.</p></section>
   <details class="fold card" style="padding:0 16px"><summary>What’s new</summary><ul class="small" style="padding-left:20px;margin:0 0 14px;display:flex;flex-direction:column;gap:6px">
+  <li>1.19.3: sleep you note now shows on the Energy card, with a line saying it is part of resting energy and adds none of its own. Talks on the Android app keep playing with the screen off.</li>
   <li>1.19.2, Sunday: the week looked back on now opens on Sunday morning, from 6:00, and includes Sunday itself. The weekly weigh-in comes first, in the morning, and is not asked again in the evening. Nothing you saved has changed.</li>
   <li>1.19.1, the pause: the Stop no longer arrives by itself, as a card on Today or as a notification. The pause is there when you open it yourself (Sit, Through the day), and its words are plain statements and open offers. Nothing you saved has changed.</li>
   <li>1.19.0, polish: Eat’s add sheet now says “This was:”, and Write has a last question, “What’s asking for food?”. Moments has heavy feelings beside the pleasant ones (Sad, Angry, Afraid, Lonely, Tired, Restless). Today shows one prayer card, the speech-service note is said once at the first microphone tap, and a few repeats are gone. Setup has a real Skip. The sections are named Eat, Move, Sit, Moments and Write everywhere. Talks you play now count in the week looked back on. Rarely, when your own record shows something plain, one quiet line says so and leaves an open offer. Nothing you saved has changed.</li>
